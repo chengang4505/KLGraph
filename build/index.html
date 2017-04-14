@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>test</title>
+
+    <link rel="stylesheet" href="assert/font-awesome-4.7.0/css/font-awesome.css">
+
+    <script src="assert/lib/d3.min.js"></script>
+    <script src="assert/lib/cola.min.js"></script>
+    <script src="assert/lib/dagre.js"></script>
+    <script src="assert/lib/jquery.min.js"></script>
+    <script src="js/bundle.js"></script>
+
+    <script src="assert/js/data.js"></script>
+    <style>
+        .fa{
+            display: block;
+            height:1px;
+            color: rgba(0,0,0,0);
+        }
+    </style>
+</head>
+<body>
+<canvas id="canvas" style="width: 1000px;height: 800px;"></canvas>
+<i class="fa fa-university"></i>
+<script>
+
+    var colors = ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd", "#8c564b", "#e377c2", "#7f7f7f", "#bcbd22", "#17becf"];
+
+    var g = {
+        nodes:[],
+        edges:[]
+    };
+
+    var canvas = document.getElementById('canvas');
+
+    var N = 2000;
+
+    var icons = ['\uf19c','\uf1a7','\uf19e','\uf1a0'];
+
+    testData.data.nodes.forEach(function (e) {
+        g.nodes.push({
+//            img:Math.random() > 0.5 ? null : './img/eye-icon.png',
+            flag:Math.random() > 0.5,
+            id:e[0],
+            label:e[1],
+            x: (Math.random() * 2-1)*500,
+            y: (Math.random() * 2-1)*400,
+            size:(Math.random())*10+5,
+            color:colors[(Math.random()*colors.length)|0],
+            icon:icons[(Math.random()*icons.length)|0],
+        });
+    })
+
+    testData.data.relationships.forEach(function (e) {
+        g.edges.push({
+            label:e[2],
+            source:e[0],
+            target:e[1]
+        });
+    })
+
+//
+//    for (var i = 0; i < N; i++) {
+//        g.nodes.push({
+//            img:Math.random() > 0.5 ? null : './img/eye-icon.png',
+//            id:'node'+i,
+//            label:'node'+i,
+//            x: (Math.random() * 2-1)*500,
+//            y: (Math.random() * 2-1)*400,
+//            size:(Math.random())*10+5,
+//            color:colors[(Math.random()*colors.length)|0],
+//            icon:icons[(Math.random()*icons.length)|0],
+//        });
+//    }
+//
+//    for (var i = 0; i < N/2; i++) {
+//        var sourceid =  (Math.random() * N) | 0;
+//        var targetid =  (Math.random() * N) | 0;
+//        if(sourceid != targetid){
+//            g.edges.push({
+//                id:'edge'+i,
+//                label:'edge'+i,
+//                source:'node'+sourceid,
+//                target:'node'+targetid
+//            });
+//        }
+//
+//    }
+
+//    g.nodes = [
+//        {id:'node1',label:'节点１', x:-500, y:0, size:20},
+//        {id:'node2',label:'节点2', x:0, y:0, size:20},
+////        {id:'node3',label:'节点2', x:(Math.random() * 2-1)*500, y:(Math.random() * 2-1)*500, size:50},
+////        {id:'node4',label:'节点2', x:(Math.random() * 2-1)*500, y:(Math.random() * 2-1)*500, size:50},
+//    ];
+//
+//    g.edges = [
+//        {source:'node1',target:'node2',label:'ddd'}
+//    ];
+
+
+
+    var gview = new KLGraph.GraphView({
+        layout:'circular',
+        nodes:g.nodes,
+        edges:g.edges,
+        container:canvas
+    });
+
+    gview.on('nodeclick',function (node,e) {
+//        gview.graph.setNodeData(node.id,{selected:true});
+        console.log(node);
+//        console.log('nodeclick');
+    });
+    gview.on('stageclick',function (e) {
+        console.log('stageclick');
+    });
+
+    document.addEventListener('keydown',function (e) {
+        if(e.which == 46){
+            var nodes = gview.getSelection();
+            nodes.length && gview.graph.removeNode(nodes[0].id)
+        }
+    })
+
+    function  test() {
+        g.nodes.forEach(function (e) {
+            e.flag = Math.random() > 0.5;
+        })
+    }
+
+
+
+</script>
+</body>
+</html>

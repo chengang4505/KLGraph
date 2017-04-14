@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en>
+<head>
+    <meta charset="utf-8"></meta>
+    <title>test</title>
+    <script src="assert/lib/d3.min.js"></script>
+    <script src="assert/lib/jquery.min.js"></script>
+    <script src="js/bundle.js"></script>
+
+    <script src="assert/js/data.js"></script>
+    <style>
+        .graph_node {
+            cursor: pointer;
+        }
+
+        .graph_node:hover #c2 {
+            fill: red;
+        !important;
+        }
+    </style>
+</head>
+<body>
+<div>
+    <svg width="800" height="800" id="svg" style="background-color: aliceblue"></svg>
+</div>
+<script>
+    var nodes = [
+        {id: 'test', x: 40, y: 40, r: 20},
+        {id: 'test1', x: 140, y: 140, r: 30},
+    ];
+
+    var edges = [
+        {source: 'test', target: 'test1'}
+    ];
+
+    var temp;
+    nodes = testData.data.nodes.map(function (e,i) {
+        temp =  {
+            r: 10,
+            id: e[0],
+            name: e[1],
+        }
+        return temp;
+    });
+
+    edges = testData.data.relationships.map(function (e,i) {
+        return {
+            source: e[0],
+            target: e[1]
+        };
+    });
+
+    //    nodes = [];
+    //    edges = [];
+    //
+    //    var N = 3000;
+    //    for (var i = 0; i < N; i++) {
+    //        nodes.push({
+    //            r: 10,
+    //            id: 'node' + i,
+    //            name: 'node' + i,
+    //            x: Math.random() * 800,
+    //            y: Math.random() * 800,
+    //        });
+    //    }
+    //
+    //    for (var i = 0; i < 200; i++) {
+    //        edges.push({
+    //            target: 'node' + (Math.random() * (N - 1) | 0),
+    //            source: 'node' + (Math.random() * (N - 1) | 0),
+    //            name: 'edge' + i
+    //        });
+    //    }
+
+    //debugger
+
+    console.time('render');
+    var ng = graph.Ngraph({
+        container: 'svg',
+        nodes: nodes,
+        edges: edges
+    });
+    console.timeEnd('render');
+
+    var aa = ng.nodesContainer.selectAll('g.graph_node')
+    //graph.animation.transformAni(aa)
+
+    ng.on('nodeClick', function (e, data, node) {
+        console.log(e, data, node);
+    })
+    ng.on('nodeRClick', function (e, data, node) {
+        console.log(e, data, node);
+    })
+
+    var layout1 = new graph.layout.CircularLayout();
+    var r = layout1.layout(ng);
+
+    function test() {
+        var Tween = graph.Tween;
+        var nodes = ng.nodes;
+        var toObjs = ng.nodes.map(function () {
+            return {x: Math.random() * 800, y: Math.random() * 800};
+        });
+        Tween(nodes).to(toObjs).duration(1000).on('change', function (t) {
+            ng.updateNodes(nodes);
+        })
+    }
+
+    function test1() {
+        var Tween = graph.Tween;
+        var nodes = ng.nodes;
+        Tween(nodes).to(r).duration(1000).on('change', function (t) {
+            ng.updateNodes(nodes);
+        })
+    }
+
+    function test2() {
+        var testData = {
+            nodes:[
+                {id:'A'},
+                {id:'B'},
+                {id:'C'},
+                {id:'D'},
+                {id:'E'},
+                {id:'F'}
+            ],
+            edges:[
+                ['A','B',6],
+                ['A','C',3],
+                ['B','C',2],
+                ['B','D',5],
+                ['C','D',3],
+                ['C','E',4],
+                ['D','E',1],
+                ['D','F',3],
+                ['E','F',3],
+            ],
+        };
+        var map = {};
+        var x,y,n = testData.num;
+        testData.nodes.forEach(function (e,i) {
+            map[e.id] = e;
+        });
+
+        var temp;
+        var getShortestPath = graph.algorithm.getShortestPath,
+            dijkstra_multi = graph.algorithm.dijkstra_multi;
+        for(var i = 0;i<testData.edges.length;i++){
+            temp = testData.edges[i];
+            testData.edges[i] = {
+                source:map[temp[0]],
+                target:map[temp[1]],
+                value:temp[2]
+            }
+        }
+
+        // dijkstra(testData,0);
+        dijkstra_multi(testData,0);
+
+        // console.log(testData.edges);
+        getShortestPath(testData,'A');
+    }
+
+//    test2();
+    test1();
+
+
+</script>
+</body>
+</html>

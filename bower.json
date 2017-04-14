@@ -1,0 +1,24 @@
+{
+  "name": "graph",
+  "description": "A graph visualization lib.",
+  "main": "bundle.js",
+  "authors": [
+    "chengang"
+  ],
+  "license": "MIT",
+  "keywords": [
+    "graph"
+  ],
+  "homepage": "",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ],
+  "dependencies": {
+    "jquery": "^3.1.1",
+    "d3": "^4.5.0"
+  }
+}

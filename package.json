@@ -1,0 +1,26 @@
+{
+  "name": "graph",
+  "version": "1.0.0",
+  "description": "A graph visualization lib.",
+  "main": "bundle.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "webpack --progress --colors --watch"
+  },
+  "keywords": [
+    "graph"
+  ],
+  "author": "chengang",
+  "license": "MIT",
+  "devDependencies": {
+    "babel-core": "^6.23.0",
+    "babel-loader": "^6.2.10",
+    "babel-preset-es2015": "^6.22.0",
+    "babel-preset-stage-0": "^6.22.0",
+    "css-loader": "^0.26.1",
+    "jsdoc": "^3.4.3",
+    "raw-loader": "^0.5.1",
+    "style-loader": "^0.13.1",
+    "webpack": "^1.12.2"
+  }
+}
