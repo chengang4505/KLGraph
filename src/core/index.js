@@ -51,7 +51,7 @@ export  default  class Core{
                 n++;
                 time = time/1000;
                 if((time - start) > 1){
-                    // console.log(n);
+                    console.log(n);
                     n = -1;
                     start = time;
                 }

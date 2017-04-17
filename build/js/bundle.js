@@ -64,7 +64,7 @@ window["KLGraph"] =
 /******/ 	__webpack_require__.p = "";
 /******/
 /******/ 	// Load entry module and return exports
-/******/ 	return __webpack_require__(__webpack_require__.s = 34);
+/******/ 	return __webpack_require__(__webpack_require__.s = 38);
 /******/ })
 /************************************************************************/
 /******/ ([
@@ -929,6 +929,123 @@ exports.default = Graph;
 Object.defineProperty(exports, "__esModule", {
     value: true
 });
+/**
+ * Created by chengang on 17-3-28.
+ */
+var mat3 = {};
+
+mat3.normalize = function () {
+    return [1, 0, 0, 0, 1, 0, 0, 0, 1];
+};
+
+mat3.matrixFromTranslate = function (dx, dy) {
+    return [1, 0, 0, 0, 1, 0, dx, dy, 1];
+};
+
+mat3.matrixFromRotation = function (angle) {
+    var cos = Math.cos(angle),
+        sin = Math.sin(angle);
+
+    return [cos, sin, 0, -sin, cos, 0, 0, 0, 1];
+};
+
+mat3.matrixFromScale = function (x, y) {
+    return [x, 0, 0, 0, y, 0, 0, 0, 1];
+};
+
+mat3.invert = function (a) {
+    var l = 3,
+        a11 = a[0 * l + 0],
+        a12 = a[0 * l + 1],
+        a13 = a[0 * l + 2],
+        a21 = a[1 * l + 0],
+        a22 = a[1 * l + 1],
+        a23 = a[1 * l + 2],
+        a31 = a[2 * l + 0],
+        a32 = a[2 * l + 1],
+        a33 = a[2 * l + 2];
+
+    var del = a11 * (a22 * a33 - a23 * a32) - a12 * (a21 * a33 - a23 * a31) + a13 * (a21 * a32 - a22 * a31);
+
+    return [(a22 * a33 - a23 * a32) / del, (a13 * a32 - a12 * a33) / del, (a12 * a23 - a13 * a22) / del, (a23 * a31 - a21 * a33) / del, (a11 * a33 - a13 * a31) / del, (a13 * a21 - a11 * a23) / del, (a21 * a32 - a22 * a31) / del, (a12 * a31 - a11 * a32) / del, (a11 * a22 - a12 * a21) / del];
+};
+
+mat3.multiply = function (a, b) {
+    var l = 3,
+        a00 = a[0 * l + 0],
+        a01 = a[0 * l + 1],
+        a02 = a[0 * l + 2],
+        a10 = a[1 * l + 0],
+        a11 = a[1 * l + 1],
+        a12 = a[1 * l + 2],
+        a20 = a[2 * l + 0],
+        a21 = a[2 * l + 1],
+        a22 = a[2 * l + 2],
+        b00 = b[0 * l + 0],
+        b01 = b[0 * l + 1],
+        b02 = b[0 * l + 2],
+        b10 = b[1 * l + 0],
+        b11 = b[1 * l + 1],
+        b12 = b[1 * l + 2],
+        b20 = b[2 * l + 0],
+        b21 = b[2 * l + 1],
+        b22 = b[2 * l + 2];
+
+    return [a00 * b00 + a01 * b10 + a02 * b20, a00 * b01 + a01 * b11 + a02 * b21, a00 * b02 + a01 * b12 + a02 * b22, a10 * b00 + a11 * b10 + a12 * b20, a10 * b01 + a11 * b11 + a12 * b21, a10 * b02 + a11 * b12 + a12 * b22, a20 * b00 + a21 * b10 + a22 * b20, a20 * b01 + a21 * b11 + a22 * b21, a20 * b02 + a21 * b12 + a22 * b22];
+};
+
+mat3.transformPoint = function (p, a) {
+    var x = p[0],
+        y = p[1];
+    var l = 3,
+        a00 = a[0 * l + 0],
+        a01 = a[0 * l + 1],
+        a02 = a[0 * l + 2],
+        a10 = a[1 * l + 0],
+        a11 = a[1 * l + 1],
+        a12 = a[1 * l + 2],
+        a20 = a[2 * l + 0],
+        a21 = a[2 * l + 1],
+        a22 = a[2 * l + 2];
+
+    return [x * a00 + y * a10 + a20, x * a01 + y * a11 + a21];
+};
+
+mat3.rotateVector = function (v, a) {
+    var x = v[0],
+        y = v[1];
+    var l = 3,
+        a00 = a[0 * l + 0],
+        a01 = a[0 * l + 1],
+        a02 = a[0 * l + 2],
+        a10 = a[1 * l + 0],
+        a11 = a[1 * l + 1],
+        a12 = a[1 * l + 2],
+        a20 = a[2 * l + 0],
+        a21 = a[2 * l + 1],
+        a22 = a[2 * l + 2];
+
+    return [x * a00 + y * a10, x * a01 + y * a11];
+};
+
+mat3.multiMatrix = function (matrixs) {
+    return matrixs.reduce(function (pre, cur) {
+        return mat3.multiply(pre, cur);
+    });
+};
+
+exports.default = mat3;
+
+/***/ }),
+/* 6 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
 
 var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
 
@@ -936,7 +1053,7 @@ var _util = __webpack_require__(0);
 
 var _util2 = _interopRequireDefault(_util);
 
-var _Matrix = __webpack_require__(10);
+var _Matrix = __webpack_require__(5);
 
 var _Matrix2 = _interopRequireDefault(_Matrix);
 
@@ -944,15 +1061,15 @@ var _EventEmitter2 = __webpack_require__(1);
 
 var _EventEmitter3 = _interopRequireDefault(_EventEmitter2);
 
-var _TextureLoader = __webpack_require__(18);
+var _TextureLoader = __webpack_require__(19);
 
 var _TextureLoader2 = _interopRequireDefault(_TextureLoader);
 
-var _TextureText = __webpack_require__(19);
+var _TextureText = __webpack_require__(20);
 
 var _TextureText2 = _interopRequireDefault(_TextureText);
 
-var _TextureIcon = __webpack_require__(35);
+var _TextureIcon = __webpack_require__(18);
 
 var _TextureIcon2 = _interopRequireDefault(_TextureIcon);
 
@@ -1474,6 +1591,8 @@ var WebGLRender = function (_EventEmitter) {
     }, {
         key: 'updateRenderData',
         value: function updateRenderData(rootType, id, argFn) {
+            // this.clearRenderCache();return;
+
             if (!this.renderType[rootType].cache) return;
 
             var cache = this.renderType[rootType].index[id]; //
@@ -1563,13 +1682,13 @@ var WebGLRender = function (_EventEmitter) {
 exports.default = WebGLRender;
 
 /***/ }),
-/* 6 */
+/* 7 */
 /***/ (function(module, exports) {
 
 module.exports = " precision mediump float;\n\nvec4 color = vec4(77, 72, 91,255);\n\nvarying vec2 v_texCoord;\nuniform sampler2D u_image;\n\n\nvoid main() {\n    color = color / 255.0;\n   vec4 color0 = texture2D(u_image, v_texCoord);\n   gl_FragColor = color * color0.w;\n}"
 
 /***/ }),
-/* 7 */
+/* 8 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -1588,7 +1707,7 @@ var _Graph = __webpack_require__(4);
 
 var _Graph2 = _interopRequireDefault(_Graph);
 
-var _render2 = __webpack_require__(5);
+var _render2 = __webpack_require__(6);
 
 var _render3 = _interopRequireDefault(_render2);
 
@@ -1596,7 +1715,7 @@ var _util = __webpack_require__(0);
 
 var _util2 = _interopRequireDefault(_util);
 
-var _tween = __webpack_require__(9);
+var _tween = __webpack_require__(10);
 
 var _tween2 = _interopRequireDefault(_tween);
 
@@ -1651,7 +1770,7 @@ var Core = function () {
                     n++;
                     time = time / 1000;
                     if (time - start > 1) {
-                        // console.log(n);
+                        console.log(n);
                         n = -1;
                         start = time;
                     }
@@ -1731,7 +1850,7 @@ Core.layout = _index2.default;
 exports.default = Core;
 
 /***/ }),
-/* 8 */
+/* 9 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -1742,23 +1861,23 @@ Object.defineProperty(exports, "__esModule", {
 });
 exports.WebGLRender = undefined;
 
-var _render = __webpack_require__(5);
+var _render = __webpack_require__(6);
 
 var _render2 = _interopRequireDefault(_render);
 
-var _index = __webpack_require__(25);
+var _index = __webpack_require__(27);
 
 var _index2 = _interopRequireDefault(_index);
 
-var _default = __webpack_require__(20);
+var _default = __webpack_require__(21);
 
 var _default2 = _interopRequireDefault(_default);
 
-var _NodeLabel = __webpack_require__(22);
+var _NodeLabel = __webpack_require__(23);
 
 var _NodeLabel2 = _interopRequireDefault(_NodeLabel);
 
-var _EdgeLabel = __webpack_require__(21);
+var _EdgeLabel = __webpack_require__(22);
 
 var _EdgeLabel2 = _interopRequireDefault(_EdgeLabel);
 
@@ -1781,7 +1900,7 @@ _render2.default.edgeLabel.default = _EdgeLabel2.default;
 exports.WebGLRender = _render2.default;
 
 /***/ }),
-/* 9 */
+/* 10 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -1862,123 +1981,6 @@ p.stop = function () {
     this.objs = null;
     this.interpolates = null;
 };
-
-/***/ }),
-/* 10 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", {
-    value: true
-});
-/**
- * Created by chengang on 17-3-28.
- */
-var mat3 = {};
-
-mat3.normalize = function () {
-    return [1, 0, 0, 0, 1, 0, 0, 0, 1];
-};
-
-mat3.matrixFromTranslate = function (dx, dy) {
-    return [1, 0, 0, 0, 1, 0, dx, dy, 1];
-};
-
-mat3.matrixFromRotation = function (angle) {
-    var cos = Math.cos(angle),
-        sin = Math.sin(angle);
-
-    return [cos, sin, 0, -sin, cos, 0, 0, 0, 1];
-};
-
-mat3.matrixFromScale = function (x, y) {
-    return [x, 0, 0, 0, y, 0, 0, 0, 1];
-};
-
-mat3.invert = function (a) {
-    var l = 3,
-        a11 = a[0 * l + 0],
-        a12 = a[0 * l + 1],
-        a13 = a[0 * l + 2],
-        a21 = a[1 * l + 0],
-        a22 = a[1 * l + 1],
-        a23 = a[1 * l + 2],
-        a31 = a[2 * l + 0],
-        a32 = a[2 * l + 1],
-        a33 = a[2 * l + 2];
-
-    var del = a11 * (a22 * a33 - a23 * a32) - a12 * (a21 * a33 - a23 * a31) + a13 * (a21 * a32 - a22 * a31);
-
-    return [(a22 * a33 - a23 * a32) / del, (a13 * a32 - a12 * a33) / del, (a12 * a23 - a13 * a22) / del, (a23 * a31 - a21 * a33) / del, (a11 * a33 - a13 * a31) / del, (a13 * a21 - a11 * a23) / del, (a21 * a32 - a22 * a31) / del, (a12 * a31 - a11 * a32) / del, (a11 * a22 - a12 * a21) / del];
-};
-
-mat3.multiply = function (a, b) {
-    var l = 3,
-        a00 = a[0 * l + 0],
-        a01 = a[0 * l + 1],
-        a02 = a[0 * l + 2],
-        a10 = a[1 * l + 0],
-        a11 = a[1 * l + 1],
-        a12 = a[1 * l + 2],
-        a20 = a[2 * l + 0],
-        a21 = a[2 * l + 1],
-        a22 = a[2 * l + 2],
-        b00 = b[0 * l + 0],
-        b01 = b[0 * l + 1],
-        b02 = b[0 * l + 2],
-        b10 = b[1 * l + 0],
-        b11 = b[1 * l + 1],
-        b12 = b[1 * l + 2],
-        b20 = b[2 * l + 0],
-        b21 = b[2 * l + 1],
-        b22 = b[2 * l + 2];
-
-    return [a00 * b00 + a01 * b10 + a02 * b20, a00 * b01 + a01 * b11 + a02 * b21, a00 * b02 + a01 * b12 + a02 * b22, a10 * b00 + a11 * b10 + a12 * b20, a10 * b01 + a11 * b11 + a12 * b21, a10 * b02 + a11 * b12 + a12 * b22, a20 * b00 + a21 * b10 + a22 * b20, a20 * b01 + a21 * b11 + a22 * b21, a20 * b02 + a21 * b12 + a22 * b22];
-};
-
-mat3.transformPoint = function (p, a) {
-    var x = p[0],
-        y = p[1];
-    var l = 3,
-        a00 = a[0 * l + 0],
-        a01 = a[0 * l + 1],
-        a02 = a[0 * l + 2],
-        a10 = a[1 * l + 0],
-        a11 = a[1 * l + 1],
-        a12 = a[1 * l + 2],
-        a20 = a[2 * l + 0],
-        a21 = a[2 * l + 1],
-        a22 = a[2 * l + 2];
-
-    return [x * a00 + y * a10 + a20, x * a01 + y * a11 + a21];
-};
-
-mat3.rotateVector = function (v, a) {
-    var x = v[0],
-        y = v[1];
-    var l = 3,
-        a00 = a[0 * l + 0],
-        a01 = a[0 * l + 1],
-        a02 = a[0 * l + 2],
-        a10 = a[1 * l + 0],
-        a11 = a[1 * l + 1],
-        a12 = a[1 * l + 2],
-        a20 = a[2 * l + 0],
-        a21 = a[2 * l + 1],
-        a22 = a[2 * l + 2];
-
-    return [x * a00 + y * a10, x * a01 + y * a11];
-};
-
-mat3.multiMatrix = function (matrixs) {
-    return matrixs.reduce(function (pre, cur) {
-        return mat3.multiply(pre, cur);
-    });
-};
-
-exports.default = mat3;
 
 /***/ }),
 /* 11 */
@@ -3188,1215 +3190,6 @@ function _classCallCheck(instance, Constructor) { if (!(instance instanceof Cons
 function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
 
 function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; } /**
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                * Created by chengang on 17-4-5.
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                */
-
-
-var TextureLoader = function (_EventEmitter) {
-    _inherits(TextureLoader, _EventEmitter);
-
-    function TextureLoader(gl) {
-        _classCallCheck(this, TextureLoader);
-
-        var _this = _possibleConstructorReturn(this, (TextureLoader.__proto__ || Object.getPrototypeOf(TextureLoader)).call(this));
-
-        _this.gl = gl;
-        _this.cache = {};
-        _this.textures = [];
-        _this.defaultTexture = _this.createTexture();
-        _this.texturesIndex = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
-        _this.updateGPUTexture();
-        return _this;
-    }
-
-    _createClass(TextureLoader, [{
-        key: 'loadImgs',
-        value: function loadImgs(urls) {
-            if (Array.isArray(urls)) {
-                urls.forEach(function (url) {
-                    this._load(url);
-                }.bind(this));
-            } else {
-                this._load(urls);
-            }
-        }
-    }, {
-        key: '_load',
-        value: function _load(url) {
-            if (!this.cache[url]) {
-                var image = document.createElement('IMG');
-                // image.setAttribute('crossOrigin', imgCrossOrigin);
-                image.src = url;
-                image.onload = function () {
-                    var tx = this.createTexture(image);
-                    this.cache[url] = this.textures.length; //index
-                    this.textures.push(tx);
-                    this.updateGPUTexture();
-                    this.emit('load', [url]);
-                }.bind(this);
-            }
-        }
-    }, {
-        key: 'updateGPUTexture',
-        value: function updateGPUTexture() {
-            var gl = this.gl;
-            this.texturesIndex.forEach(function (e) {
-                gl.activeTexture(gl['TEXTURE' + e]);
-                if (e > this.textures.length - 1) {
-                    gl.bindTexture(gl.TEXTURE_2D, this.defaultTexture);
-                } else {
-                    gl.bindTexture(gl.TEXTURE_2D, this.textures[e]);
-                }
-            }.bind(this));
-        }
-    }, {
-        key: 'createTexture',
-        value: function createTexture(img) {
-            var gl = this.gl;
-            var texture = gl.createTexture();
-            gl.activeTexture(gl.TEXTURE0);
-            gl.bindTexture(gl.TEXTURE_2D, texture);
-
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-
-            if (img) gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);else gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 2, 2, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
-
-            return texture;
-        }
-    }]);
-
-    return TextureLoader;
-}(_EventEmitter3.default);
-
-exports.default = TextureLoader;
-
-/***/ }),
-/* 19 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", {
-    value: true
-});
-
-var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
-
-var _EventEmitter2 = __webpack_require__(1);
-
-var _EventEmitter3 = _interopRequireDefault(_EventEmitter2);
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
-
-function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
-
-function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; } /**
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                * Created by chengang on 17-4-7.
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                */
-
-var TextureText = function (_EventEmitter) {
-    _inherits(TextureText, _EventEmitter);
-
-    function TextureText(gl) {
-        _classCallCheck(this, TextureText);
-
-        var _this = _possibleConstructorReturn(this, (TextureText.__proto__ || Object.getPrototypeOf(TextureText)).call(this));
-
-        _this.gl = gl;
-
-        _this.texture = null;
-
-        _this.border = 2;
-
-        _this.fontSize = 26;
-        _this.fontFamily = 'Arial';
-
-        _this.canvas = null;
-
-        _this.textinfo = null;
-
-        _this.texts = null;
-        return _this;
-    }
-
-    _createClass(TextureText, [{
-        key: 'createCanvasImg',
-        value: function createCanvasImg(texts) {
-
-            if (!this.canvas) this.canvas = document.createElement('canvas');
-
-            var c = this.canvas;
-
-            var width = this.fontSize + 1;
-            var height = this.fontSize + 1;
-            var num = Math.ceil(Math.sqrt(texts.length));
-
-            c.width = num * width + 2 * this.border;
-            c.height = num * height + 2 * this.border;
-
-            var ctx = c.getContext("2d");
-
-            ctx.fillStyle = "#000000";
-            ctx.fillRect(0, 0, c.width, c.height);
-
-            ctx.font = 'bold ' + this.fontSize + 'px ' + this.fontFamily;
-            ctx.textAlign = "left";
-            ctx.textBaseline = "top";
-            ctx.fillStyle = "#ff0000";
-
-            var startx = this.border;
-            var starty = this.border;
-            var infos = {},
-                px,
-                py,
-                charWidth;
-
-            this.texts = [];
-
-            for (var i = 0; i < texts.length; i++) {
-
-                if (this.textinfo && this.textinfo.infos[texts[i]]) continue;
-
-                charWidth = ctx.measureText(texts[i]).width;
-                if (startx + charWidth + this.border > c.width) {
-                    startx = this.border;
-                    starty += height;
-                }
-                ctx.fillText(texts[i], startx, starty);
-                infos[texts[i]] = {
-                    uvs: [startx / c.width, starty / c.height, (startx + charWidth) / c.width, (starty + height) / c.height],
-                    width: charWidth / width
-                };
-
-                this.texts.push(texts[i]);
-
-                startx += charWidth + this.border;
-            }
-            this.computeAlpha(ctx);
-            this.textinfo = {
-                fontSize: this.fontSize,
-                img: c,
-                width: c.width,
-                height: c.height,
-                infos: infos
-            };
-
-            // document.body.appendChild(c);
-            this.updateGPUTexture();
-        }
-    }, {
-        key: 'computeAlpha',
-        value: function computeAlpha(ctx) {
-
-            var imgData = ctx.getImageData(0, 0, ctx.canvas.width, ctx.canvas.height);
-            for (var i = 0; i < imgData.data.length; i += 4) {
-                imgData.data[i + 3] = imgData.data[i];
-            }
-
-            ctx.putImageData(imgData, 0, 0);
-        }
-    }, {
-        key: 'updateGPUTexture',
-        value: function updateGPUTexture() {
-            var gl = this.gl;
-
-            this.createTexture();
-
-            gl.activeTexture(gl.TEXTURE10);
-            gl.bindTexture(gl.TEXTURE_2D, this.texture);
-        }
-    }, {
-        key: 'addTexts',
-        value: function addTexts(strs) {
-            var len = strs.length;
-            var char,
-                num = 0;
-
-            var texts = this.texts;
-            var map = {};
-            for (var i = 0; i < len; i++) {
-                char = strs.charAt(i);
-                if (!this.textinfo.infos[char] && !map[char]) {
-                    num++;
-                    map[char] = true;
-                    texts.push(char);
-                }
-            }
-
-            if (num > 0) {
-                this.textinfo = null;
-                this.texts = null;
-                this.createCanvasImg(texts);
-            }
-        }
-    }, {
-        key: 'createTexture',
-        value: function createTexture() {
-
-            var gl = this.gl;
-
-            if (!this.texture) {
-                this.texture = gl.createTexture();
-            }
-            gl.activeTexture(gl.TEXTURE10);
-            gl.bindTexture(gl.TEXTURE_2D, this.texture);
-
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-
-            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, this.textinfo.img);
-        }
-    }]);
-
-    return TextureText;
-}(_EventEmitter3.default);
-
-exports.default = TextureText;
-
-/***/ }),
-/* 20 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", {
-    value: true
-});
-
-var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }(); /**
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      * Created by chengang on 17-3-31.
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      */
-
-var _util = __webpack_require__(0);
-
-var _util2 = _interopRequireDefault(_util);
-
-var _defaultVert = __webpack_require__(27);
-
-var _defaultVert2 = _interopRequireDefault(_defaultVert);
-
-var _defaultFrag = __webpack_require__(26);
-
-var _defaultFrag2 = _interopRequireDefault(_defaultFrag);
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
-
-function addData(arr, attributes, attrData) {
-    for (var i = 0; i < attributes; i++) {
-        arr.push(attrData[i]);
-    }
-}
-
-var Edge = function () {
-    function Edge() {
-        _classCallCheck(this, Edge);
-
-        this.POINTS = 9;
-        this.ATTRIBUTES = 9;
-
-        this.shaderVert = _defaultVert2.default;
-        this.shaderFrag = _defaultFrag2.default;
-
-        this.arrayBuffer = null;
-        this.dataBuffer = null;
-        this.strip = 5 * 4 + 1 * 4;
-    }
-
-    _createClass(Edge, [{
-        key: 'getRenderData',
-        value: function getRenderData(_ref) {
-            var data = _ref.data,
-                source = _ref.source,
-                target = _ref.target;
-
-            var edge = data;
-            var dx = target.x - source.x;
-            var dy = target.y - source.y;
-
-            var data = [];
-            var size = 0.3,
-                arrowSize = 3;
-            var crossVector = _util2.default.normalize([-dy, dx]);
-
-            //arrow
-            var dis = _util2.default.getDistance(source.x, source.y, target.x, target.y);
-            var arrowX = target.x - (target.size + arrowSize) / dis * dx;
-            var arrowY = target.y - (target.size + arrowSize) / dis * dy;
-
-            var color = utils.parseColor(edge.color || source.color || '#b3d2ff');
-
-            addData(data, this.ATTRIBUTES, [source.x, source.y, crossVector[0], crossVector[1], size, color.r, color.g, color.b, color.a]);
-            addData(data, this.ATTRIBUTES, [arrowX, arrowY, crossVector[0], crossVector[1], size, color.r, color.g, color.b, color.a]);
-            addData(data, this.ATTRIBUTES, [source.x, source.y, -crossVector[0], -crossVector[1], size, color.r, color.g, color.b, color.a]);
-            addData(data, this.ATTRIBUTES, [arrowX, arrowY, crossVector[0], crossVector[1], size, color.r, color.g, color.b, color.a]);
-            addData(data, this.ATTRIBUTES, [source.x, source.y, -crossVector[0], -crossVector[1], size, color.r, color.g, color.b, color.a]);
-            addData(data, this.ATTRIBUTES, [arrowX, arrowY, -crossVector[0], -crossVector[1], size, color.r, color.g, color.b, color.a]);
-
-            //arrow
-            addData(data, this.ATTRIBUTES, [arrowX, arrowY, crossVector[0], crossVector[1], arrowSize / 2, color.r, color.g, color.b, color.a]);
-            addData(data, this.ATTRIBUTES, [arrowX, arrowY, -crossVector[0], -crossVector[1], arrowSize / 2, color.r, color.g, color.b, color.a]);
-            addData(data, this.ATTRIBUTES, [arrowX, arrowY, arrowSize / dis * dx, arrowSize / dis * dy, 1, color.r, color.g, color.b, color.a]);
-
-            return data;
-        }
-    }, {
-        key: 'render',
-        value: function render(_ref2) {
-            var gl = _ref2.gl,
-                program = _ref2.program,
-                data = _ref2.data,
-                matrix = _ref2.matrix,
-                camera = _ref2.camera;
-
-            if (!this.dataBuffer) this.dataBuffer = gl.createBuffer();
-
-            var positionLocation = gl.getAttribLocation(program, "a_position");
-            var normalLocation = gl.getAttribLocation(program, "a_normal");
-            var colorLocation = gl.getAttribLocation(program, "a_color");
-            var sizeLocation = gl.getAttribLocation(program, "a_size");
-
-            var matrixLocation = gl.getUniformLocation(program, "u_matrix");
-
-            var len = data.length / this.ATTRIBUTES | 0;
-
-            if (!this.arrayBuffer || len * this.strip != this.arrayBuffer.byteLength) {
-                this.arrayBuffer = new ArrayBuffer(len * this.strip);
-            }
-
-            var float32View = new Float32Array(this.arrayBuffer);
-            var Uint8View = new Uint8Array(this.arrayBuffer);
-
-            var offset32 = this.strip / 4,
-                offset8 = this.strip;
-            for (var i = 0; i < len; i++) {
-                float32View[i * offset32 + 0] = data[i * this.ATTRIBUTES + 0];
-                float32View[i * offset32 + 1] = data[i * this.ATTRIBUTES + 1];
-                float32View[i * offset32 + 2] = data[i * this.ATTRIBUTES + 2];
-                float32View[i * offset32 + 3] = data[i * this.ATTRIBUTES + 3];
-                float32View[i * offset32 + 4] = data[i * this.ATTRIBUTES + 4];
-
-                Uint8View[i * offset8 + 20] = data[i * this.ATTRIBUTES + 5];
-                Uint8View[i * offset8 + 21] = data[i * this.ATTRIBUTES + 6];
-                Uint8View[i * offset8 + 22] = data[i * this.ATTRIBUTES + 7];
-                Uint8View[i * offset8 + 23] = data[i * this.ATTRIBUTES + 8];
-            }
-
-            gl.bindBuffer(gl.ARRAY_BUFFER, this.dataBuffer);
-            gl.bufferData(gl.ARRAY_BUFFER, this.arrayBuffer, gl.STATIC_DRAW);
-
-            gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, this.strip, 0);
-            gl.vertexAttribPointer(normalLocation, 2, gl.FLOAT, false, this.strip, 2 * 4);
-            gl.vertexAttribPointer(sizeLocation, 1, gl.FLOAT, false, this.strip, 4 * 4);
-            gl.vertexAttribPointer(colorLocation, 4, gl.UNSIGNED_BYTE, false, this.strip, 5 * 4);
-
-            gl.bindBuffer(gl.ARRAY_BUFFER, null);
-            gl.enableVertexAttribArray(positionLocation);
-            gl.enableVertexAttribArray(normalLocation);
-            gl.enableVertexAttribArray(sizeLocation);
-            gl.enableVertexAttribArray(colorLocation);
-
-            gl.uniformMatrix3fv(matrixLocation, false, new Float32Array(matrix));
-
-            gl.drawArrays(gl.TRIANGLES, 0, len);
-        }
-    }]);
-
-    return Edge;
-}();
-
-exports.default = Edge;
-
-/***/ }),
-/* 21 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", {
-    value: true
-});
-
-var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }(); /**
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      * Created by chengang on 17-4-7.
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      */
-
-var _util = __webpack_require__(0);
-
-var _util2 = _interopRequireDefault(_util);
-
-var _Matrix = __webpack_require__(10);
-
-var _Matrix2 = _interopRequireDefault(_Matrix);
-
-var _edgeLabelVert = __webpack_require__(28);
-
-var _edgeLabelVert2 = _interopRequireDefault(_edgeLabelVert);
-
-var _labelFrag = __webpack_require__(6);
-
-var _labelFrag2 = _interopRequireDefault(_labelFrag);
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
-
-function addData(arr, attributes, attrData, centerX, centerY, angle) {
-    var rotate = _Matrix2.default.transformPoint([attrData[0], attrData[1]], _Matrix2.default.matrixFromRotation(angle));
-    attrData[0] = rotate[0] + centerX;
-    attrData[1] = rotate[1] + centerY;
-
-    for (var i = 0; i < attributes; i++) {
-        arr.push(attrData[i]);
-    }
-}
-
-var NodeLabel = function () {
-    function NodeLabel() {
-        _classCallCheck(this, NodeLabel);
-
-        // this.POINTS = 1;
-        this.ATTRIBUTES = 4;
-
-        this.shaderVert = _edgeLabelVert2.default;
-        this.shaderFrag = _labelFrag2.default;
-
-        this.arrayBuffer = null;
-        this.dataBuffer = null;
-        this.strip = 4 * 4;
-    }
-
-    _createClass(NodeLabel, [{
-        key: 'getRenderData',
-        value: function getRenderData(_ref) {
-            var data = _ref.data,
-                source = _ref.source,
-                target = _ref.target,
-                textureText = _ref.textureText;
-
-            var edge = data;
-            if (!edge.label) return [];
-
-            // debugger
-            var str = edge.label.split('');
-
-            var data = [];
-
-            var infos = textureText.textinfo.infos,
-                charWidth = source.size / 2,
-                charHeight = source.size / 2,
-                char,
-                uv,
-                width;
-
-            var totalWidht = 0;
-            for (var i = 0; i < str.length; i++) {
-                char = str[i];
-                if (!infos[char]) {
-                    console.log(1);
-                    continue;
-                }
-                totalWidht += infos[char].width * charWidth;
-            }
-
-            var dx = target.x - source.x;
-            var dy = target.y - source.y;
-
-            var angle = _util2.default.getAngle(1, 0, dx, dy);
-
-            angle = dy < 0 ? Math.PI - angle : angle;
-            angle = angle > Math.PI / 2 ? angle + Math.PI : angle;
-
-            var centerX = (source.x + target.x) / 2,
-                centerY = (source.y + target.y) / 2;
-            var startx = totalWidht / 2 * -1;
-            var starty = charHeight / 2;
-            var x1, y1, x2, y2;
-
-            for (var i = 0; i < str.length; i++) {
-                char = str[i];
-                if (!infos[char]) {
-                    console.log('no text texture info');
-                    continue;
-                }
-
-                width = infos[char].width * charWidth;
-                uv = infos[char].uvs;
-                x1 = uv[0], y1 = uv[1], x2 = uv[2], y2 = uv[3];
-
-                addData(data, this.ATTRIBUTES, [startx, starty, x1, y1], centerX, centerY, angle);
-                addData(data, this.ATTRIBUTES, [startx, starty - charHeight, x1, y2], centerX, centerY, angle);
-                addData(data, this.ATTRIBUTES, [startx + width, starty, x2, y1], centerX, centerY, angle);
-                addData(data, this.ATTRIBUTES, [startx, starty - charHeight, x1, y2], centerX, centerY, angle);
-                addData(data, this.ATTRIBUTES, [startx + width, starty, x2, y1], centerX, centerY, angle);
-                addData(data, this.ATTRIBUTES, [startx + width, starty - charHeight, x2, y2], centerX, centerY, angle);
-
-                startx += width;
-            }
-
-            return data;
-        }
-    }, {
-        key: 'render',
-        value: function render(_ref2) {
-            var gl = _ref2.gl,
-                program = _ref2.program,
-                data = _ref2.data,
-                matrix = _ref2.matrix,
-                camera = _ref2.camera,
-                textureLoader = _ref2.textureLoader;
-
-            if (!this.dataBuffer) this.dataBuffer = gl.createBuffer();
-
-            var positionLocation = gl.getAttribLocation(program, "a_position");
-            var uvLocation = gl.getAttribLocation(program, "a_uv");
-
-            var matrixLocation = gl.getUniformLocation(program, "u_matrix");
-            var imageLocation = gl.getUniformLocation(program, "u_image");
-
-            var len = data.length / this.ATTRIBUTES | 0;
-
-            if (!this.arrayBuffer || len * this.strip != this.arrayBuffer.byteLength) {
-                this.arrayBuffer = new ArrayBuffer(len * this.strip);
-            }
-
-            var float32View = new Float32Array(this.arrayBuffer);
-            // var Uint8View = new Uint8Array(this.arrayBuffer);
-
-            var offset32 = this.strip / 4,
-                offset8 = this.strip;
-            for (var i = 0; i < len; i++) {
-                float32View[i * offset32 + 0] = data[i * this.ATTRIBUTES + 0];
-                float32View[i * offset32 + 1] = data[i * this.ATTRIBUTES + 1];
-                float32View[i * offset32 + 2] = data[i * this.ATTRIBUTES + 2];
-                float32View[i * offset32 + 3] = data[i * this.ATTRIBUTES + 3];
-            }
-
-            gl.bindBuffer(gl.ARRAY_BUFFER, this.dataBuffer);
-            gl.bufferData(gl.ARRAY_BUFFER, this.arrayBuffer, gl.STATIC_DRAW);
-
-            gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, this.strip, 0);
-            gl.vertexAttribPointer(uvLocation, 2, gl.FLOAT, false, this.strip, 2 * 4);
-
-            gl.bindBuffer(gl.ARRAY_BUFFER, null);
-            gl.enableVertexAttribArray(positionLocation);
-            gl.enableVertexAttribArray(uvLocation);
-
-            gl.uniformMatrix3fv(matrixLocation, false, new Float32Array(matrix));
-            gl.uniform1i(imageLocation, 10);
-
-            gl.drawArrays(gl.TRIANGLES, 0, len);
-        }
-    }]);
-
-    return NodeLabel;
-}();
-
-exports.default = NodeLabel;
-
-/***/ }),
-/* 22 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", {
-    value: true
-});
-
-var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }(); /**
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      * Created by chengang on 17-4-7.
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      */
-
-
-var _nodeLabelVert = __webpack_require__(29);
-
-var _nodeLabelVert2 = _interopRequireDefault(_nodeLabelVert);
-
-var _labelFrag = __webpack_require__(6);
-
-var _labelFrag2 = _interopRequireDefault(_labelFrag);
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
-
-function addData(arr, attributes, attrData) {
-    for (var i = 0; i < attributes; i++) {
-        arr.push(attrData[i]);
-    }
-}
-
-var NodeLabel = function () {
-    function NodeLabel() {
-        _classCallCheck(this, NodeLabel);
-
-        // this.POINTS = 1;
-        this.ATTRIBUTES = 4;
-
-        this.shaderVert = _nodeLabelVert2.default;
-        this.shaderFrag = _labelFrag2.default;
-
-        this.arrayBuffer = null;
-        this.dataBuffer = null;
-        this.strip = 4 * 4;
-    }
-
-    _createClass(NodeLabel, [{
-        key: 'getRenderData',
-        value: function getRenderData(_ref) {
-            var data = _ref.data,
-                textureText = _ref.textureText;
-
-            var node = data;
-            if (!node.label) return [];
-
-            // debugger
-            var str = node.label.split('');
-
-            var data = [];
-
-            var infos = textureText.textinfo.infos,
-                charWidth = node.size / 2,
-                charHeight = node.size / 2,
-                char,
-                uv,
-                width;
-
-            var totalWidht = 0;
-            for (var i = 0; i < str.length; i++) {
-                char = str[i];
-                if (!infos[char]) {
-                    console.log(1);
-                    continue;
-                }
-                totalWidht += infos[char].width * charWidth;
-            }
-
-            var startx = totalWidht / 2 * -1 + node.x;
-            var starty = node.y - node.size;
-            var x1, y1, x2, y2;
-
-            for (var i = 0; i < str.length; i++) {
-                char = str[i];
-                if (!infos[char]) {
-                    console.log(1);
-                    continue;
-                }
-
-                width = infos[char].width * charWidth;
-                uv = infos[char].uvs;
-                x1 = uv[0], y1 = uv[1], x2 = uv[2], y2 = uv[3];
-
-                addData(data, this.ATTRIBUTES, [startx, starty, x1, y1]);
-                addData(data, this.ATTRIBUTES, [startx, starty - charHeight, x1, y2]);
-                addData(data, this.ATTRIBUTES, [startx + width, starty, x2, y1]);
-                addData(data, this.ATTRIBUTES, [startx, starty - charHeight, x1, y2]);
-                addData(data, this.ATTRIBUTES, [startx + width, starty, x2, y1]);
-                addData(data, this.ATTRIBUTES, [startx + width, starty - charHeight, x2, y2]);
-
-                startx += width;
-            }
-
-            return data;
-        }
-    }, {
-        key: 'render',
-        value: function render(_ref2) {
-            var gl = _ref2.gl,
-                program = _ref2.program,
-                data = _ref2.data,
-                matrix = _ref2.matrix,
-                camera = _ref2.camera,
-                textureLoader = _ref2.textureLoader;
-
-            if (!this.dataBuffer) this.dataBuffer = gl.createBuffer();
-
-            var positionLocation = gl.getAttribLocation(program, "a_position");
-            var uvLocation = gl.getAttribLocation(program, "a_uv");
-
-            var matrixLocation = gl.getUniformLocation(program, "u_matrix");
-            var imageLocation = gl.getUniformLocation(program, "u_image");
-
-            var len = data.length / this.ATTRIBUTES | 0;
-
-            if (!this.arrayBuffer || len * this.strip != this.arrayBuffer.byteLength) {
-                this.arrayBuffer = new ArrayBuffer(len * this.strip);
-            }
-
-            var float32View = new Float32Array(this.arrayBuffer);
-            // var Uint8View = new Uint8Array(this.arrayBuffer);
-
-            var offset32 = this.strip / 4,
-                offset8 = this.strip;
-            for (var i = 0; i < len; i++) {
-                float32View[i * offset32 + 0] = data[i * this.ATTRIBUTES + 0];
-                float32View[i * offset32 + 1] = data[i * this.ATTRIBUTES + 1];
-                float32View[i * offset32 + 2] = data[i * this.ATTRIBUTES + 2];
-                float32View[i * offset32 + 3] = data[i * this.ATTRIBUTES + 3];
-            }
-
-            gl.bindBuffer(gl.ARRAY_BUFFER, this.dataBuffer);
-            gl.bufferData(gl.ARRAY_BUFFER, this.arrayBuffer, gl.STATIC_DRAW);
-
-            gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, this.strip, 0);
-            gl.vertexAttribPointer(uvLocation, 2, gl.FLOAT, false, this.strip, 2 * 4);
-
-            gl.bindBuffer(gl.ARRAY_BUFFER, null);
-            gl.enableVertexAttribArray(positionLocation);
-            gl.enableVertexAttribArray(uvLocation);
-
-            gl.uniformMatrix3fv(matrixLocation, false, new Float32Array(matrix));
-            gl.uniform1i(imageLocation, 10);
-
-            gl.drawArrays(gl.TRIANGLES, 0, len);
-        }
-    }]);
-
-    return NodeLabel;
-}();
-
-exports.default = NodeLabel;
-
-/***/ }),
-/* 23 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", {
-    value: true
-});
-
-var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }(); /**
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      * Created by chengang on 17-3-28.
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      */
-
-var _util = __webpack_require__(0);
-
-var _util2 = _interopRequireDefault(_util);
-
-var _flagVert = __webpack_require__(33);
-
-var _flagVert2 = _interopRequireDefault(_flagVert);
-
-var _flagFrag = __webpack_require__(32);
-
-var _flagFrag2 = _interopRequireDefault(_flagFrag);
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
-
-var Flag = function () {
-    function Flag() {
-        _classCallCheck(this, Flag);
-
-        this.POINTS = 1;
-        this.ATTRIBUTES = 3;
-
-        this.shaderVert = _flagVert2.default;
-        this.shaderFrag = _flagFrag2.default;
-
-        this.arrayBuffer = null;
-        this.dataBuffer = null;
-        this.strip = 3 * 4;
-    }
-
-    _createClass(Flag, [{
-        key: 'getRenderData',
-        value: function getRenderData(_ref) {
-            var data = _ref.data,
-                textureLoader = _ref.textureLoader;
-
-            var node = data;
-            return node.flag ? [node.x + node.size * 0.5, node.y + node.size * 0.5, node.size] : null;
-        }
-    }, {
-        key: 'render',
-        value: function render(_ref2) {
-            var gl = _ref2.gl,
-                program = _ref2.program,
-                data = _ref2.data,
-                matrix = _ref2.matrix,
-                camera = _ref2.camera,
-                sampleRatio = _ref2.sampleRatio,
-                textureLoader = _ref2.textureLoader;
-
-            // debugger
-
-            if (!this.dataBuffer) this.dataBuffer = gl.createBuffer();
-
-            var positionLocation = gl.getAttribLocation(program, "a_position");
-            var sizeLocation = gl.getAttribLocation(program, "a_size");
-
-            var matrixLocation = gl.getUniformLocation(program, "u_matrix");
-            var cameraScaleLocation = gl.getUniformLocation(program, "u_camera_scale");
-            var sampleRatioLocation = gl.getUniformLocation(program, "u_sample_ratio");
-
-            var len = data.length / this.ATTRIBUTES | 0;
-
-            // debugger
-            if (!this.arrayBuffer || len * this.strip != this.arrayBuffer.byteLength) {
-                this.arrayBuffer = new ArrayBuffer(len * this.strip);
-            }
-
-            var float32View = new Float32Array(this.arrayBuffer);
-
-            var offset32 = this.strip / 4;
-            for (var i = 0; i < len; i++) {
-                float32View[i * offset32 + 0] = data[i * this.ATTRIBUTES + 0]; //x
-                float32View[i * offset32 + 1] = data[i * this.ATTRIBUTES + 1]; //y
-                float32View[i * offset32 + 2] = data[i * this.ATTRIBUTES + 2]; //size
-            }
-
-            // debugger
-
-            gl.bindBuffer(gl.ARRAY_BUFFER, this.dataBuffer);
-            gl.bufferData(gl.ARRAY_BUFFER, this.arrayBuffer, gl.STATIC_DRAW);
-
-            gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, this.strip, 0);
-            gl.vertexAttribPointer(sizeLocation, 1, gl.FLOAT, false, this.strip, 2 * 4);
-
-            gl.bindBuffer(gl.ARRAY_BUFFER, null);
-            gl.enableVertexAttribArray(positionLocation);
-            gl.enableVertexAttribArray(sizeLocation);
-
-            gl.uniformMatrix3fv(matrixLocation, false, new Float32Array(matrix));
-            gl.uniform1f(cameraScaleLocation, camera.scale);
-            gl.uniform1f(sampleRatioLocation, sampleRatio);
-
-            gl.drawArrays(gl.POINTS, 0, len);
-        }
-    }]);
-
-    return Flag;
-}();
-
-exports.default = Flag;
-
-/***/ }),
-/* 24 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", {
-    value: true
-});
-
-var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }(); /**
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      * Created by chengang on 17-3-28.
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      */
-
-var _util = __webpack_require__(0);
-
-var _util2 = _interopRequireDefault(_util);
-
-var _defaultVert = __webpack_require__(31);
-
-var _defaultVert2 = _interopRequireDefault(_defaultVert);
-
-var _defaultFrag = __webpack_require__(30);
-
-var _defaultFrag2 = _interopRequireDefault(_defaultFrag);
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
-
-var Node = function () {
-    function Node() {
-        _classCallCheck(this, Node);
-
-        this.POINTS = 1;
-        this.ATTRIBUTES = 9;
-
-        this.shaderVert = _defaultVert2.default;
-        this.shaderFrag = _defaultFrag2.default;
-
-        this.arrayBuffer = null;
-        this.dataBuffer = null;
-        this.strip = 4 * 4 + 4 + 4;
-    }
-
-    _createClass(Node, [{
-        key: 'getRenderData',
-        value: function getRenderData(_ref) {
-            var data = _ref.data,
-                textureLoader = _ref.textureLoader,
-                textureIcon = _ref.textureIcon;
-
-            var node = data;
-            var color = _util2.default.parseColor(node.color || '#ff0000');
-            var img = -1;
-            if (node.img && textureLoader.cache[node.img]) img = textureLoader.cache[node.img];
-
-            var size = node.size * 2 || 10 * 2;
-            var isSelected = node.selected ? 1.0 : 0.0;
-
-            return [node.x, node.y, size, color.r, color.g, color.b, color.a, img, isSelected];
-        }
-    }, {
-        key: 'render',
-        value: function render(_ref2) {
-            var gl = _ref2.gl,
-                program = _ref2.program,
-                data = _ref2.data,
-                matrix = _ref2.matrix,
-                camera = _ref2.camera,
-                sampleRatio = _ref2.sampleRatio,
-                textureLoader = _ref2.textureLoader;
-
-            // debugger
-
-            if (!this.dataBuffer) this.dataBuffer = gl.createBuffer();
-
-            var positionLocation = gl.getAttribLocation(program, "a_position");
-            var sizeLocation = gl.getAttribLocation(program, "a_size");
-            var colorLocation = gl.getAttribLocation(program, "a_color");
-            var imgLocation = gl.getAttribLocation(program, "a_img");
-            var selectedLocation = gl.getAttribLocation(program, "a_selected");
-
-            var matrixLocation = gl.getUniformLocation(program, "u_matrix");
-            var cameraScaleLocation = gl.getUniformLocation(program, "u_camera_scale");
-            var texturesLocation = gl.getUniformLocation(program, "u_textures");
-            var borderColorLocation = gl.getUniformLocation(program, "u_borderColor");
-            var sampleRatioLocation = gl.getUniformLocation(program, "u_sample_ratio");
-
-            var len = data.length / this.ATTRIBUTES | 0;
-
-            // debugger
-            if (!this.arrayBuffer || len * this.strip != this.arrayBuffer.byteLength) {
-                this.arrayBuffer = new ArrayBuffer(len * this.strip);
-            }
-
-            var float32View = new Float32Array(this.arrayBuffer);
-            var int8View = new Uint8Array(this.arrayBuffer);
-
-            var offset32 = this.strip / 4;
-            for (var i = 0; i < len; i++) {
-                float32View[i * offset32 + 0] = data[i * this.ATTRIBUTES + 0]; //x
-                float32View[i * offset32 + 1] = data[i * this.ATTRIBUTES + 1]; //y
-                float32View[i * offset32 + 2] = data[i * this.ATTRIBUTES + 2]; //size
-                float32View[i * offset32 + 4] = data[i * this.ATTRIBUTES + 7]; //img
-                float32View[i * offset32 + 5] = data[i * this.ATTRIBUTES + 8]; //selected
-
-                int8View[i * this.strip + 12] = data[i * this.ATTRIBUTES + 3]; //color.r
-                int8View[i * this.strip + 13] = data[i * this.ATTRIBUTES + 4]; //color.g
-                int8View[i * this.strip + 14] = data[i * this.ATTRIBUTES + 5]; //color.b
-                int8View[i * this.strip + 15] = data[i * this.ATTRIBUTES + 6]; //color.a
-            }
-
-            // debugger
-
-            gl.bindBuffer(gl.ARRAY_BUFFER, this.dataBuffer);
-            gl.bufferData(gl.ARRAY_BUFFER, this.arrayBuffer, gl.STATIC_DRAW);
-
-            gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, this.strip, 0);
-            gl.vertexAttribPointer(sizeLocation, 1, gl.FLOAT, false, this.strip, 2 * 4);
-            gl.vertexAttribPointer(colorLocation, 4, gl.UNSIGNED_BYTE, false, this.strip, 3 * 4);
-            gl.vertexAttribPointer(imgLocation, 1, gl.FLOAT, false, this.strip, 4 * 4);
-            gl.vertexAttribPointer(selectedLocation, 1, gl.FLOAT, false, this.strip, 5 * 4);
-
-            gl.bindBuffer(gl.ARRAY_BUFFER, null);
-            gl.enableVertexAttribArray(positionLocation);
-            gl.enableVertexAttribArray(sizeLocation);
-            gl.enableVertexAttribArray(colorLocation);
-            gl.enableVertexAttribArray(imgLocation);
-            gl.enableVertexAttribArray(selectedLocation);
-
-            gl.uniformMatrix3fv(matrixLocation, false, new Float32Array(matrix));
-            gl.uniform1f(cameraScaleLocation, camera.scale);
-            gl.uniform1f(sampleRatioLocation, sampleRatio);
-            gl.uniform4f(borderColorLocation, 194.0, 97.0, 54.0, 255.0);
-
-            gl.uniform1iv(texturesLocation, textureLoader.texturesIndex);
-
-            gl.drawArrays(gl.POINTS, 0, len);
-        }
-    }]);
-
-    return Node;
-}();
-
-exports.default = Node;
-
-/***/ }),
-/* 25 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", {
-    value: true
-});
-
-var _default = __webpack_require__(24);
-
-var _default2 = _interopRequireDefault(_default);
-
-var _Flag = __webpack_require__(23);
-
-var _Flag2 = _interopRequireDefault(_Flag);
-
-var _Icon = __webpack_require__(36);
-
-var _Icon2 = _interopRequireDefault(_Icon);
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-exports.default = {
-    layers: [{ name: 'base', layer: _default2.default }, { name: 'icon', layer: _Icon2.default }, { name: 'flag', layer: _Flag2.default }]
-}; /**
-    * Created by chengang on 17-4-13.
-    */
-
-/***/ }),
-/* 26 */
-/***/ (function(module, exports) {
-
-module.exports = "precision mediump float;\nvarying vec4 color;\nvoid main(){\ngl_FragColor = color;\n}"
-
-/***/ }),
-/* 27 */
-/***/ (function(module, exports) {
-
-module.exports = "attribute vec2 a_position;\nattribute vec2 a_normal;\nattribute vec4 a_color;\nattribute float a_size;\n\nuniform mat3 u_matrix;\n\nvarying vec4 color;\n\nvoid main() {\n\nvec2 pos  = a_position + a_normal * a_size;\ngl_Position = vec4((u_matrix*vec3(pos,1)).xy,0,1);\n\ncolor = a_color/255.0;\n}\n"
-
-/***/ }),
-/* 28 */
-/***/ (function(module, exports) {
-
-module.exports = "attribute vec2 a_position;\nattribute vec2 a_uv;\n\nuniform mat3 u_matrix;\nuniform sampler2D u_image;\n\n\nvarying vec2 v_texCoord;\n\nvoid main() {\ngl_Position = vec4((u_matrix*vec3(a_position,1)).xy,0,1);\nv_texCoord = a_uv;\n}\n"
-
-/***/ }),
-/* 29 */
-/***/ (function(module, exports) {
-
-module.exports = "attribute vec2 a_position;\nattribute vec2 a_uv;\n\nuniform mat3 u_matrix;\nuniform sampler2D u_image;\n\n\nvarying vec2 v_texCoord;\n\nvoid main() {\ngl_Position = vec4((u_matrix*vec3(a_position,1)).xy,0,1);\nv_texCoord = a_uv;\n}\n"
-
-/***/ }),
-/* 30 */
-/***/ (function(module, exports) {
-
-module.exports = "//#ifdef GL_OES_standard_derivatives\n//#extension GL_OES_standard_derivatives : enable\n//#endif\n\n precision mediump float;\n\nvarying float size;\nvarying vec4 color;\nvarying float img;\nvarying float selected;\n\nuniform sampler2D u_textures[10];\nuniform sampler2D u_icons_texture;\nuniform vec4 u_borderColor;\nuniform float u_sample_ratio;\n\n\n\n\n\n//todo\nvec4 getSampleColore(int index,vec2 uv){\n    vec4 c;\n    if(index == 0){\n        c = texture2D(u_textures[0],uv);\n    }else if(index == 1){\n        c = texture2D(u_textures[1],uv);\n    }else if(index == 2){\n        c = texture2D(u_textures[2],uv);\n    }else if(index == 3){\n        c = texture2D(u_textures[3],uv);\n    }else if(index == 4){\n        c = texture2D(u_textures[4],uv);\n    }else if(index == 5){\n        c = texture2D(u_textures[5],uv);\n    }\n    return c;\n}\n\nvec4 borderColor = u_borderColor/255.0;\n\nvoid main()\n{\n   float r = 0.0, alpha = 1.0,\n   blur = 4.0 * u_sample_ratio / size ,\n   border = max(1.0 - 15.0 * u_sample_ratio / size,0.0) ;\n\n   vec4 nodecolor = color;\n    vec2 cxy = 2.0 * gl_PointCoord - 1.0;\n    r = length(cxy);\n\n    if(img >= 0.0){\n        nodecolor = getSampleColore(int(img),gl_PointCoord);\n    }\n\n\n    //todo\n    if(selected < 0.5) borderColor = nodecolor;\n\n    if(size > 4.0){\n        if(r > 1.0 ){\n            discard;\n        }\n\n        if(r > 1.0-blur && r <=1.0){\n            alpha = 1.0 - smoothstep(1.0-blur, 1.0, r);\n        }\n        else if( r > border && r < border + blur){\n            nodecolor = mix(nodecolor,borderColor,smoothstep(border, border + blur, r));\n        }\n\n         if( r >= border + blur){\n            nodecolor = borderColor;\n         }\n    }\n\n    gl_FragColor = nodecolor * alpha;\n}\n"
-
-/***/ }),
-/* 31 */
-/***/ (function(module, exports) {
-
-module.exports = "\n precision mediump float;\nattribute vec2 a_position;\nattribute vec4 a_color;\nattribute float a_size;\nattribute float a_img;\nattribute float a_selected;\n\nuniform mat3 u_matrix;\nuniform float u_camera_scale;\nuniform float u_sample_ratio;\n\nvarying float size;\nvarying vec4 color;\nvarying float img;\nvarying float selected;\n\nvoid main() {\n\ngl_Position = vec4((u_matrix*vec3(a_position,1)).xy,0,1);\nsize = gl_PointSize  = 1.0/u_camera_scale * a_size*u_sample_ratio;\ncolor = a_color/255.0;\nimg = a_img;\nselected = a_selected;\n\n}\n"
-
-/***/ }),
-/* 32 */
-/***/ (function(module, exports) {
-
-module.exports = "//#ifdef GL_OES_standard_derivatives\n//#extension GL_OES_standard_derivatives : enable\n//#endif\n\n precision mediump float;\n\nvarying float size;\n\nuniform float u_sample_ratio;\n\n\nvec4 color = vec4(0.0,1.0,0.0,1.0);\n\nvoid main()\n{\n   float r = 0.0, alpha = 1.0,blur = 4.0 * u_sample_ratio / size ;\n   vec4 nodecolor = color;\n    vec2 cxy = 2.0 * gl_PointCoord - 1.0;\n    r = length(cxy);\n\n\n    if(size > 4.0){\n        if(r > 1.0 ){\n            discard;\n        }\n\n        if(r > 1.0-blur && r <=1.0){\n            alpha = 1.0 - smoothstep(1.0-blur, 1.0, r);\n        }\n    }\n    gl_FragColor = nodecolor * alpha;\n}\n"
-
-/***/ }),
-/* 33 */
-/***/ (function(module, exports) {
-
-module.exports = "\n precision mediump float;\nattribute vec2 a_position;\nattribute float a_size;\n\nuniform mat3 u_matrix;\nuniform float u_camera_scale;\nuniform float u_sample_ratio;\n\nvarying float size;\n\nvoid main() {\ngl_Position = vec4((u_matrix*vec3(a_position,1)).xy,0,1);\nsize = gl_PointSize  = 1.0/u_camera_scale * a_size*u_sample_ratio;\n}"
-
-/***/ }),
-/* 34 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-
-var _Graph = __webpack_require__(4);
-
-Object.defineProperty(exports, 'Graph', {
-  enumerable: true,
-  get: function get() {
-    return _interopRequireDefault(_Graph).default;
-  }
-});
-
-var _index = __webpack_require__(8);
-
-Object.defineProperty(exports, 'WebGLRender', {
-  enumerable: true,
-  get: function get() {
-    return _index.WebGLRender;
-  }
-});
-
-var _Quad = __webpack_require__(2);
-
-Object.defineProperty(exports, 'Quad', {
-  enumerable: true,
-  get: function get() {
-    return _interopRequireDefault(_Quad).default;
-  }
-});
-
-var _Event = __webpack_require__(3);
-
-Object.defineProperty(exports, 'Event', {
-  enumerable: true,
-  get: function get() {
-    return _interopRequireDefault(_Event).default;
-  }
-});
-
-var _index2 = __webpack_require__(7);
-
-Object.defineProperty(exports, 'GraphView', {
-  enumerable: true,
-  get: function get() {
-    return _interopRequireDefault(_index2).default;
-  }
-});
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/***/ }),
-/* 35 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", {
-    value: true
-});
-
-var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
-
-var _EventEmitter2 = __webpack_require__(1);
-
-var _EventEmitter3 = _interopRequireDefault(_EventEmitter2);
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
-
-function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
-
-function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; } /**
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 * Created by chengang on 17-4-7.
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 */
 
@@ -4594,7 +3387,813 @@ var TextureIcon = function (_EventEmitter) {
 exports.default = TextureIcon;
 
 /***/ }),
-/* 36 */
+/* 19 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+
+var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+var _EventEmitter2 = __webpack_require__(1);
+
+var _EventEmitter3 = _interopRequireDefault(_EventEmitter2);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
+
+function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; } /**
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                * Created by chengang on 17-4-5.
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                */
+
+
+var TextureLoader = function (_EventEmitter) {
+    _inherits(TextureLoader, _EventEmitter);
+
+    function TextureLoader(gl) {
+        _classCallCheck(this, TextureLoader);
+
+        var _this = _possibleConstructorReturn(this, (TextureLoader.__proto__ || Object.getPrototypeOf(TextureLoader)).call(this));
+
+        _this.gl = gl;
+        _this.cache = {};
+        _this.textures = [];
+        _this.defaultTexture = _this.createTexture();
+        _this.texturesIndex = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+        _this.updateGPUTexture();
+        return _this;
+    }
+
+    _createClass(TextureLoader, [{
+        key: 'loadImgs',
+        value: function loadImgs(urls) {
+            if (Array.isArray(urls)) {
+                urls.forEach(function (url) {
+                    this._load(url);
+                }.bind(this));
+            } else {
+                this._load(urls);
+            }
+        }
+    }, {
+        key: '_load',
+        value: function _load(url) {
+            if (!this.cache[url]) {
+                var image = document.createElement('IMG');
+                // image.setAttribute('crossOrigin', imgCrossOrigin);
+                image.src = url;
+                image.onload = function () {
+                    var tx = this.createTexture(image);
+                    this.cache[url] = this.textures.length; //index
+                    this.textures.push(tx);
+                    this.updateGPUTexture();
+                    this.emit('load', [url]);
+                }.bind(this);
+            }
+        }
+    }, {
+        key: 'updateGPUTexture',
+        value: function updateGPUTexture() {
+            var gl = this.gl;
+            this.texturesIndex.forEach(function (e) {
+                gl.activeTexture(gl['TEXTURE' + e]);
+                if (e > this.textures.length - 1) {
+                    gl.bindTexture(gl.TEXTURE_2D, this.defaultTexture);
+                } else {
+                    gl.bindTexture(gl.TEXTURE_2D, this.textures[e]);
+                }
+            }.bind(this));
+        }
+    }, {
+        key: 'createTexture',
+        value: function createTexture(img) {
+            var gl = this.gl;
+            var texture = gl.createTexture();
+            gl.activeTexture(gl.TEXTURE0);
+            gl.bindTexture(gl.TEXTURE_2D, texture);
+
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+
+            if (img) gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);else gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 2, 2, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+
+            return texture;
+        }
+    }]);
+
+    return TextureLoader;
+}(_EventEmitter3.default);
+
+exports.default = TextureLoader;
+
+/***/ }),
+/* 20 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+
+var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+var _EventEmitter2 = __webpack_require__(1);
+
+var _EventEmitter3 = _interopRequireDefault(_EventEmitter2);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
+
+function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; } /**
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                * Created by chengang on 17-4-7.
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                */
+
+var TextureText = function (_EventEmitter) {
+    _inherits(TextureText, _EventEmitter);
+
+    function TextureText(gl) {
+        _classCallCheck(this, TextureText);
+
+        var _this = _possibleConstructorReturn(this, (TextureText.__proto__ || Object.getPrototypeOf(TextureText)).call(this));
+
+        _this.gl = gl;
+
+        _this.texture = null;
+
+        _this.border = 2;
+
+        _this.fontSize = 26;
+        _this.fontFamily = 'Arial';
+
+        _this.canvas = null;
+
+        _this.textinfo = null;
+
+        _this.texts = null;
+        return _this;
+    }
+
+    _createClass(TextureText, [{
+        key: 'createCanvasImg',
+        value: function createCanvasImg(texts) {
+
+            if (!this.canvas) this.canvas = document.createElement('canvas');
+
+            var c = this.canvas;
+
+            var width = this.fontSize + 1;
+            var height = this.fontSize + 1;
+            var num = Math.ceil(Math.sqrt(texts.length));
+
+            c.width = num * width + 2 * this.border;
+            c.height = num * height + 2 * this.border;
+
+            var ctx = c.getContext("2d");
+
+            ctx.fillStyle = "#000000";
+            ctx.fillRect(0, 0, c.width, c.height);
+
+            ctx.font = 'bold ' + this.fontSize + 'px ' + this.fontFamily;
+            ctx.textAlign = "left";
+            ctx.textBaseline = "top";
+            ctx.fillStyle = "#ff0000";
+
+            var startx = this.border;
+            var starty = this.border;
+            var infos = {},
+                px,
+                py,
+                charWidth;
+
+            this.texts = [];
+
+            for (var i = 0; i < texts.length; i++) {
+
+                if (this.textinfo && this.textinfo.infos[texts[i]]) continue;
+
+                charWidth = ctx.measureText(texts[i]).width;
+                if (startx + charWidth + this.border > c.width) {
+                    startx = this.border;
+                    starty += height;
+                }
+                ctx.fillText(texts[i], startx, starty);
+                infos[texts[i]] = {
+                    uvs: [startx / c.width, starty / c.height, (startx + charWidth) / c.width, (starty + height) / c.height],
+                    width: charWidth / width
+                };
+
+                this.texts.push(texts[i]);
+
+                startx += charWidth + this.border;
+            }
+            this.computeAlpha(ctx);
+            this.textinfo = {
+                fontSize: this.fontSize,
+                img: c,
+                width: c.width,
+                height: c.height,
+                infos: infos
+            };
+
+            // document.body.appendChild(c);
+            this.updateGPUTexture();
+        }
+    }, {
+        key: 'computeAlpha',
+        value: function computeAlpha(ctx) {
+
+            var imgData = ctx.getImageData(0, 0, ctx.canvas.width, ctx.canvas.height);
+            for (var i = 0; i < imgData.data.length; i += 4) {
+                imgData.data[i + 3] = imgData.data[i];
+            }
+
+            ctx.putImageData(imgData, 0, 0);
+        }
+    }, {
+        key: 'updateGPUTexture',
+        value: function updateGPUTexture() {
+            var gl = this.gl;
+
+            this.createTexture();
+
+            gl.activeTexture(gl.TEXTURE10);
+            gl.bindTexture(gl.TEXTURE_2D, this.texture);
+        }
+    }, {
+        key: 'addTexts',
+        value: function addTexts(strs) {
+            var len = strs.length;
+            var char,
+                num = 0;
+
+            var texts = this.texts;
+            var map = {};
+            for (var i = 0; i < len; i++) {
+                char = strs.charAt(i);
+                if (!this.textinfo.infos[char] && !map[char]) {
+                    num++;
+                    map[char] = true;
+                    texts.push(char);
+                }
+            }
+
+            if (num > 0) {
+                this.textinfo = null;
+                this.texts = null;
+                this.createCanvasImg(texts);
+            }
+        }
+    }, {
+        key: 'createTexture',
+        value: function createTexture() {
+
+            var gl = this.gl;
+
+            if (!this.texture) {
+                this.texture = gl.createTexture();
+            }
+            gl.activeTexture(gl.TEXTURE10);
+            gl.bindTexture(gl.TEXTURE_2D, this.texture);
+
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, this.textinfo.img);
+        }
+    }]);
+
+    return TextureText;
+}(_EventEmitter3.default);
+
+exports.default = TextureText;
+
+/***/ }),
+/* 21 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+
+var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }(); /**
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      * Created by chengang on 17-3-31.
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      */
+
+var _util = __webpack_require__(0);
+
+var _util2 = _interopRequireDefault(_util);
+
+var _defaultVert = __webpack_require__(29);
+
+var _defaultVert2 = _interopRequireDefault(_defaultVert);
+
+var _defaultFrag = __webpack_require__(28);
+
+var _defaultFrag2 = _interopRequireDefault(_defaultFrag);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+function addData(arr, attributes, attrData) {
+    for (var i = 0; i < attributes; i++) {
+        arr.push(attrData[i]);
+    }
+}
+
+var Edge = function () {
+    function Edge() {
+        _classCallCheck(this, Edge);
+
+        this.POINTS = 9;
+        this.ATTRIBUTES = 9;
+
+        this.shaderVert = _defaultVert2.default;
+        this.shaderFrag = _defaultFrag2.default;
+
+        this.arrayBuffer = null;
+        this.dataBuffer = null;
+        this.strip = 5 * 4 + 1 * 4;
+    }
+
+    _createClass(Edge, [{
+        key: 'getRenderData',
+        value: function getRenderData(_ref) {
+            var data = _ref.data,
+                source = _ref.source,
+                target = _ref.target;
+
+            var edge = data;
+            var dx = target.x - source.x;
+            var dy = target.y - source.y;
+
+            var data = [];
+            var size = 0.3,
+                arrowSize = 3;
+            var crossVector = _util2.default.normalize([-dy, dx]);
+
+            //arrow
+            var dis = _util2.default.getDistance(source.x, source.y, target.x, target.y);
+            var arrowX = target.x - (target.size + arrowSize) / dis * dx;
+            var arrowY = target.y - (target.size + arrowSize) / dis * dy;
+
+            var color = utils.parseColor(edge.color || source.color || '#b3d2ff');
+
+            addData(data, this.ATTRIBUTES, [source.x, source.y, crossVector[0], crossVector[1], size, color.r, color.g, color.b, color.a]);
+            addData(data, this.ATTRIBUTES, [arrowX, arrowY, crossVector[0], crossVector[1], size, color.r, color.g, color.b, color.a]);
+            addData(data, this.ATTRIBUTES, [source.x, source.y, -crossVector[0], -crossVector[1], size, color.r, color.g, color.b, color.a]);
+            addData(data, this.ATTRIBUTES, [arrowX, arrowY, crossVector[0], crossVector[1], size, color.r, color.g, color.b, color.a]);
+            addData(data, this.ATTRIBUTES, [source.x, source.y, -crossVector[0], -crossVector[1], size, color.r, color.g, color.b, color.a]);
+            addData(data, this.ATTRIBUTES, [arrowX, arrowY, -crossVector[0], -crossVector[1], size, color.r, color.g, color.b, color.a]);
+
+            //arrow
+            addData(data, this.ATTRIBUTES, [arrowX, arrowY, crossVector[0], crossVector[1], arrowSize / 2, color.r, color.g, color.b, color.a]);
+            addData(data, this.ATTRIBUTES, [arrowX, arrowY, -crossVector[0], -crossVector[1], arrowSize / 2, color.r, color.g, color.b, color.a]);
+            addData(data, this.ATTRIBUTES, [arrowX, arrowY, arrowSize / dis * dx, arrowSize / dis * dy, 1, color.r, color.g, color.b, color.a]);
+
+            return data;
+        }
+    }, {
+        key: 'render',
+        value: function render(_ref2) {
+            var gl = _ref2.gl,
+                program = _ref2.program,
+                data = _ref2.data,
+                matrix = _ref2.matrix,
+                camera = _ref2.camera;
+
+            if (!this.dataBuffer) this.dataBuffer = gl.createBuffer();
+
+            var positionLocation = gl.getAttribLocation(program, "a_position");
+            var normalLocation = gl.getAttribLocation(program, "a_normal");
+            var colorLocation = gl.getAttribLocation(program, "a_color");
+            var sizeLocation = gl.getAttribLocation(program, "a_size");
+
+            var matrixLocation = gl.getUniformLocation(program, "u_matrix");
+
+            var len = data.length / this.ATTRIBUTES | 0;
+
+            if (!this.arrayBuffer || len * this.strip != this.arrayBuffer.byteLength) {
+                this.arrayBuffer = new ArrayBuffer(len * this.strip);
+            }
+
+            var float32View = new Float32Array(this.arrayBuffer);
+            var Uint8View = new Uint8Array(this.arrayBuffer);
+
+            var offset32 = this.strip / 4,
+                offset8 = this.strip;
+            for (var i = 0; i < len; i++) {
+                float32View[i * offset32 + 0] = data[i * this.ATTRIBUTES + 0];
+                float32View[i * offset32 + 1] = data[i * this.ATTRIBUTES + 1];
+                float32View[i * offset32 + 2] = data[i * this.ATTRIBUTES + 2];
+                float32View[i * offset32 + 3] = data[i * this.ATTRIBUTES + 3];
+                float32View[i * offset32 + 4] = data[i * this.ATTRIBUTES + 4];
+
+                Uint8View[i * offset8 + 20] = data[i * this.ATTRIBUTES + 5];
+                Uint8View[i * offset8 + 21] = data[i * this.ATTRIBUTES + 6];
+                Uint8View[i * offset8 + 22] = data[i * this.ATTRIBUTES + 7];
+                Uint8View[i * offset8 + 23] = data[i * this.ATTRIBUTES + 8];
+            }
+
+            gl.bindBuffer(gl.ARRAY_BUFFER, this.dataBuffer);
+            gl.bufferData(gl.ARRAY_BUFFER, this.arrayBuffer, gl.STATIC_DRAW);
+
+            gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, this.strip, 0);
+            gl.vertexAttribPointer(normalLocation, 2, gl.FLOAT, false, this.strip, 2 * 4);
+            gl.vertexAttribPointer(sizeLocation, 1, gl.FLOAT, false, this.strip, 4 * 4);
+            gl.vertexAttribPointer(colorLocation, 4, gl.UNSIGNED_BYTE, false, this.strip, 5 * 4);
+
+            gl.bindBuffer(gl.ARRAY_BUFFER, null);
+            gl.enableVertexAttribArray(positionLocation);
+            gl.enableVertexAttribArray(normalLocation);
+            gl.enableVertexAttribArray(sizeLocation);
+            gl.enableVertexAttribArray(colorLocation);
+
+            gl.uniformMatrix3fv(matrixLocation, false, new Float32Array(matrix));
+
+            gl.drawArrays(gl.TRIANGLES, 0, len);
+        }
+    }]);
+
+    return Edge;
+}();
+
+exports.default = Edge;
+
+/***/ }),
+/* 22 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+
+var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }(); /**
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      * Created by chengang on 17-4-7.
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      */
+
+var _util = __webpack_require__(0);
+
+var _util2 = _interopRequireDefault(_util);
+
+var _Matrix = __webpack_require__(5);
+
+var _Matrix2 = _interopRequireDefault(_Matrix);
+
+var _edgeLabelVert = __webpack_require__(30);
+
+var _edgeLabelVert2 = _interopRequireDefault(_edgeLabelVert);
+
+var _labelFrag = __webpack_require__(7);
+
+var _labelFrag2 = _interopRequireDefault(_labelFrag);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+function addData(arr, attributes, attrData, centerX, centerY, angle) {
+    var rotate = _Matrix2.default.transformPoint([attrData[0], attrData[1]], _Matrix2.default.matrixFromRotation(angle));
+    attrData[0] = rotate[0] + centerX;
+    attrData[1] = rotate[1] + centerY;
+
+    for (var i = 0; i < attributes; i++) {
+        arr.push(attrData[i]);
+    }
+}
+
+var NodeLabel = function () {
+    function NodeLabel() {
+        _classCallCheck(this, NodeLabel);
+
+        // this.POINTS = 1;
+        this.ATTRIBUTES = 4;
+
+        this.shaderVert = _edgeLabelVert2.default;
+        this.shaderFrag = _labelFrag2.default;
+
+        this.arrayBuffer = null;
+        this.dataBuffer = null;
+        this.strip = 4 * 4;
+    }
+
+    _createClass(NodeLabel, [{
+        key: 'getRenderData',
+        value: function getRenderData(_ref) {
+            var data = _ref.data,
+                source = _ref.source,
+                target = _ref.target,
+                textureText = _ref.textureText;
+
+            var edge = data;
+            if (!edge.label) return [];
+
+            // debugger
+            var str = edge.label.split('');
+
+            var data = [];
+
+            var infos = textureText.textinfo.infos,
+                charWidth = source.size / 2,
+                charHeight = source.size / 2,
+                char,
+                uv,
+                width;
+
+            var totalWidht = 0;
+            for (var i = 0; i < str.length; i++) {
+                char = str[i];
+                if (!infos[char]) {
+                    console.log(1);
+                    continue;
+                }
+                totalWidht += infos[char].width * charWidth;
+            }
+
+            var dx = target.x - source.x;
+            var dy = target.y - source.y;
+
+            var angle = _util2.default.getAngle(1, 0, dx, dy);
+
+            angle = dy < 0 ? Math.PI - angle : angle;
+            angle = angle > Math.PI / 2 ? angle + Math.PI : angle;
+
+            var centerX = (source.x + target.x) / 2,
+                centerY = (source.y + target.y) / 2;
+            var startx = totalWidht / 2 * -1;
+            var starty = charHeight / 2;
+            var x1, y1, x2, y2;
+
+            for (var i = 0; i < str.length; i++) {
+                char = str[i];
+                if (!infos[char]) {
+                    console.log('no text texture info');
+                    continue;
+                }
+
+                width = infos[char].width * charWidth;
+                uv = infos[char].uvs;
+                x1 = uv[0], y1 = uv[1], x2 = uv[2], y2 = uv[3];
+
+                addData(data, this.ATTRIBUTES, [startx, starty, x1, y1], centerX, centerY, angle);
+                addData(data, this.ATTRIBUTES, [startx, starty - charHeight, x1, y2], centerX, centerY, angle);
+                addData(data, this.ATTRIBUTES, [startx + width, starty, x2, y1], centerX, centerY, angle);
+                addData(data, this.ATTRIBUTES, [startx, starty - charHeight, x1, y2], centerX, centerY, angle);
+                addData(data, this.ATTRIBUTES, [startx + width, starty, x2, y1], centerX, centerY, angle);
+                addData(data, this.ATTRIBUTES, [startx + width, starty - charHeight, x2, y2], centerX, centerY, angle);
+
+                startx += width;
+            }
+
+            return data;
+        }
+    }, {
+        key: 'render',
+        value: function render(_ref2) {
+            var gl = _ref2.gl,
+                program = _ref2.program,
+                data = _ref2.data,
+                matrix = _ref2.matrix,
+                camera = _ref2.camera,
+                textureLoader = _ref2.textureLoader;
+
+            if (!this.dataBuffer) this.dataBuffer = gl.createBuffer();
+
+            var positionLocation = gl.getAttribLocation(program, "a_position");
+            var uvLocation = gl.getAttribLocation(program, "a_uv");
+
+            var matrixLocation = gl.getUniformLocation(program, "u_matrix");
+            var imageLocation = gl.getUniformLocation(program, "u_image");
+
+            var len = data.length / this.ATTRIBUTES | 0;
+
+            if (!this.arrayBuffer || len * this.strip != this.arrayBuffer.byteLength) {
+                this.arrayBuffer = new ArrayBuffer(len * this.strip);
+            }
+
+            var float32View = new Float32Array(this.arrayBuffer);
+            // var Uint8View = new Uint8Array(this.arrayBuffer);
+
+            var offset32 = this.strip / 4,
+                offset8 = this.strip;
+            for (var i = 0; i < len; i++) {
+                float32View[i * offset32 + 0] = data[i * this.ATTRIBUTES + 0];
+                float32View[i * offset32 + 1] = data[i * this.ATTRIBUTES + 1];
+                float32View[i * offset32 + 2] = data[i * this.ATTRIBUTES + 2];
+                float32View[i * offset32 + 3] = data[i * this.ATTRIBUTES + 3];
+            }
+
+            gl.bindBuffer(gl.ARRAY_BUFFER, this.dataBuffer);
+            gl.bufferData(gl.ARRAY_BUFFER, this.arrayBuffer, gl.STATIC_DRAW);
+
+            gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, this.strip, 0);
+            gl.vertexAttribPointer(uvLocation, 2, gl.FLOAT, false, this.strip, 2 * 4);
+
+            gl.bindBuffer(gl.ARRAY_BUFFER, null);
+            gl.enableVertexAttribArray(positionLocation);
+            gl.enableVertexAttribArray(uvLocation);
+
+            gl.uniformMatrix3fv(matrixLocation, false, new Float32Array(matrix));
+            gl.uniform1i(imageLocation, 10);
+
+            gl.drawArrays(gl.TRIANGLES, 0, len);
+        }
+    }]);
+
+    return NodeLabel;
+}();
+
+exports.default = NodeLabel;
+
+/***/ }),
+/* 23 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+
+var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }(); /**
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      * Created by chengang on 17-4-7.
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      */
+
+
+var _nodeLabelVert = __webpack_require__(31);
+
+var _nodeLabelVert2 = _interopRequireDefault(_nodeLabelVert);
+
+var _labelFrag = __webpack_require__(7);
+
+var _labelFrag2 = _interopRequireDefault(_labelFrag);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+function addData(arr, attributes, attrData) {
+    for (var i = 0; i < attributes; i++) {
+        arr.push(attrData[i]);
+    }
+}
+
+var NodeLabel = function () {
+    function NodeLabel() {
+        _classCallCheck(this, NodeLabel);
+
+        // this.POINTS = 1;
+        this.ATTRIBUTES = 4;
+
+        this.shaderVert = _nodeLabelVert2.default;
+        this.shaderFrag = _labelFrag2.default;
+
+        this.arrayBuffer = null;
+        this.dataBuffer = null;
+        this.strip = 4 * 4;
+    }
+
+    _createClass(NodeLabel, [{
+        key: 'getRenderData',
+        value: function getRenderData(_ref) {
+            var data = _ref.data,
+                textureText = _ref.textureText;
+
+            var node = data;
+            if (!node.label) return [];
+
+            // debugger
+            var str = node.label.split('');
+
+            var data = [];
+
+            var infos = textureText.textinfo.infos,
+                charWidth = node.size / 2,
+                charHeight = node.size / 2,
+                char,
+                uv,
+                width;
+
+            var totalWidht = 0;
+            for (var i = 0; i < str.length; i++) {
+                char = str[i];
+                if (!infos[char]) {
+                    console.log(1);
+                    continue;
+                }
+                totalWidht += infos[char].width * charWidth;
+            }
+
+            var startx = totalWidht / 2 * -1 + node.x;
+            var starty = node.y - node.size;
+            var x1, y1, x2, y2;
+
+            for (var i = 0; i < str.length; i++) {
+                char = str[i];
+                if (!infos[char]) {
+                    console.log(1);
+                    continue;
+                }
+
+                width = infos[char].width * charWidth;
+                uv = infos[char].uvs;
+                x1 = uv[0], y1 = uv[1], x2 = uv[2], y2 = uv[3];
+
+                addData(data, this.ATTRIBUTES, [startx, starty, x1, y1]);
+                addData(data, this.ATTRIBUTES, [startx, starty - charHeight, x1, y2]);
+                addData(data, this.ATTRIBUTES, [startx + width, starty, x2, y1]);
+                addData(data, this.ATTRIBUTES, [startx, starty - charHeight, x1, y2]);
+                addData(data, this.ATTRIBUTES, [startx + width, starty, x2, y1]);
+                addData(data, this.ATTRIBUTES, [startx + width, starty - charHeight, x2, y2]);
+
+                startx += width;
+            }
+
+            return data;
+        }
+    }, {
+        key: 'render',
+        value: function render(_ref2) {
+            var gl = _ref2.gl,
+                program = _ref2.program,
+                data = _ref2.data,
+                matrix = _ref2.matrix,
+                camera = _ref2.camera,
+                textureLoader = _ref2.textureLoader;
+
+            if (!this.dataBuffer) this.dataBuffer = gl.createBuffer();
+
+            var positionLocation = gl.getAttribLocation(program, "a_position");
+            var uvLocation = gl.getAttribLocation(program, "a_uv");
+
+            var matrixLocation = gl.getUniformLocation(program, "u_matrix");
+            var imageLocation = gl.getUniformLocation(program, "u_image");
+
+            var len = data.length / this.ATTRIBUTES | 0;
+
+            if (!this.arrayBuffer || len * this.strip != this.arrayBuffer.byteLength) {
+                this.arrayBuffer = new ArrayBuffer(len * this.strip);
+            }
+
+            var float32View = new Float32Array(this.arrayBuffer);
+            // var Uint8View = new Uint8Array(this.arrayBuffer);
+
+            var offset32 = this.strip / 4,
+                offset8 = this.strip;
+            for (var i = 0; i < len; i++) {
+                float32View[i * offset32 + 0] = data[i * this.ATTRIBUTES + 0];
+                float32View[i * offset32 + 1] = data[i * this.ATTRIBUTES + 1];
+                float32View[i * offset32 + 2] = data[i * this.ATTRIBUTES + 2];
+                float32View[i * offset32 + 3] = data[i * this.ATTRIBUTES + 3];
+            }
+
+            gl.bindBuffer(gl.ARRAY_BUFFER, this.dataBuffer);
+            gl.bufferData(gl.ARRAY_BUFFER, this.arrayBuffer, gl.STATIC_DRAW);
+
+            gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, this.strip, 0);
+            gl.vertexAttribPointer(uvLocation, 2, gl.FLOAT, false, this.strip, 2 * 4);
+
+            gl.bindBuffer(gl.ARRAY_BUFFER, null);
+            gl.enableVertexAttribArray(positionLocation);
+            gl.enableVertexAttribArray(uvLocation);
+
+            gl.uniformMatrix3fv(matrixLocation, false, new Float32Array(matrix));
+            gl.uniform1i(imageLocation, 10);
+
+            gl.drawArrays(gl.TRIANGLES, 0, len);
+        }
+    }]);
+
+    return NodeLabel;
+}();
+
+exports.default = NodeLabel;
+
+/***/ }),
+/* 24 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -4612,11 +4211,129 @@ var _util = __webpack_require__(0);
 
 var _util2 = _interopRequireDefault(_util);
 
-var _iconVert = __webpack_require__(38);
+var _flagVert = __webpack_require__(35);
+
+var _flagVert2 = _interopRequireDefault(_flagVert);
+
+var _flagFrag = __webpack_require__(34);
+
+var _flagFrag2 = _interopRequireDefault(_flagFrag);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+var Flag = function () {
+    function Flag() {
+        _classCallCheck(this, Flag);
+
+        this.POINTS = 1;
+        this.ATTRIBUTES = 3;
+
+        this.shaderVert = _flagVert2.default;
+        this.shaderFrag = _flagFrag2.default;
+
+        this.arrayBuffer = null;
+        this.dataBuffer = null;
+        this.strip = 3 * 4;
+    }
+
+    _createClass(Flag, [{
+        key: 'getRenderData',
+        value: function getRenderData(_ref) {
+            var data = _ref.data,
+                textureLoader = _ref.textureLoader;
+
+            var node = data;
+            return node.flag ? [node.x + node.size * 0.5, node.y + node.size * 0.5, node.size] : null;
+        }
+    }, {
+        key: 'render',
+        value: function render(_ref2) {
+            var gl = _ref2.gl,
+                program = _ref2.program,
+                data = _ref2.data,
+                matrix = _ref2.matrix,
+                camera = _ref2.camera,
+                sampleRatio = _ref2.sampleRatio,
+                textureLoader = _ref2.textureLoader;
+
+            // debugger
+
+            if (!this.dataBuffer) this.dataBuffer = gl.createBuffer();
+
+            var positionLocation = gl.getAttribLocation(program, "a_position");
+            var sizeLocation = gl.getAttribLocation(program, "a_size");
+
+            var matrixLocation = gl.getUniformLocation(program, "u_matrix");
+            var cameraScaleLocation = gl.getUniformLocation(program, "u_camera_scale");
+            var sampleRatioLocation = gl.getUniformLocation(program, "u_sample_ratio");
+
+            var len = data.length / this.ATTRIBUTES | 0;
+
+            // debugger
+            if (!this.arrayBuffer || len * this.strip != this.arrayBuffer.byteLength) {
+                this.arrayBuffer = new ArrayBuffer(len * this.strip);
+            }
+
+            var float32View = new Float32Array(this.arrayBuffer);
+
+            var offset32 = this.strip / 4;
+            for (var i = 0; i < len; i++) {
+                float32View[i * offset32 + 0] = data[i * this.ATTRIBUTES + 0]; //x
+                float32View[i * offset32 + 1] = data[i * this.ATTRIBUTES + 1]; //y
+                float32View[i * offset32 + 2] = data[i * this.ATTRIBUTES + 2]; //size
+            }
+
+            // debugger
+
+            gl.bindBuffer(gl.ARRAY_BUFFER, this.dataBuffer);
+            gl.bufferData(gl.ARRAY_BUFFER, this.arrayBuffer, gl.STATIC_DRAW);
+
+            gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, this.strip, 0);
+            gl.vertexAttribPointer(sizeLocation, 1, gl.FLOAT, false, this.strip, 2 * 4);
+
+            gl.bindBuffer(gl.ARRAY_BUFFER, null);
+            gl.enableVertexAttribArray(positionLocation);
+            gl.enableVertexAttribArray(sizeLocation);
+
+            gl.uniformMatrix3fv(matrixLocation, false, new Float32Array(matrix));
+            gl.uniform1f(cameraScaleLocation, camera.scale);
+            gl.uniform1f(sampleRatioLocation, sampleRatio);
+
+            gl.drawArrays(gl.POINTS, 0, len);
+        }
+    }]);
+
+    return Flag;
+}();
+
+exports.default = Flag;
+
+/***/ }),
+/* 25 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+
+var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }(); /**
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      * Created by chengang on 17-3-28.
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      */
+
+var _util = __webpack_require__(0);
+
+var _util2 = _interopRequireDefault(_util);
+
+var _iconVert = __webpack_require__(37);
 
 var _iconVert2 = _interopRequireDefault(_iconVert);
 
-var _iconFrag = __webpack_require__(37);
+var _iconFrag = __webpack_require__(36);
 
 var _iconFrag2 = _interopRequireDefault(_iconFrag);
 
@@ -4742,16 +4459,301 @@ var Icon = function () {
 exports.default = Icon;
 
 /***/ }),
-/* 37 */
+/* 26 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+
+var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }(); /**
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      * Created by chengang on 17-3-28.
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      */
+
+var _util = __webpack_require__(0);
+
+var _util2 = _interopRequireDefault(_util);
+
+var _defaultVert = __webpack_require__(33);
+
+var _defaultVert2 = _interopRequireDefault(_defaultVert);
+
+var _defaultFrag = __webpack_require__(32);
+
+var _defaultFrag2 = _interopRequireDefault(_defaultFrag);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+var Node = function () {
+    function Node() {
+        _classCallCheck(this, Node);
+
+        this.POINTS = 1;
+        this.ATTRIBUTES = 9;
+
+        this.shaderVert = _defaultVert2.default;
+        this.shaderFrag = _defaultFrag2.default;
+
+        this.arrayBuffer = null;
+        this.dataBuffer = null;
+        this.strip = 4 * 4 + 4 + 4;
+    }
+
+    _createClass(Node, [{
+        key: 'getRenderData',
+        value: function getRenderData(_ref) {
+            var data = _ref.data,
+                textureLoader = _ref.textureLoader,
+                textureIcon = _ref.textureIcon;
+
+            var node = data;
+            var color = _util2.default.parseColor(node.color || '#ff0000');
+            var img = -1;
+            if (node.img && textureLoader.cache[node.img]) img = textureLoader.cache[node.img];
+
+            var size = node.size * 2 || 10 * 2;
+            var isSelected = node.selected ? 1.0 : 0.0;
+
+            return [node.x, node.y, size, color.r, color.g, color.b, color.a, img, isSelected];
+        }
+    }, {
+        key: 'render',
+        value: function render(_ref2) {
+            var gl = _ref2.gl,
+                program = _ref2.program,
+                data = _ref2.data,
+                matrix = _ref2.matrix,
+                camera = _ref2.camera,
+                sampleRatio = _ref2.sampleRatio,
+                textureLoader = _ref2.textureLoader;
+
+            // debugger
+
+            if (!this.dataBuffer) this.dataBuffer = gl.createBuffer();
+
+            var positionLocation = gl.getAttribLocation(program, "a_position");
+            var sizeLocation = gl.getAttribLocation(program, "a_size");
+            var colorLocation = gl.getAttribLocation(program, "a_color");
+            var imgLocation = gl.getAttribLocation(program, "a_img");
+            var selectedLocation = gl.getAttribLocation(program, "a_selected");
+
+            var matrixLocation = gl.getUniformLocation(program, "u_matrix");
+            var cameraScaleLocation = gl.getUniformLocation(program, "u_camera_scale");
+            var texturesLocation = gl.getUniformLocation(program, "u_textures");
+            var borderColorLocation = gl.getUniformLocation(program, "u_borderColor");
+            var sampleRatioLocation = gl.getUniformLocation(program, "u_sample_ratio");
+
+            var len = data.length / this.ATTRIBUTES | 0;
+
+            // debugger
+            if (!this.arrayBuffer || len * this.strip != this.arrayBuffer.byteLength) {
+                this.arrayBuffer = new ArrayBuffer(len * this.strip);
+            }
+
+            var float32View = new Float32Array(this.arrayBuffer);
+            var int8View = new Uint8Array(this.arrayBuffer);
+
+            var offset32 = this.strip / 4;
+            for (var i = 0; i < len; i++) {
+                float32View[i * offset32 + 0] = data[i * this.ATTRIBUTES + 0]; //x
+                float32View[i * offset32 + 1] = data[i * this.ATTRIBUTES + 1]; //y
+                float32View[i * offset32 + 2] = data[i * this.ATTRIBUTES + 2]; //size
+                float32View[i * offset32 + 4] = data[i * this.ATTRIBUTES + 7]; //img
+                float32View[i * offset32 + 5] = data[i * this.ATTRIBUTES + 8]; //selected
+
+                int8View[i * this.strip + 12] = data[i * this.ATTRIBUTES + 3]; //color.r
+                int8View[i * this.strip + 13] = data[i * this.ATTRIBUTES + 4]; //color.g
+                int8View[i * this.strip + 14] = data[i * this.ATTRIBUTES + 5]; //color.b
+                int8View[i * this.strip + 15] = data[i * this.ATTRIBUTES + 6]; //color.a
+            }
+
+            // debugger
+
+            gl.bindBuffer(gl.ARRAY_BUFFER, this.dataBuffer);
+            gl.bufferData(gl.ARRAY_BUFFER, this.arrayBuffer, gl.STATIC_DRAW);
+
+            gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, this.strip, 0);
+            gl.vertexAttribPointer(sizeLocation, 1, gl.FLOAT, false, this.strip, 2 * 4);
+            gl.vertexAttribPointer(colorLocation, 4, gl.UNSIGNED_BYTE, false, this.strip, 3 * 4);
+            gl.vertexAttribPointer(imgLocation, 1, gl.FLOAT, false, this.strip, 4 * 4);
+            gl.vertexAttribPointer(selectedLocation, 1, gl.FLOAT, false, this.strip, 5 * 4);
+
+            gl.bindBuffer(gl.ARRAY_BUFFER, null);
+            gl.enableVertexAttribArray(positionLocation);
+            gl.enableVertexAttribArray(sizeLocation);
+            gl.enableVertexAttribArray(colorLocation);
+            gl.enableVertexAttribArray(imgLocation);
+            gl.enableVertexAttribArray(selectedLocation);
+
+            gl.uniformMatrix3fv(matrixLocation, false, new Float32Array(matrix));
+            gl.uniform1f(cameraScaleLocation, camera.scale);
+            gl.uniform1f(sampleRatioLocation, sampleRatio);
+            gl.uniform4f(borderColorLocation, 194.0, 97.0, 54.0, 255.0);
+
+            gl.uniform1iv(texturesLocation, textureLoader.texturesIndex);
+
+            gl.drawArrays(gl.POINTS, 0, len);
+        }
+    }]);
+
+    return Node;
+}();
+
+exports.default = Node;
+
+/***/ }),
+/* 27 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+
+var _default = __webpack_require__(26);
+
+var _default2 = _interopRequireDefault(_default);
+
+var _Flag = __webpack_require__(24);
+
+var _Flag2 = _interopRequireDefault(_Flag);
+
+var _Icon = __webpack_require__(25);
+
+var _Icon2 = _interopRequireDefault(_Icon);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+exports.default = {
+    layers: [{ name: 'base', layer: _default2.default }, { name: 'icon', layer: _Icon2.default }, { name: 'flag', layer: _Flag2.default }]
+}; /**
+    * Created by chengang on 17-4-13.
+    */
+
+/***/ }),
+/* 28 */
+/***/ (function(module, exports) {
+
+module.exports = "precision mediump float;\nvarying vec4 color;\nvoid main(){\ngl_FragColor = color;\n}"
+
+/***/ }),
+/* 29 */
+/***/ (function(module, exports) {
+
+module.exports = "attribute vec2 a_position;\nattribute vec2 a_normal;\nattribute vec4 a_color;\nattribute float a_size;\n\nuniform mat3 u_matrix;\n\nvarying vec4 color;\n\nvoid main() {\n\nvec2 pos  = a_position + a_normal * a_size;\ngl_Position = vec4((u_matrix*vec3(pos,1)).xy,0,1);\n\ncolor = a_color/255.0;\n}\n"
+
+/***/ }),
+/* 30 */
+/***/ (function(module, exports) {
+
+module.exports = "attribute vec2 a_position;\nattribute vec2 a_uv;\n\nuniform mat3 u_matrix;\nuniform sampler2D u_image;\n\n\nvarying vec2 v_texCoord;\n\nvoid main() {\ngl_Position = vec4((u_matrix*vec3(a_position,1)).xy,0,1);\nv_texCoord = a_uv;\n}\n"
+
+/***/ }),
+/* 31 */
+/***/ (function(module, exports) {
+
+module.exports = "attribute vec2 a_position;\nattribute vec2 a_uv;\n\nuniform mat3 u_matrix;\nuniform sampler2D u_image;\n\n\nvarying vec2 v_texCoord;\n\nvoid main() {\ngl_Position = vec4((u_matrix*vec3(a_position,1)).xy,0,1);\nv_texCoord = a_uv;\n}\n"
+
+/***/ }),
+/* 32 */
+/***/ (function(module, exports) {
+
+module.exports = "//#ifdef GL_OES_standard_derivatives\n//#extension GL_OES_standard_derivatives : enable\n//#endif\n\n precision mediump float;\n\nvarying float size;\nvarying vec4 color;\nvarying float img;\nvarying float selected;\n\nuniform sampler2D u_textures[10];\nuniform sampler2D u_icons_texture;\nuniform vec4 u_borderColor;\nuniform float u_sample_ratio;\n\n\n\n\n\n//todo\nvec4 getSampleColore(int index,vec2 uv){\n    vec4 c;\n    if(index == 0){\n        c = texture2D(u_textures[0],uv);\n    }else if(index == 1){\n        c = texture2D(u_textures[1],uv);\n    }else if(index == 2){\n        c = texture2D(u_textures[2],uv);\n    }else if(index == 3){\n        c = texture2D(u_textures[3],uv);\n    }else if(index == 4){\n        c = texture2D(u_textures[4],uv);\n    }else if(index == 5){\n        c = texture2D(u_textures[5],uv);\n    }\n    return c;\n}\n\nvec4 borderColor = u_borderColor/255.0;\n\nvoid main()\n{\n   float r = 0.0, alpha = 1.0,\n   blur = 4.0 * u_sample_ratio / size ,\n   border = max(1.0 - 15.0 * u_sample_ratio / size,0.0) ;\n\n   vec4 nodecolor = color;\n    vec2 cxy = 2.0 * gl_PointCoord - 1.0;\n    r = length(cxy);\n\n    if(img >= 0.0){\n        nodecolor = getSampleColore(int(img),gl_PointCoord);\n    }\n\n\n    //todo\n    if(selected < 0.5) borderColor = nodecolor;\n\n    if(size > 4.0){\n        if(r > 1.0 ){\n            discard;\n        }\n\n        if(r > 1.0-blur && r <=1.0){\n            alpha = 1.0 - smoothstep(1.0-blur, 1.0, r);\n        }\n        else if( r > border && r < border + blur){\n            nodecolor = mix(nodecolor,borderColor,smoothstep(border, border + blur, r));\n        }\n\n         if( r >= border + blur){\n            nodecolor = borderColor;\n         }\n    }\n\n    gl_FragColor = nodecolor * alpha;\n}\n"
+
+/***/ }),
+/* 33 */
+/***/ (function(module, exports) {
+
+module.exports = "\n precision mediump float;\nattribute vec2 a_position;\nattribute vec4 a_color;\nattribute float a_size;\nattribute float a_img;\nattribute float a_selected;\n\nuniform mat3 u_matrix;\nuniform float u_camera_scale;\nuniform float u_sample_ratio;\n\nvarying float size;\nvarying vec4 color;\nvarying float img;\nvarying float selected;\n\nvoid main() {\n\ngl_Position = vec4((u_matrix*vec3(a_position,1)).xy,0,1);\nsize = gl_PointSize  = 1.0/u_camera_scale * a_size*u_sample_ratio;\ncolor = a_color/255.0;\nimg = a_img;\nselected = a_selected;\n\n}\n"
+
+/***/ }),
+/* 34 */
+/***/ (function(module, exports) {
+
+module.exports = "//#ifdef GL_OES_standard_derivatives\n//#extension GL_OES_standard_derivatives : enable\n//#endif\n\n precision mediump float;\n\nvarying float size;\n\nuniform float u_sample_ratio;\n\n\nvec4 color = vec4(0.0,1.0,0.0,1.0);\n\nvoid main()\n{\n   float r = 0.0, alpha = 1.0,blur = 4.0 * u_sample_ratio / size ;\n   vec4 nodecolor = color;\n    vec2 cxy = 2.0 * gl_PointCoord - 1.0;\n    r = length(cxy);\n\n\n    if(size > 4.0){\n        if(r > 1.0 ){\n            discard;\n        }\n\n        if(r > 1.0-blur && r <=1.0){\n            alpha = 1.0 - smoothstep(1.0-blur, 1.0, r);\n        }\n    }\n    gl_FragColor = nodecolor * alpha;\n}\n"
+
+/***/ }),
+/* 35 */
+/***/ (function(module, exports) {
+
+module.exports = "\n precision mediump float;\nattribute vec2 a_position;\nattribute float a_size;\n\nuniform mat3 u_matrix;\nuniform float u_camera_scale;\nuniform float u_sample_ratio;\n\nvarying float size;\n\nvoid main() {\ngl_Position = vec4((u_matrix*vec3(a_position,1)).xy,0,1);\nsize = gl_PointSize  = 1.0/u_camera_scale * a_size*u_sample_ratio;\n}"
+
+/***/ }),
+/* 36 */
 /***/ (function(module, exports) {
 
 module.exports = "//#ifdef GL_OES_standard_derivatives\n//#extension GL_OES_standard_derivatives : enable\n//#endif\n\n precision mediump float;\n\nvarying float size;\nvarying float icons_uv[4];\n\n\nuniform float u_sample_ratio;\nuniform sampler2D u_icons_texture;\n\n\nvec2 get_icon_uv(vec2 coord){\n    float x1 = icons_uv[0];\n    float y1 = icons_uv[1];\n    float x2 = icons_uv[2];\n    float y2 = icons_uv[3];\n\n    float dx = x2-x1;\n    float dy = y2-y1;\n\n    return vec2(coord.x * dx + x1,coord.y * dy + y1);\n}\n\n\n\nvoid main()\n{\n    gl_FragColor = texture2D(u_icons_texture,get_icon_uv(gl_PointCoord)).w * vec4(1,1,1,1);\n}\n"
 
 /***/ }),
-/* 38 */
+/* 37 */
 /***/ (function(module, exports) {
 
 module.exports = "\n precision mediump float;\nattribute vec2 a_position;\nattribute float a_size;\n\nattribute float a_icon_uvx1;\nattribute float a_icon_uvx2;\nattribute float a_icon_uvy1;\nattribute float a_icon_uvy2;\n\nuniform mat3 u_matrix;\nuniform float u_camera_scale;\nuniform float u_sample_ratio;\n\nvarying float icons_uv[4];\nvarying float size;\n\nvoid main() {\ngl_Position = vec4((u_matrix*vec3(a_position,1)).xy,0,1);\nsize = gl_PointSize  = 1.0/u_camera_scale * a_size*u_sample_ratio;\n\nicons_uv[0] = a_icon_uvx1;\nicons_uv[1] = a_icon_uvy1;\nicons_uv[2] = a_icon_uvx2;\nicons_uv[3] = a_icon_uvy2;\n}"
+
+/***/ }),
+/* 38 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+
+var _Graph = __webpack_require__(4);
+
+Object.defineProperty(exports, 'Graph', {
+  enumerable: true,
+  get: function get() {
+    return _interopRequireDefault(_Graph).default;
+  }
+});
+
+var _index = __webpack_require__(9);
+
+Object.defineProperty(exports, 'WebGLRender', {
+  enumerable: true,
+  get: function get() {
+    return _index.WebGLRender;
+  }
+});
+
+var _Quad = __webpack_require__(2);
+
+Object.defineProperty(exports, 'Quad', {
+  enumerable: true,
+  get: function get() {
+    return _interopRequireDefault(_Quad).default;
+  }
+});
+
+var _Event = __webpack_require__(3);
+
+Object.defineProperty(exports, 'Event', {
+  enumerable: true,
+  get: function get() {
+    return _interopRequireDefault(_Event).default;
+  }
+});
+
+var _index2 = __webpack_require__(8);
+
+Object.defineProperty(exports, 'GraphView', {
+  enumerable: true,
+  get: function get() {
+    return _interopRequireDefault(_index2).default;
+  }
+});
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 /***/ })
 /******/ ]);
