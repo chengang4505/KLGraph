@@ -2,11 +2,11 @@
  * Created by chengang on 17-4-7.
  */
 
-import util from '../../../util'
-import mat3 from '../../../base/Matrix'
+import util from '../../../../util'
+import mat3 from '../../../../base/Matrix'
 
-import vert from './glsl/edge-label-vert.glsl'
-import frag from './glsl/label-frag.glsl'
+import vert from './../glsl/edge-label-vert.glsl'
+import frag from './../glsl/label-frag.glsl'
 
 
 function addData(arr,attributes,attrData,centerX,centerY,angle) {
@@ -19,7 +19,9 @@ function addData(arr,attributes,attrData,centerX,centerY,angle) {
     }
 }
 
-export default class NodeLabel{
+
+
+export default class CurveLabel{
     constructor(){
         // this.POINTS = 1;
         this.ATTRIBUTES = 4;
@@ -60,12 +62,29 @@ export default class NodeLabel{
         var dx = target.x - source.x;
         var dy = target.y - source.y;
 
+        //curve
+        var dis = util.getDistance(source.x,source.y,target.x,target.y);
+        var tSize = Math.max(util.getNodeSizeX(target),util.getNodeSizeY(target));
+
+        var tX = target.x - tSize / dis * dx;
+        var tY = target.y - tSize / dis * dy;
+
+        var ctrlP = util.getControlPos(source.x,source.y,tX,tY,edge.curveCount,edge.curveOrder);
+
+        var tangent = util.getPointTangentOnQuadraticCurve(0.5,source.x,source.y,tX,tY,ctrlP[0],ctrlP[1]);
+
+        dx = tangent[0],dy = tangent[1];
+
         var angle = util.getAngle(1,0,dx,dy);
+
 
         angle = dy < 0 ? Math.PI-angle:angle;
         angle = angle > Math.PI/2 ? angle + Math.PI: angle;
 
-        var centerX = (source.x + target.x)/2, centerY = (source.y + target.y)/2;
+        var center = util.getPointOnQuadraticCurve(0.5,source.x,source.y,tX,tY,ctrlP[0],ctrlP[1]);
+
+
+        var centerX = center[0], centerY = center[1];
         var startx = totalWidht/2 * -1;
         var starty =  charHeight/2;
         var x1,y1,x2,y2;

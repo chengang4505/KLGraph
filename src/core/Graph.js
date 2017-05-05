@@ -2,8 +2,11 @@
  * Created by chengang on 17-3-17.
  */
 
+'use strict';
+
+
 import  utils  from '../util.js'
-import  Quad from '../base/Quad'
+// import  Quad from '../base/Quad'
 import EventEmitter from '../base/EventEmitter'
 
 class Graph extends EventEmitter{
@@ -14,6 +17,13 @@ class Graph extends EventEmitter{
 
         options = options || {};
 
+        // this.quad = new Quad();
+
+        if (options.nodes || options.edges) this.read(options);
+
+    }
+
+    clear(){
         /**
          * node edge data
          */
@@ -31,12 +41,6 @@ class Graph extends EventEmitter{
          */
         this.inEdgesIndex = {};
         this.outEdgesIndex = {};
-
-
-        // this.quad = new Quad();
-
-        if (options.nodes || options.edges) this.read(options);
-
     }
 
     /**
@@ -44,8 +48,16 @@ class Graph extends EventEmitter{
      * @param options
      */
     read(options) {
-        this.nodes = options.nodes || [];
-        this.edges = options.edges || [];
+
+        this.clear();
+
+        (options.nodes || []).forEach(function (e) {
+            this.nodes.push(e);
+        }.bind(this));
+
+        (options.edges || []).forEach(function (e) {
+            this.edges.push(e);
+        }.bind(this));
 
         this.nodes.forEach(function (e) {
             if (!e.id) e.id = utils.uuid();
@@ -71,10 +83,26 @@ class Graph extends EventEmitter{
 
         }.bind(this));
 
+        this.updateEdgeCount();
+
         this.emit('reset');
 
         // this.quad.index(this.nodes);
 
+    }
+
+    updateEdgeCount(){
+        var source,target,attr,map = {};
+        this.edges.forEach(function (edge) {
+            source = this.nodesIndex[edge.source];
+            target = this.nodesIndex[edge.target];
+            attr = edge.source+edge.target;
+            if(!map[attr]) map[attr] = map[edge.target+edge.source] = {counter:0,source:edge.source};
+
+            edge.curveCount = map[attr].counter;
+            map[attr].counter++;
+            edge.curveOrder = edge.source == map[attr].source;
+        }.bind(this));
     }
 
     /**

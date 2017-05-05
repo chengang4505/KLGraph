@@ -1,6 +1,10 @@
 /**
  * Created by chengang on 17-3-28.
  */
+
+'use strict';
+
+
 var mat3 = {};
 
 mat3.normalize = function () {

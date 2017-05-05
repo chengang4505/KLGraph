@@ -31,16 +31,17 @@ export  default class Edge{
         var dx = target.x - source.x;
         var dy = target.y - source.y;
 
-        var data = [];
+        data = [];
         var size = 0.3,arrowSize =3;
         var crossVector = util.normalize([-dy,dx]);
 
         //arrow
+        var targetSize = Math.max(util.getNodeSizeX(target),util.getNodeSizeY(target));
         var dis = util.getDistance(source.x,source.y,target.x,target.y);
-        var arrowX = target.x - (target.size + arrowSize)/dis * dx;
-        var arrowY = target.y - (target.size + arrowSize)/dis * dy;
+        var arrowX = target.x - (targetSize + arrowSize)/dis * dx;
+        var arrowY = target.y - (targetSize + arrowSize)/dis * dy;
 
-        var color = utils.parseColor(edge.color||source.color || '#b3d2ff');
+        var color = util.parseColor(edge.color||source.color || '#b3d2ff');
 
         addData(data,this.ATTRIBUTES,[source.x,source.y,crossVector[0],crossVector[1],size,color.r,color.g,color.b,color.a]);
         addData(data,this.ATTRIBUTES,[arrowX,arrowY,crossVector[0],crossVector[1],size,color.r,color.g,color.b,color.a]);

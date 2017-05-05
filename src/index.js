@@ -1,6 +1,7 @@
 export {default as Graph} from './core/Graph'
 export {WebGLRender} from './render/index'
 // export {default as quadtree} from './test/src/quadtree'
-export {default as Quad} from './base/Quad'
+// export {default as Quad} from './base/Quad'
 export {default as Event} from './core/Event'
 export {default as GraphView} from './core/index'
+export {default as util} from './util'

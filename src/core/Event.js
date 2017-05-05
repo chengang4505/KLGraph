@@ -1,15 +1,12 @@
 /**
  * Created by chengang on 17-3-29.
  */
+
+'use strict';
+
 import util from '../util'
 
 export default function initEvent() {
-    var _this = this;
-    this.container.addEventListener('click', handlerWrap(_clickHandler), false);
-    this.container.addEventListener('mousemove', handlerWrap(_moveHandler), false);
-    this.container.addEventListener('mousedown', handlerWrap(_downHandler), false);
-    this.container.addEventListener('mouseup', handlerWrap(_upHandler), false);
-    this.container.addEventListener('mousewheel', handlerWrap(_wheelHandler), false);
 
     function handlerWrap(handle) {
         return function (e) {
@@ -18,6 +15,40 @@ export default function initEvent() {
             e.cameraY = pos.y;
             handle(e);
         }
+    }
+
+
+    var _this = this;
+
+    var events = {
+        click:handlerWrap(_clickHandler),
+        mousemove:handlerWrap(_moveHandler),
+        mousedown:handlerWrap(_downHandler),
+        mouseup:handlerWrap(_upHandler),
+        mousewheel:handlerWrap(_wheelHandler),
+    };
+
+    for(var e in events)    this.container.addEventListener(e, events[e], false);
+
+
+    //some little situation maybe need the trigger function.
+    this.trigger = function (type,event) {
+        if(events[type]) events[type](event);
+    };
+
+
+    function checkInNode(posx,posy,node) {
+        var isFind = false;
+        var dis,sizeX,sizeY;
+        if(node.type == 'rect'){
+            sizeX = util.getNodeSizeX(node);
+            sizeY = util.getNodeSizeY(node);
+            isFind = util.inRect(posx,posy,node.x-sizeX,node.y-sizeY,sizeX*2,sizeY*2);
+        }else {
+            dis = util.getDistance(posx, posy, node.x, node.y);
+            isFind = dis <= node.size
+        }
+        return isFind;
     }
 
     function getNode(pos) {
@@ -30,8 +61,7 @@ export default function initEvent() {
             for (var i = nodes.length - 1; i >= 0; i--) {
                 node = nodes[i];
                 // node = _this.graph.nodesIndex[node.id];
-                dis = util.getDistance(pos.x, pos.y, node.x, node.y);
-                if (dis <= node.size) {
+                if (checkInNode(pos.x,pos.y,node)) {
                     findNode = node;
                     break;
                 }
@@ -51,7 +81,7 @@ export default function initEvent() {
 
     function _moveHandler(e) {
         var graphPos = _this.toGraphPos({x:e.cameraX,y:e.cameraY});
-        var node = getNode(graphPos);
+        // var node = getNode(graphPos);
     }
 
 
@@ -76,10 +106,15 @@ export default function initEvent() {
                 var offsety = graphPos.y - starty;
 
                 if(isCamera){
-                    _this.camera.position.x -= offsetx;
-                    _this.camera.position.y -= offsety;
+                    _this.camera.positionX -= offsetx;
+                    _this.camera.positionY -= offsety;
                 }else {
-                    _this.graph.setNodeData(node.id,{x:node.x+offsetx,y:node.y+offsety});
+                    if(_this.context.selection.isSelected(node)){
+                        _this.context.selection.data.forEach(function (node) {
+                            _this.graph.setNodeData(node.id,{x:node.x+offsetx,y:node.y+offsety});
+                        });
+                    }else _this.graph.setNodeData(node.id,{x:node.x+offsetx,y:node.y+offsety});
+                    // _this.emit('drag',['node',offsetx,offsety]);
                 }
 
 
@@ -95,6 +130,7 @@ export default function initEvent() {
             });
 
             var onmouseup = handlerWrap(function(e) {
+                e.preventDefault();
                 isDown = false;
                 clear();
             });
@@ -122,17 +158,29 @@ export default function initEvent() {
     }
 
     function _upHandler(e) {
+        if ((e.which && e.which == 3) || (e.button && e.button == 2)){
+            var graphPos = _this.toGraphPos({x:e.cameraX,y:e.cameraY});
+            var node = getNode(graphPos);
+            if(node){
+                _this.emit('rightclick',['node',node,e]);
+            }else {
+                _this.emit('rightclick',['stage',null,e]);
+            }
+
+        }
+
     }
 
     function _wheelHandler(e) {
         _this.forceRender();
-        var ratio = _this.option.zoomRatio;
+        var ratio = _this.config.zoomRatio;
         if(e.wheelDelta > 0){
             _this.zoomTo(1/ratio,e.cameraX,e.cameraY);
+            _this.emit('zoom',[1/ratio])
         }else {
             _this.zoomTo(ratio,e.cameraX,e.cameraY);
+            _this.emit('zoom',[ratio])
         }
-
     }
 
     //drag

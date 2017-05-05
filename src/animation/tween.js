@@ -4,67 +4,147 @@
 
 'use strict';
 
-import EventEmiter from '../graph/eventEmiter';
+import EventEmitter from '../base/EventEmitter';
+import timer from '../base/timer'
 
-export  default function Tween(objs) {
-    if(!(this instanceof Tween)){
-        return new Tween(objs);
+/**
+ * from d3-interpolate
+ */
+function interpolateNumber(a, b) {
+    return a = +a, b -= a, function(t) {
+        return a + b * t;
+    };
+}
+
+
+
+export  default class Tween extends  EventEmitter{
+
+    static list = [];
+
+    constructor(objs,type){
+        super();
+        if(!objs) throw 'must have a obj';
+
+        type = type || '';
+
+        this.objs = objs;
+        this.type = type;
+        this.interpolates = null;
+        this.timer = timer(this.timerHandle.bind(this));
+        this._duration = 0;
+
+        Tween.list.push(this);
     }
 
-    EventEmiter.init(this);
 
-    if(!Array.isArray(objs)) objs = [objs];
-    this.objs = objs;
-    this.interpolates = [];
-    this.timer = d3.timer(this.timerHandle.bind(this));
-    this._duration = 0;
-}
-var p = Tween.prototype;
+    timerHandle(elapsed) {
+        var t = elapsed / this._duration;
 
-p.timerHandle = function (elapsed) {
-    var t = elapsed / this._duration;
+        t = Math.min(t,1);
 
-    t = Math.min(t,1);
-    var obj,attr,attrInterpolater;
-    for(var i = 0,len = Math.min(this.interpolates.length,this.objs.length);i< len;i++){
-        obj = this.objs[i];
-        attrInterpolater = this.interpolates[i];
-        for(attr in attrInterpolater){
-            obj[attr] = attrInterpolater[attr](t);
+        var obj,attr,attrInterpolater;
+        if(Array.isArray(this.interpolates)){
+            for(var i = 0,len = this.interpolates.length;i< len;i++){
+                obj = this.objs[i];
+                attrInterpolater = this.interpolates[i];
+                for(attr in attrInterpolater){
+                    obj[attr] = attrInterpolater[attr](t);
+                }
+            }
+        }else {
+            obj = this.objs;
+            attrInterpolater = this.interpolates;
+            for(attr in attrInterpolater){
+                obj[attr] = attrInterpolater[attr](t);
+            }
+        }
+
+        this.emit('change',[t]);
+
+        if(elapsed >=this._duration) this.stop();
+
+    }
+
+
+    duration(time) {
+        this._duration = time;
+        return this;
+    }
+
+    to(toObjs) {
+        if(Array.isArray(toObjs) && toObjs.length !== this.objs.length){
+            console.error('toObjs lenght not eq objs length');
+            this.stop();
+            return this;
+        }
+
+        var obj,attr,attrInterpolater;
+        if(Array.isArray(toObjs)){
+            this.interpolates = [];
+            for(var i = 0,len = toObjs.length;i<len;i++){
+                obj = toObjs[i];
+                attrInterpolater = {};
+                for(attr in obj){
+                    attrInterpolater[attr] = interpolateNumber(this.objs[i][attr],obj[attr]);
+                }
+                this.interpolates.push(attrInterpolater);
+            }
+        }else {
+            obj = toObjs;
+            attrInterpolater = {};
+            for(attr in obj){
+                attrInterpolater[attr] = interpolateNumber(this.objs[attr],obj[attr]);
+            }
+            this.interpolates = attrInterpolater;
+        }
+
+        return this;
+
+    };
+
+    stop() {
+        if(this.timer){
+            this.timer.stop();
+            this.timer = null;
+            this.objs = null;
+            this.interpolates = null;
+
+            Tween.remove(this.objs);
         }
     }
 
-    this.emit('change',[t]);
-
-    if(elapsed >=this._duration) this.stop();
-
-};
-
-p.duration = function (time) {
-    this._duration = time;
-    return this;
-};
-p.to = function (toObjs) {
-    var interpolateNumber = d3.interpolateNumber;
-    if(!Array.isArray(toObjs)) toObjs = [toObjs];
-
-    var obj,attr,attrInterpolater;
-    for(var i = 0,len = Math.min(toObjs.length,this.objs.length);i<len;i++){
-        obj = toObjs[i];
-        attrInterpolater = {};
-        for(attr in obj){
-            attrInterpolater[attr] = interpolateNumber(this.objs[i][attr],obj[attr]);
-        }
-        this.interpolates.push(attrInterpolater);
+    static remove(obj){
+        var list = Tween.list;
+        Tween.list = [];
+        list.forEach(function (e) {
+            if(e.objs == obj){
+                e.stop();
+            }else {
+                Tween.list.push(e);
+            }
+        })
     }
 
-    return this;
+    static removeByType(type){
+        var list = Tween.list;
+        Tween.list = [];
+        list.forEach(function (e) {
+            if(e.type === type){
+                e.stop();
+            }else {
+                Tween.list.push(e);
+            }
+        })
+    }
 
-};
+    static removeAll(){
+        Tween.list.forEach(function (e) {
+            e.stop();
+        })
 
-p.stop = function () {
-    this.timer.stop();
-    this.timer = null;
-    this.objs = null;
-    this.interpolates = null
+        Tween.list = [];
+    }
+
 }
+

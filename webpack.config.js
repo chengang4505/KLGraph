@@ -1,14 +1,17 @@
-var webpack = require('webpack')
+var webpack = require('webpack');
+var CopyWebpackPlugin = require('copy-webpack-plugin');
+var path = require('path');
 
 module.exports = {
     entry: './src/index.js',
     output: {
-        path: 'build/js',
-        filename: 'bundle.js',
-        library:'KLGraph',
-        libraryTarget:'window',
+        // path: 'build/js',
+        path: path.resolve(__dirname, '../Demo/static/js'),
+        filename: 'klgraph.js',
+        library: 'KLGraph',
+        libraryTarget: 'window',
     },
-    devtool:'source-map',
+    devtool: 'source-map',
     module: {
         loaders: [
             {
@@ -28,5 +31,10 @@ module.exports = {
                 use: 'raw-loader'
             }
         ]
-    }
+    },
+    // plugins: [
+    //     new CopyWebpackPlugin([
+    //         {from:'build/js/klgraph.js',to:path.resolve(__dirname, '../Demo/static/js')}
+    //     ])
+    // ]
 }

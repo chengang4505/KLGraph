@@ -10,43 +10,38 @@ import TextureText from './TextureText'
 import TextureIcon from './TextureIcon'
 import initEvent from '../../core/Event'
 
-
-
 class WebGLRender extends EventEmitter{
-    constructor(graph,option) {
+    constructor(context,config) {
         super();
 
-        this.option = option;
+        this.context = context;
+        this.config = config;
 
-        this.container = option.container;
-        this.graph = graph;
+        this.container = config.container;
+        this.graph = context.graph;
+
         this.needUpdate = true;
-
         this.sampleRatio = 1.5;
 
         this.initRender();
-        this.initGraphChangeEvent();
 
         this.initTexture = false;
         this.textureLoader = new TextureLoader(this.gl);
-        this.textureLoader.on('load',this.textureUpdate.bind(this));
-
-        this.initTextureText();
-
+        this.textureIcon = new TextureIcon(this.gl,this.config);
         this.textureText = new TextureText(this.gl);
+
+        this.initEvent();
+        this.initIconTexture();
         this.initTextTexture();
 
-        this.projectMatrix = mat3.matrixFromScale(2/(this.gl.canvas.clientWidth),2/(this.gl.canvas.clientHeight));
+        this.projectMatrix = null;
 
         this.camera = {
             scale:1,
-            position:{
-                x:0,y:0
-            },
+            positionX:0,
+            positionY:0,
             rotation:0
         };
-
-        this.renderModel = 'layer';
 
         //cache
         this.renderType = {
@@ -55,20 +50,14 @@ class WebGLRender extends EventEmitter{
             edge: {index:{},type:{},cache:false},
             edgeLabel: {index:{},type:{},cache:false}
         };
-
-        this.renderTypeV2 = {
-            node: {index:{},type:{},cache:false},
-            nodeLabel: {index:{},type:{},cache:false},
-            edge: {index:{},type:{},cache:false},
-            edgeLabel: {index:{},type:{},cache:false}
-        };
-
         initEvent.call(this);
 
     }
     //render
     render() {
         // debugger
+
+        this.resizeCanvas();
 
         var gl = this.gl;
         gl.clear(gl.COLOR_BUFFER_BIT);
@@ -84,26 +73,26 @@ class WebGLRender extends EventEmitter{
             this.initTexture = true;
         }
 
-        console.time('render')
+        // console.time('render')
 
-        console.time('renderEdge');
-        this.option.renderEdge && this.renderEdge();
-        console.timeEnd('renderEdge');
+        // console.time('renderEdge');
+        this.config.renderEdge && this.renderEdge();
+        // console.timeEnd('renderEdge');
 
-        console.time('renderEdgeLabel');
-        this.option.renderEdge && this.option.renderEdgeLabel && this.renderEdgeLabel();
-        console.timeEnd('renderEdgeLabel');
+        // console.time('renderEdgeLabel');
+        this.config.renderEdge && this.config.renderEdgeLabel && this.renderEdgeLabel();
+        // console.timeEnd('renderEdgeLabel');
 
-        console.time('renderNode');
-        this.option.renderNode && this.renderNode();
-        console.timeEnd('renderNode');
+        // console.time('renderNode');
+        this.config.renderNode && this.renderNode();
+        // console.timeEnd('renderNode');
 
-        console.time('renderNodeLabel');
-        this.option.renderNode && this.option.renderNodeLabel && this.renderNodeLabel();
-        console.timeEnd('renderNodeLabel');
+        // console.time('renderNodeLabel');
+        this.config.renderNode && this.config.renderNodeLabel && this.renderNodeLabel();
+        // console.timeEnd('renderNodeLabel');
 
 
-        console.timeEnd('render')
+        // console.timeEnd('render')
 
 
         this.needUpdate = false;
@@ -180,7 +169,7 @@ class WebGLRender extends EventEmitter{
         }
     }
 
-    createRenderCacheLayer(rootType,data,argFn){
+    createRenderCache(rootType,data,argFn){
         var nodeData, cacheIndex;
         var start, offset, layers, type;
 
@@ -230,116 +219,34 @@ class WebGLRender extends EventEmitter{
             this.renderType[rootType].cache = true;
         }
     }
-
-    createRenderCacheNoLayer(rootType,data,argFn){
-        var renderData, cacheIndex, layerData;
-        var start, offset, layers, type, orders;
-
-        var rootType1 = this.renderTypeV2[rootType].type;
-
-        if (!this.renderTypeV2[rootType].cache) {
-
-            data.forEach(function (e) {
-
-                type = e.type || 'default';
-                if (!rootType1[type]) this.initRenderLayers(rootType, type);
-
-                cacheIndex = this.renderTypeV2[rootType].index[e.id] = this.renderTypeV2[rootType].index[e.id] || {};
-
-                layers = rootType1[type].layers;
-                orders = rootType1[type].order;
-
-                orders.forEach(function (name) {
-                    renderData = layers[name].render.getRenderData(argFn(e));
-
-                    cacheIndex[name] = cacheIndex[name] || [];
-
-                    // no data
-                    if (!renderData || renderData.length == 0) {
-                        cacheIndex[name] = [];
-                        return;
-                    }
-
-                    renderData.forEach(function (data, i) {
-                        cacheIndex[name][i] = data;
-                    }.bind(this));
-
-                }.bind(this));
-
-            }.bind(this));
-
-            // this.fixClusterCacheLength(rootType);
-
-            this.renderTypeV2[rootType].cache = true;
-        }
-
-    }
-    createRenderCache(rootType,data,argFn){
-
-        if(this.renderModel == 'layer' || rootType == 'edge' || rootType == 'edgeLabel' || rootType == 'nodeLabel' ){
-            this.createRenderCacheLayer(rootType,data,argFn);
-        }else {
-            this.createRenderCacheNoLayer(rootType,data,argFn);
-        }
-
-    }
     renderCacheData(rootType,data){
-        var renderType,type,layers,camMatrixInvert,orders,cacheIndex;
+        var renderType, type, layers, camMatrixInvert, orders, cacheIndex;
 
         camMatrixInvert = this.getCameraMatrix(true);
 
-        if(this.renderModel == 'layer' || rootType == 'edge' || rootType == 'edgeLabel' || rootType == 'nodeLabel' ){
-            renderType = this.renderType[rootType].type;
+        renderType = this.renderType[rootType].type;
 
-            for(type in renderType){
+        for (type in renderType) {
 
-                layers = renderType[type].layers;
+            layers = renderType[type].layers;
 
-                renderType[type].order.forEach(function (name) {
+            renderType[type].order.forEach(function (name) {
 
-                    if(layers[name].data.length > 0){
+                if (layers[name].data.length > 0) {
 
-                        this.gl.useProgram(layers[name].program);
+                    this.gl.useProgram(layers[name].program);
 
-                        layers[name].render.render({
-                            gl: this.gl,
-                            program: layers[name].program,
-                            data: layers[name].data,
-                            matrix: mat3.multiMatrix([camMatrixInvert, this.projectMatrix]),
-                            camera: this.camera,
-                            sampleRatio: this.sampleRatio,
-                            textureLoader: this.textureLoader,
-                        });
+                    layers[name].render.render({
+                        gl: this.gl,
+                        program: layers[name].program,
+                        data: layers[name].data,
+                        matrix: mat3.multiMatrix([camMatrixInvert, this.projectMatrix]),
+                        camera: this.camera,
+                        sampleRatio: this.sampleRatio,
+                        textureLoader: this.textureLoader,
+                    });
 
-                    }
-
-                }.bind(this));
-            }
-        }else {
-            renderType = this.renderTypeV2[rootType].type;
-            data.forEach(function (e) {
-                type = e.type || 'default';
-
-                cacheIndex = this.renderTypeV2[rootType].index[e.id];
-                layers = renderType[type].layers;
-
-                renderType[type].order.forEach(function (name) {
-                    if(cacheIndex[name] && cacheIndex[name].length > 0){
-
-                        this.gl.useProgram(layers[name].program);
-
-                        layers[name].render.render({
-                            gl: this.gl,
-                            program: layers[name].program,
-                            data: cacheIndex[name],
-                            matrix: mat3.multiMatrix([camMatrixInvert, this.projectMatrix]),
-                            camera: this.camera,
-                            sampleRatio: this.sampleRatio,
-                            textureLoader: this.textureLoader,
-                        });
-
-                    }
-                }.bind(this))
+                }
 
             }.bind(this));
         }
@@ -347,7 +254,10 @@ class WebGLRender extends EventEmitter{
     }
 
     initRender() {
-        this.gl = this.container.getContext('experimental-webgl') || this.container.getContext('webgl');
+        var option = {
+            preserveDrawingBuffer:true
+        }
+        this.gl = this.container.getContext('experimental-webgl',option) || this.container.getContext('webgl',option);
 
         if (!this.gl) {
             throw '浏览器不支持webGl';
@@ -355,39 +265,37 @@ class WebGLRender extends EventEmitter{
 
         this.gl.getExtension('OES_standard_derivatives');
 
-        this.resizeCanvas(this.gl.canvas);
-        this.gl.viewport(0, 0, this.gl.canvas.width, this.gl.canvas.height);
+        this.resizeCanvas();
         this.gl.blendFunc(this.gl.SRC_ALPHA, this.gl.ONE_MINUS_SRC_ALPHA);
         this.gl.enable(this.gl.BLEND);
         this.gl.disable(this.gl.DEPTH_TEST);
         this.gl.clearColor(1.0, 1.0, 1.0, 1);
     }
-    initGraphChangeEvent(){
+    initEvent(){
         var _this = this;
         this.graph.on('change',function (type,ids) {
             if(type =='node'){
                 // console.time('updateNode');
-                _this.option.renderNode && _this.updateNodeRenderData(ids);
+                _this.config.renderNode && _this.updateNodeRenderData(ids);
                 // console.timeEnd('updateNode');
                 // console.time('updateNodeLabel');
-                _this.option.renderNode && _this.option.renderNodeLabel && _this.updateNodeLabelRenderData(ids);
+                _this.config.renderNode && _this.config.renderNodeLabel && _this.updateNodeLabelRenderData(ids);
                 // console.timeEnd('updateNodeLabel');
             }else if(type == 'edge'){
                 // console.time('updateEdge');
-                _this.option.renderEdge && _this.updateEdgeRenderData(ids);
+                _this.config.renderEdge && _this.updateEdgeRenderData(ids);
                 // console.timeEnd('updateEdge');
                 // console.time('updateEdgeLabel');
-                _this.option.renderEdge && _this.option.renderEdgeLabel && _this.updateEdgeLabelRenderData(ids);
+                _this.config.renderEdge && _this.config.renderEdgeLabel && _this.updateEdgeLabelRenderData(ids);
                 // console.timeEnd('updateEdgeLabel');
             }
 
         });
-
         this.graph.on('reset',function () {
-            _this.clearRenderCache()
+            _this.clearRenderCache();
+            _this.initIconTexture();
+            _this.initTextTexture();
         });
-
-
         this.graph.on('add',function (type,ids) {
             if(!util.isArray(ids)) ids = [ids];
 
@@ -399,9 +307,22 @@ class WebGLRender extends EventEmitter{
             _this.textureText.addTexts(getAddText(objs));
             _this.clearRenderCache();
         });
-
         this.graph.on('remove',function (type,ids) {
             _this.clearRenderCache();
+        });
+
+
+
+        this.textureIcon.on('load',function () {
+            this.clearRenderCache('node');
+        }.bind(this));
+
+
+        this.textureLoader.on('load',function (url) {
+            var nodes = _this.graph.nodes;
+            nodes.forEach(function (e) {
+                if(e.img && e.img == url) _this.updateNodeRenderData(e.id);
+            });
         });
 
 
@@ -416,6 +337,9 @@ class WebGLRender extends EventEmitter{
 
     }
     initTextTexture(){
+
+        this.textureText.clear();
+
         var nodes = this.graph.nodes;
         var edges = this.graph.edges;
 
@@ -454,11 +378,9 @@ class WebGLRender extends EventEmitter{
         var typeRoot = WebGLRender[root];
 
         var renderRoot;
-        if(this.renderModel == 'layer' || root == 'edge' || root == 'edgeLabel' || root == 'nodeLabel' ){
-            renderRoot= this.renderType[root].type;
-        }else {
-            renderRoot= this.renderTypeV2[root].type;
-        }
+
+        renderRoot= this.renderType[root].type;
+
 
 
         if(!typeRoot[type]){
@@ -493,7 +415,9 @@ class WebGLRender extends EventEmitter{
 
         }
     }
-    initTextureText(){
+    initIconTexture(){
+
+        this.textureIcon.clear();
 
         var nodes = this.graph.nodes;
 
@@ -508,24 +432,20 @@ class WebGLRender extends EventEmitter{
             }
         });
 
-        this.textureIcon = new TextureIcon(this.gl,this.option);
-
         this.textureIcon.createIcons(icons);
 
-        this.textureIcon.on('load',function () {
-            this.clearRenderCache('node');
-        }.bind(this))
     }
 
     getCameraMatrix(isInvert){
         var mat = mat3.multiMatrix([
             mat3.matrixFromScale(this.camera.scale,this.camera.scale),
             mat3.matrixFromRotation(this.camera.rotation),
-            mat3.matrixFromTranslate(this.camera.position.x,this.camera.position.y)
+            mat3.matrixFromTranslate(this.camera.positionX,this.camera.positionY)
         ]);
         return isInvert  ? mat3.invert(mat) : mat;
     }
-    resizeCanvas(canvas) {
+    resizeCanvas() {
+        var canvas = this.gl.canvas;
         var multiplier = this.sampleRatio;
         var width = canvas.clientWidth * multiplier | 0;
         var height = canvas.clientHeight * multiplier | 0;
@@ -533,8 +453,17 @@ class WebGLRender extends EventEmitter{
             canvas.width = width;
             canvas.height = height;
         }
+
+        this.projectMatrix = mat3.matrixFromScale(2/(canvas.clientWidth),2/(canvas.clientHeight));
+        this.gl.viewport(0, 0,canvas.width, canvas.height);
+
     }
 
+    graphToDomPos(pos){
+        var canvas = this.gl.canvas;
+        var camPos =  mat3.transformPoint([pos.x,pos.y],this.getCameraMatrix(true));
+        return {x:camPos[0]+canvas.clientWidth/2,y:canvas.clientHeight/2-camPos[1]};
+    }
     toCameraPos(pos){
         var canvas = this.gl.canvas;
         return {x:pos.x-canvas.clientWidth/2,y:canvas.clientHeight/2-pos.y};
@@ -555,22 +484,16 @@ class WebGLRender extends EventEmitter{
         var scale = this.camera.scale;
 
         var newscale = ratio * scale;
-        if(newscale < this.option.zoomMin) newscale = this.option.zoomMin;
-        if(newscale > this.option.zoomMax) newscale = this.option.zoomMax;
+        if(newscale < this.config.zoomMin) newscale = this.config.zoomMin;
+        if(newscale > this.config.zoomMax) newscale = this.config.zoomMax;
 
         if (x != null && y != null) {
             var offset = mat3.rotateVector([x * (newscale - scale)/scale, y *(newscale - scale)/scale], this.getCameraMatrix());
-            this.camera.position.x -= offset[0] ;
-            this.camera.position.y -= offset[1];
+            this.camera.positionX -= offset[0] ;
+            this.camera.positionY -= offset[1];
         }
 
         this.camera.scale = newscale;
-    }
-    textureUpdate(url){
-        var nodes = this.graph.nodes;
-        nodes.forEach(function (e) {
-            if(e.img && e.img == url) this.updateNodeRenderData(e.id);
-        }.bind(this));
     }
 
     //cache update

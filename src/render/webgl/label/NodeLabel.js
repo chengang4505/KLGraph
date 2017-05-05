@@ -3,7 +3,7 @@
  */
 import vert from './glsl/node-label-vert.glsl'
 import frag from './glsl/label-frag.glsl'
-
+import util from '../../../util'
 
 function addData(arr,attributes,attrData) {
     for(var i = 0;i< attributes;i++){
@@ -33,16 +33,18 @@ export default class NodeLabel{
 
         var data = [];
 
+        var sizeX = util.getNodeSizeX(node),sizeY = util.getNodeSizeY(node);
+        var size = Math.max(sizeX,sizeY);
         var infos = textureText.textinfo.infos,
-            charWidth = node.size/2,
-            charHeight = node.size/2,
+            charWidth = size/2,
+            charHeight = size/2,
             char,uv,width;
 
         var totalWidht = 0;
         for(var i = 0;i< str.length;i++) {
             char = str[i];
             if (!infos[char]) {
-                console.log(1);
+                // console.log(1);
                 continue;
             }
             totalWidht +=infos[char].width * charWidth
@@ -50,13 +52,13 @@ export default class NodeLabel{
 
 
         var startx = totalWidht/2 * -1 + node.x;
-        var starty =  node.y - node.size;
+        var starty =  node.y - sizeY;
         var x1,y1,x2,y2;
 
         for(var i = 0;i< str.length;i++){
             char = str[i];
             if(!infos[char]){
-                console.log(1);
+                // console.log(1);
                 continue;
             }
 

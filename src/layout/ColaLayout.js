@@ -3,16 +3,16 @@
  */
 
 export default class ColaLayout{
-    layout(graph){
+    layout(nodes,edges){
         if(!cola || !cola.Layout) throw 'please add cola lib first';
         this.cola = new cola.Layout().convergenceThreshold(1e-4)
-            .size([1000, 800]);
+            .size([1000, 1000]);
 
-        var data = this._init(graph);
+        var data = this._init(nodes,edges);
 
         this.cola.nodes(data.nodes)
             .links(data.edges)
-            .symmetricDiffLinkLengths(50)
+            .symmetricDiffLinkLengths(30)
             .start(60,0,0,0,false);
 
         return data.nodes.map(function (e) {
@@ -20,11 +20,11 @@ export default class ColaLayout{
         })
     }
 
-    _init(graph){
+    _init(_nodes,_edges){
         var nodes = [];
         var edges = [];
         var map = {};
-        graph.nodes.forEach(function (e,i) {
+        _nodes.forEach(function (e,i) {
             nodes.push({
                 width:100,
                 height:100
@@ -32,7 +32,7 @@ export default class ColaLayout{
             map[e.id] = i;
         })
 
-        graph.edges.forEach(function (e,i) {
+        _edges.forEach(function (e,i) {
             edges.push({
                 source:map[e.source],
                 target:map[e.target],

@@ -2,11 +2,12 @@
  * Created by chengang on 17-3-17.
  */
 
-var utils = {};
-
 var typeofstr = typeof '';
 var typeofobj = typeof {};
 var typeoffn = typeof function(){};
+
+var utils = {};
+
 
 utils.uuid = function(a,b){
     for(               // loop :)
@@ -29,23 +30,21 @@ utils.uuid = function(a,b){
 };
 
 
+//is tool
 utils.isArray = function( obj ){
     return Array.isArray ? Array.isArray( obj ) : obj != null && obj instanceof Array;
 };
-
 utils.isString = function( obj ){
     return obj != null && typeof obj == typeofstr;
 };
-
 utils.isObject = function( obj ){
     return obj != null && typeof obj === typeofobj;
 };
-
 utils.isFunction =  function( obj ){
     return obj != null && typeof obj === typeoffn;
 };
 
-
+//webgl shader tool
 
 utils.loadShader = function(gl, shaderSource, shaderType, error) {
     var compiled,
@@ -121,6 +120,8 @@ utils.extend = function() {
     return res;
 };
 
+// math tool
+
 utils.getDistance = function (x1,y1,x2,y2) {
     var dx =x1 - x2;
     var dy =y1 - y2;
@@ -138,7 +139,12 @@ utils.getAngle = function (x1,y1,x2,y2) {
     return Math.acos(cos);
 };
 
+utils.inRect = function (posx,posy,x,y,w,h) {
+  return posx >= x && posx <= x+w && posy >= y && posy <= y+h;
+};
 
+
+//color parse
 
 var reI = "\\s*([+-]?\\d+)\\s*",
     reN = "\\s*([+-]?\\d*\\.?\\d+(?:[eE][+-]?\\d+)?)\\s*";
@@ -160,7 +166,7 @@ utils.parseColor = function (format) {
             r:+m[1],
             g:+m[2],
             b:+m[3],
-            a:+m[4]
+            a:+m[4]*255
         }
     }else {
         throw 'not valid color format';
@@ -168,6 +174,81 @@ utils.parseColor = function (format) {
 }
 
 
+utils.getNodeSizeX = function (node) {
+    var size = node.size || 10;
+    if(node.type == 'rect' && node.width) size = node.width;
+
+    return size;
+};
+
+utils.getNodeSizeY = function (node) {
+    var size = node.size || 10;
+    if(node.type == 'rect' && node.height) size = node.height;
+
+    return size;
+};
+
+utils.getBBox = function (nodes) {
+    var x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    nodes.forEach(function (e) {
+        if (e.x < x0) x0 = e.x;
+        if (e.x > x1) x1 = e.x;
+        if (e.y < y0) y0 = e.y;
+        if (e.y > y1) y1 = e.y;
+    });
+
+    return {
+        x:x0,
+        y:y0,
+        w:x1-x0,
+        h:y1-y0
+    }
+};
+
+
+/**
+ * Compute the coordinates of the point positioned
+ * at length t in the quadratic bezier curve.
+ *
+ * @param  {number} t  In [0,1] the step percentage to reach
+ *                     the point in the curve from the context point.
+ * @param  {number} x1 The X coordinate of the context point.
+ * @param  {number} y1 The Y coordinate of the context point.
+ * @param  {number} x2 The X coordinate of the ending point.
+ * @param  {number} y2 The Y coordinate of the ending point.
+ * @param  {number} xi The X coordinate of the control point.
+ * @param  {number} yi The Y coordinate of the control point.
+ * @return {object}    {x,y}.
+ */
+utils.getPointOnQuadraticCurve = function(t, x1, y1, x2, y2, xi, yi) {
+    // http://stackoverflow.com/a/5634528
+    return [
+        Math.pow(1 - t, 2) * x1 + 2 * (1 - t) * t * xi + Math.pow(t, 2) * x2,
+        Math.pow(1 - t, 2) * y1 + 2 * (1 - t) * t * yi + Math.pow(t, 2) * y2
+    ];
+};
+
+utils.getPointTangentOnQuadraticCurve = function(t, x1, y1, x2, y2, xi, yi) {
+    var pos1 = utils.getPointOnQuadraticCurve(t, x1, y1, x2, y2, xi, yi);
+    var pos2 = utils.getPointOnQuadraticCurve(t+0.001, x1, y1, x2, y2, xi, yi);
+    return utils.normalize([pos2[0]-pos1[0],pos2[1] - pos1[1]]);
+};
+
+
+utils.getControlPos = function(x1,y1,x2,y2,count,order) {
+    var dis = utils.getDistance(x1,y1,x2,y2);
+    var factor = dis/8;
+
+    var ratio = (count+1)%2 == 1 ? 1 : -1;
+    ratio *= order ? 1 : -1;
+
+    factor *= ratio * ((count >> 1) + 1);
+
+    var norV = utils.normalize([y1-y2,x2-x1]);
+    return [norV[0]*factor+(x1+x2)/2,norV[1]*factor+(y1+y2)/2];
+};
+
+
 export  default utils ;
 
-window.utils = utils;
+// window.utils = utils;

@@ -64,7 +64,7 @@ window["KLGraph"] =
 /******/ 	__webpack_require__.p = "";
 /******/
 /******/ 	// Load entry module and return exports
-/******/ 	return __webpack_require__(__webpack_require__.s = 32);
+/******/ 	return __webpack_require__(__webpack_require__.s = 39);
 /******/ })
 /************************************************************************/
 /******/ ([
@@ -86,10 +86,6 @@ var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol
 
 var utils = {};
 
-var typeofstr = _typeof('');
-var typeofobj = _typeof({});
-var typeoffn = _typeof(function () {});
-
 utils.uuid = function (a, b) {
     for ( // loop :)
     b = a = ''; // b - result , a - numeric variable
@@ -104,6 +100,10 @@ utils.uuid = function (a, b) {
     ) {}
     return b;
 };
+
+var typeofstr = _typeof('');
+var typeofobj = _typeof({});
+var typeoffn = _typeof(function () {});
 
 utils.isArray = function (obj) {
     return Array.isArray ? Array.isArray(obj) : obj != null && obj instanceof Array;
@@ -201,6 +201,10 @@ utils.getAngle = function (x1, y1, x2, y2) {
     return Math.acos(cos);
 };
 
+utils.inRect = function (posx, posy, x, y, w, h) {
+    return posx >= x && posx <= x + w && posy >= y && posy <= y + h;
+};
+
 var reI = "\\s*([+-]?\\d+)\\s*",
     reN = "\\s*([+-]?\\d*\\.?\\d+(?:[eE][+-]?\\d+)?)\\s*";
 var reHex6 = /^#([0-9a-f]{6})$/;
@@ -221,23 +225,78 @@ utils.parseColor = function (format) {
             r: +m[1],
             g: +m[2],
             b: +m[3],
-            a: +m[4]
+            a: +m[4] * 255
         };
     } else {
         throw 'not valid color format';
     }
 };
 
+utils.getNodeSizeX = function (node) {
+    var size = node.size || 10;
+    if (node.type == 'rect' && node.width) size = node.width;
+
+    return size;
+};
+
+utils.getNodeSizeY = function (node) {
+    var size = node.size || 10;
+    if (node.type == 'rect' && node.height) size = node.height;
+
+    return size;
+};
+
+/**
+ * Compute the coordinates of the point positioned
+ * at length t in the quadratic bezier curve.
+ *
+ * @param  {number} t  In [0,1] the step percentage to reach
+ *                     the point in the curve from the context point.
+ * @param  {number} x1 The X coordinate of the context point.
+ * @param  {number} y1 The Y coordinate of the context point.
+ * @param  {number} x2 The X coordinate of the ending point.
+ * @param  {number} y2 The Y coordinate of the ending point.
+ * @param  {number} xi The X coordinate of the control point.
+ * @param  {number} yi The Y coordinate of the control point.
+ * @return {object}    {x,y}.
+ */
+utils.getPointOnQuadraticCurve = function (t, x1, y1, x2, y2, xi, yi) {
+    // http://stackoverflow.com/a/5634528
+    return [Math.pow(1 - t, 2) * x1 + 2 * (1 - t) * t * xi + Math.pow(t, 2) * x2, Math.pow(1 - t, 2) * y1 + 2 * (1 - t) * t * yi + Math.pow(t, 2) * y2];
+};
+
+utils.getPointTangentOnQuadraticCurve = function (t, x1, y1, x2, y2, xi, yi) {
+    var pos1 = utils.getPointOnQuadraticCurve(t, x1, y1, x2, y2, xi, yi);
+    var pos2 = utils.getPointOnQuadraticCurve(t + 0.001, x1, y1, x2, y2, xi, yi);
+    return utils.normalize([pos2[0] - pos1[0], pos2[1] - pos1[1]]);
+};
+
+utils.getControlPos = function (x1, y1, x2, y2, count, order) {
+    var dis = utils.getDistance(x1, y1, x2, y2);
+    var factor = dis / 8;
+
+    var ratio = (count + 1) % 2 == 1 ? 1 : -1;
+    ratio *= order ? 1 : -1;
+
+    factor *= ratio * ((count >> 1) + 1);
+
+    var norV = utils.normalize([y1 - y2, x2 - x1]);
+    return [norV[0] * factor + (x1 + x2) / 2, norV[1] * factor + (y1 + y2) / 2];
+};
+
 exports.default = utils;
 
-
-window.utils = utils;
+// window.utils = utils;
 
 /***/ }),
 /* 1 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
+/**
+ * Created by chengang on 17-2-16.
+ */
+
 
 
 Object.defineProperty(exports, "__esModule", {
@@ -248,10 +307,6 @@ var _createClass = function () { function defineProperties(target, props) { for 
 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
-/**
- * Created by chengang on 17-2-16.
- */
-
 var EventEmitter = function () {
     function EventEmitter() {
         _classCallCheck(this, EventEmitter);
@@ -260,7 +315,7 @@ var EventEmitter = function () {
     }
 
     _createClass(EventEmitter, [{
-        key: "on",
+        key: 'on',
         value: function on(type, cb) {
             if (!type || !cb) return;
             this._listener[type] = this._listener[type] || [];
@@ -274,7 +329,7 @@ var EventEmitter = function () {
             return cb;
         }
     }, {
-        key: "off",
+        key: 'off',
         value: function off(type, cb) {
             if (!type) return;
             var listener;
@@ -292,7 +347,7 @@ var EventEmitter = function () {
             }
         }
     }, {
-        key: "emit",
+        key: 'emit',
         value: function emit(type, args) {
             if (!type) return;
             var listener, fn;
@@ -317,167 +372,134 @@ exports.default = EventEmitter;
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
+/**
+ * Created by chengang on 17-3-28.
+ */
+
 
 
 Object.defineProperty(exports, "__esModule", {
     value: true
 });
+var mat3 = {};
 
-var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }(); /**
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      * Created by chengang on 17-3-29.
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      */
-
-var _util = __webpack_require__(0);
-
-var _util2 = _interopRequireDefault(_util);
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
-
-var defaultConfig = {
-    maxLevel: 2
+mat3.normalize = function () {
+    return [1, 0, 0, 0, 1, 0, 0, 0, 1];
 };
 
-function indexN(x, y, rect) {
-    var x0 = rect.x,
-        y0 = rect.y,
-        w = rect.w,
-        h = rect.h;
-    var right = x > x0 + w / 2;
-    var top = y > y0 + h / 2;
-    return top << 1 | right;
-}
+mat3.matrixFromTranslate = function (dx, dy) {
+    return [1, 0, 0, 0, 1, 0, dx, dy, 1];
+};
 
-function indexNs(pointRect, rect) {
-    var points = [[pointRect.x, pointRect.y], [pointRect.x + pointRect.w / 2, pointRect.y], [pointRect.x, pointRect.y + pointRect.h / 2], [pointRect.x + pointRect.w / 2, pointRect.y + pointRect.h / 2]];
-    var map = {},
-        n;
-    points.forEach(function (e) {
-        n = indexN(e[0], e[1], rect);
-        map[n] = true;
+mat3.matrixFromRotation = function (angle) {
+    var cos = Math.cos(angle),
+        sin = Math.sin(angle);
+
+    return [cos, sin, 0, -sin, cos, 0, 0, 0, 1];
+};
+
+mat3.matrixFromScale = function (x, y) {
+    return [x, 0, 0, 0, y, 0, 0, 0, 1];
+};
+
+mat3.invert = function (a) {
+    var l = 3,
+        a11 = a[0 * l + 0],
+        a12 = a[0 * l + 1],
+        a13 = a[0 * l + 2],
+        a21 = a[1 * l + 0],
+        a22 = a[1 * l + 1],
+        a23 = a[1 * l + 2],
+        a31 = a[2 * l + 0],
+        a32 = a[2 * l + 1],
+        a33 = a[2 * l + 2];
+
+    var del = a11 * (a22 * a33 - a23 * a32) - a12 * (a21 * a33 - a23 * a31) + a13 * (a21 * a32 - a22 * a31);
+
+    return [(a22 * a33 - a23 * a32) / del, (a13 * a32 - a12 * a33) / del, (a12 * a23 - a13 * a22) / del, (a23 * a31 - a21 * a33) / del, (a11 * a33 - a13 * a31) / del, (a13 * a21 - a11 * a23) / del, (a21 * a32 - a22 * a31) / del, (a12 * a31 - a11 * a32) / del, (a11 * a22 - a12 * a21) / del];
+};
+
+mat3.multiply = function (a, b) {
+    var l = 3,
+        a00 = a[0 * l + 0],
+        a01 = a[0 * l + 1],
+        a02 = a[0 * l + 2],
+        a10 = a[1 * l + 0],
+        a11 = a[1 * l + 1],
+        a12 = a[1 * l + 2],
+        a20 = a[2 * l + 0],
+        a21 = a[2 * l + 1],
+        a22 = a[2 * l + 2],
+        b00 = b[0 * l + 0],
+        b01 = b[0 * l + 1],
+        b02 = b[0 * l + 2],
+        b10 = b[1 * l + 0],
+        b11 = b[1 * l + 1],
+        b12 = b[1 * l + 2],
+        b20 = b[2 * l + 0],
+        b21 = b[2 * l + 1],
+        b22 = b[2 * l + 2];
+
+    return [a00 * b00 + a01 * b10 + a02 * b20, a00 * b01 + a01 * b11 + a02 * b21, a00 * b02 + a01 * b12 + a02 * b22, a10 * b00 + a11 * b10 + a12 * b20, a10 * b01 + a11 * b11 + a12 * b21, a10 * b02 + a11 * b12 + a12 * b22, a20 * b00 + a21 * b10 + a22 * b20, a20 * b01 + a21 * b11 + a22 * b21, a20 * b02 + a21 * b12 + a22 * b22];
+};
+
+mat3.transformPoint = function (p, a) {
+    var x = p[0],
+        y = p[1];
+    var l = 3,
+        a00 = a[0 * l + 0],
+        a01 = a[0 * l + 1],
+        a02 = a[0 * l + 2],
+        a10 = a[1 * l + 0],
+        a11 = a[1 * l + 1],
+        a12 = a[1 * l + 2],
+        a20 = a[2 * l + 0],
+        a21 = a[2 * l + 1],
+        a22 = a[2 * l + 2];
+
+    return [x * a00 + y * a10 + a20, x * a01 + y * a11 + a21];
+};
+
+mat3.rotateVector = function (v, a) {
+    var x = v[0],
+        y = v[1];
+    var l = 3,
+        a00 = a[0 * l + 0],
+        a01 = a[0 * l + 1],
+        a02 = a[0 * l + 2],
+        a10 = a[1 * l + 0],
+        a11 = a[1 * l + 1],
+        a12 = a[1 * l + 2],
+        a20 = a[2 * l + 0],
+        a21 = a[2 * l + 1],
+        a22 = a[2 * l + 2];
+
+    return [x * a00 + y * a10, x * a01 + y * a11];
+};
+
+mat3.multiMatrix = function (matrixs) {
+    return matrixs.reduce(function (pre, cur) {
+        return mat3.multiply(pre, cur);
     });
+};
 
-    return map;
-}
-
-function getIndexRect(index, rect) {
-    var r;
-    switch (index) {
-        case 0:
-            r = { x: rect.x, y: rect.y, w: rect.w / 2, h: rect.h / 2 };
-            break;
-        case 1:
-            r = { x: rect.x + rect.w / 2, y: rect.y, w: rect.w / 2, h: rect.h / 2 };
-            break;
-        case 2:
-            r = { x: rect.x, y: rect.y + rect.h / 2, w: rect.w / 2, h: rect.h / 2 };
-            break;
-        case 3:
-            r = { x: rect.x + rect.w / 2, y: rect.y + rect.h / 2, w: rect.w / 2, h: rect.h / 2 };
-            break;
-    }
-
-    return r;
-}
-
-function createNode(level, rect) {
-    return {
-        level: level || 0,
-        rect: rect,
-        elements: [],
-        children: null
-    };
-}
-
-function pointRect(n) {
-    return {
-        x: n.x - n.size,
-        y: n.y - n.size,
-        w: n.size * 2,
-        h: n.size * 2
-    };
-}
-
-var Quad = function () {
-    function Quad(option) {
-        _classCallCheck(this, Quad);
-
-        this.option = _util2.default.extend(defaultConfig, option || {});
-        this.root = null;
-    }
-
-    _createClass(Quad, [{
-        key: 'index',
-        value: function index(nodes, option) {
-            console.time('quadindex');
-            option = option || {};
-
-            var x0 = Infinity,
-                y0 = Infinity,
-                x1 = -Infinity,
-                y1 = -Infinity;
-            if (!option.rect) {
-                nodes.forEach(function (e) {
-                    if (e.x < x0) x0 = e.x;
-                    if (e.x > x1) x1 = e.x;
-                    if (e.y < y0) y0 = e.y;
-                    if (e.y > y1) y1 = e.y;
-                });
-                option.rect = { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
-            }
-
-            this.root = createNode(0, option.rect);
-
-            nodes.forEach(function (e) {
-                this.insert(e, this.root);
-            }.bind(this));
-            console.timeEnd('quadindex');
-        }
-    }, {
-        key: 'insert',
-        value: function insert(data, root) {
-            var pointR = pointRect(data);
-            if (root.level < this.option.maxLevel) {
-                root.children = root.children || new Array(4);
-                var indexs = indexNs(pointR, root.rect);
-                var e;
-                for (var i in indexs) {
-                    e = +i;
-                    if (!root.children[e]) root.children[e] = createNode(root.level + 1, getIndexRect(e, root.rect));
-                    this.insert(data, root.children[e]);
-                }
-            } else {
-                root.elements.push({ x: data.x, y: data.y, id: data.id });
-            }
-        }
-    }, {
-        key: 'point',
-        value: function point(x, y) {
-            return this._point(x, y, this.root);
-        }
-    }, {
-        key: '_point',
-        value: function _point(x, y, root) {
-            if (root.children) {
-                var index = indexN(x, y, root.rect);
-                return root.children[index] ? this._point(x, y, root.children[index]) : [];
-            } else {
-                return root.elements;
-            }
-        }
-    }]);
-
-    return Quad;
-}();
-
-exports.default = Quad;
+exports.default = mat3;
 
 /***/ }),
 /* 3 */
+/***/ (function(module, exports) {
+
+module.exports = " precision mediump float;\n\nvec4 color = vec4(77, 72, 91,255);\n\nvarying vec2 v_texCoord;\nuniform sampler2D u_image;\n\n\nvoid main() {\n    color = color / 255.0;\n   vec4 color0 = texture2D(u_image, v_texCoord);\n   gl_FragColor = color * color0.w;\n}"
+
+/***/ }),
+/* 4 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
+/**
+ * Created by chengang on 17-3-29.
+ */
+
 
 
 Object.defineProperty(exports, "__esModule", {
@@ -492,12 +514,6 @@ var _util2 = _interopRequireDefault(_util);
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 function initEvent() {
-    var _this = this;
-    this.container.addEventListener('click', handlerWrap(_clickHandler), false);
-    this.container.addEventListener('mousemove', handlerWrap(_moveHandler), false);
-    this.container.addEventListener('mousedown', handlerWrap(_downHandler), false);
-    this.container.addEventListener('mouseup', handlerWrap(_upHandler), false);
-    this.container.addEventListener('mousewheel', handlerWrap(_wheelHandler), false);
 
     function handlerWrap(handle) {
         return function (e) {
@@ -506,6 +522,37 @@ function initEvent() {
             e.cameraY = pos.y;
             handle(e);
         };
+    }
+
+    var _this = this;
+
+    var events = {
+        click: handlerWrap(_clickHandler),
+        mousemove: handlerWrap(_moveHandler),
+        mousedown: handlerWrap(_downHandler),
+        mouseup: handlerWrap(_upHandler),
+        mousewheel: handlerWrap(_wheelHandler)
+    };
+
+    for (var e in events) {
+        this.container.addEventListener(e, events[e], false);
+    } //some little situation maybe need the trigger function.
+    this.trigger = function (type, event) {
+        if (events[type]) events[type](event);
+    };
+
+    function checkInNode(posx, posy, node) {
+        var isFind = false;
+        var dis, sizeX, sizeY;
+        if (node.type == 'rect') {
+            sizeX = _util2.default.getNodeSizeX(node);
+            sizeY = _util2.default.getNodeSizeY(node);
+            isFind = _util2.default.inRect(posx, posy, node.x - sizeX, node.y - sizeY, sizeX * 2, sizeY * 2);
+        } else {
+            dis = _util2.default.getDistance(posx, posy, node.x, node.y);
+            isFind = dis <= node.size;
+        }
+        return isFind;
     }
 
     function getNode(pos) {
@@ -518,8 +565,7 @@ function initEvent() {
             for (var i = nodes.length - 1; i >= 0; i--) {
                 node = nodes[i];
                 // node = _this.graph.nodesIndex[node.id];
-                dis = _util2.default.getDistance(pos.x, pos.y, node.x, node.y);
-                if (dis <= node.size) {
+                if (checkInNode(pos.x, pos.y, node)) {
                     findNode = node;
                     break;
                 }
@@ -536,7 +582,7 @@ function initEvent() {
 
     function _moveHandler(e) {
         var graphPos = _this.toGraphPos({ x: e.cameraX, y: e.cameraY });
-        var node = getNode(graphPos);
+        // var node = getNode(graphPos);
     }
 
     function _downHandler(e) {
@@ -564,7 +610,12 @@ function initEvent() {
                     _this.camera.position.x -= offsetx;
                     _this.camera.position.y -= offsety;
                 } else {
-                    _this.graph.setNodeData(node.id, { x: node.x + offsetx, y: node.y + offsety });
+                    if (_this.context.selection.isSelected(node)) {
+                        _this.context.selection.data.forEach(function (node) {
+                            _this.graph.setNodeData(node.id, { x: node.x + offsetx, y: node.y + offsety });
+                        });
+                    } else _this.graph.setNodeData(node.id, { x: node.x + offsetx, y: node.y + offsety });
+                    // _this.emit('drag',['node',offsetx,offsety]);
                 }
 
                 if (isCamera) {
@@ -579,6 +630,7 @@ function initEvent() {
             });
 
             var onmouseup = handlerWrap(function (e) {
+                e.preventDefault();
                 isDown = false;
                 clear();
             });
@@ -601,28 +653,42 @@ function initEvent() {
         }
     }
 
-    function _upHandler(e) {}
+    function _upHandler(e) {
+        if (e.which && e.which == 3 || e.button && e.button == 2) {
+            var graphPos = _this.toGraphPos({ x: e.cameraX, y: e.cameraY });
+            var node = getNode(graphPos);
+            if (node) {
+                _this.emit('rightclick', ['node', node, e]);
+            } else {
+                _this.emit('rightclick', ['stage', null, e]);
+            }
+        }
+    }
 
     function _wheelHandler(e) {
         _this.forceRender();
-        var ratio = _this.option.zoomRatio;
+        var ratio = _this.config.zoomRatio;
         if (e.wheelDelta > 0) {
             _this.zoomTo(1 / ratio, e.cameraX, e.cameraY);
+            _this.emit('zoom', [1 / ratio]);
         } else {
             _this.zoomTo(ratio, e.cameraX, e.cameraY);
+            _this.emit('zoom', [ratio]);
         }
     }
 
     //drag
-} /**
-   * Created by chengang on 17-3-29.
-   */
+}
 
 /***/ }),
-/* 4 */
+/* 5 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
+/**
+ * Created by chengang on 17-3-17.
+ */
+
 
 
 Object.defineProperty(exports, "__esModule", {
@@ -635,10 +701,6 @@ var _util = __webpack_require__(0);
 
 var _util2 = _interopRequireDefault(_util);
 
-var _Quad = __webpack_require__(2);
-
-var _Quad2 = _interopRequireDefault(_Quad);
-
 var _EventEmitter2 = __webpack_require__(1);
 
 var _EventEmitter3 = _interopRequireDefault(_EventEmitter2);
@@ -649,9 +711,9 @@ function _classCallCheck(instance, Constructor) { if (!(instance instanceof Cons
 
 function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
 
-function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; } /**
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                * Created by chengang on 17-3-17.
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                */
+function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
+// import  Quad from '../base/Quad'
+
 
 var Graph = function (_EventEmitter) {
     _inherits(Graph, _EventEmitter);
@@ -697,8 +759,14 @@ var Graph = function (_EventEmitter) {
     _createClass(Graph, [{
         key: 'read',
         value: function read(options) {
-            this.nodes = options.nodes || [];
-            this.edges = options.edges || [];
+
+            (options.nodes || []).forEach(function (e) {
+                this.nodes.push(e);
+            }.bind(this));
+
+            (options.edges || []).forEach(function (e) {
+                this.edges.push(e);
+            }.bind(this));
 
             this.nodes.forEach(function (e) {
                 if (!e.id) e.id = _util2.default.uuid();
@@ -723,9 +791,29 @@ var Graph = function (_EventEmitter) {
                 this.outEdgesIndex[e.source].push(e.id);
             }.bind(this));
 
+            this.updateEdgeCount();
+
             this.emit('reset');
 
             // this.quad.index(this.nodes);
+        }
+    }, {
+        key: 'updateEdgeCount',
+        value: function updateEdgeCount() {
+            var source,
+                target,
+                attr,
+                map = {};
+            this.edges.forEach(function (edge) {
+                source = this.nodesIndex[edge.source];
+                target = this.nodesIndex[edge.target];
+                attr = edge.source + edge.target;
+                if (!map[attr]) map[attr] = map[edge.target + edge.source] = { counter: 0, source: edge.source };
+
+                edge.curveCount = map[attr].counter;
+                map[attr].counter++;
+                edge.curveOrder = edge.source == map[attr].source;
+            }.bind(this));
         }
 
         /**
@@ -920,123 +1008,6 @@ var Graph = function (_EventEmitter) {
 exports.default = Graph;
 
 /***/ }),
-/* 5 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", {
-    value: true
-});
-/**
- * Created by chengang on 17-3-28.
- */
-var mat3 = {};
-
-mat3.normalize = function () {
-    return [1, 0, 0, 0, 1, 0, 0, 0, 1];
-};
-
-mat3.matrixFromTranslate = function (dx, dy) {
-    return [1, 0, 0, 0, 1, 0, dx, dy, 1];
-};
-
-mat3.matrixFromRotation = function (angle) {
-    var cos = Math.cos(angle),
-        sin = Math.sin(angle);
-
-    return [cos, sin, 0, -sin, cos, 0, 0, 0, 1];
-};
-
-mat3.matrixFromScale = function (x, y) {
-    return [x, 0, 0, 0, y, 0, 0, 0, 1];
-};
-
-mat3.invert = function (a) {
-    var l = 3,
-        a11 = a[0 * l + 0],
-        a12 = a[0 * l + 1],
-        a13 = a[0 * l + 2],
-        a21 = a[1 * l + 0],
-        a22 = a[1 * l + 1],
-        a23 = a[1 * l + 2],
-        a31 = a[2 * l + 0],
-        a32 = a[2 * l + 1],
-        a33 = a[2 * l + 2];
-
-    var del = a11 * (a22 * a33 - a23 * a32) - a12 * (a21 * a33 - a23 * a31) + a13 * (a21 * a32 - a22 * a31);
-
-    return [(a22 * a33 - a23 * a32) / del, (a13 * a32 - a12 * a33) / del, (a12 * a23 - a13 * a22) / del, (a23 * a31 - a21 * a33) / del, (a11 * a33 - a13 * a31) / del, (a13 * a21 - a11 * a23) / del, (a21 * a32 - a22 * a31) / del, (a12 * a31 - a11 * a32) / del, (a11 * a22 - a12 * a21) / del];
-};
-
-mat3.multiply = function (a, b) {
-    var l = 3,
-        a00 = a[0 * l + 0],
-        a01 = a[0 * l + 1],
-        a02 = a[0 * l + 2],
-        a10 = a[1 * l + 0],
-        a11 = a[1 * l + 1],
-        a12 = a[1 * l + 2],
-        a20 = a[2 * l + 0],
-        a21 = a[2 * l + 1],
-        a22 = a[2 * l + 2],
-        b00 = b[0 * l + 0],
-        b01 = b[0 * l + 1],
-        b02 = b[0 * l + 2],
-        b10 = b[1 * l + 0],
-        b11 = b[1 * l + 1],
-        b12 = b[1 * l + 2],
-        b20 = b[2 * l + 0],
-        b21 = b[2 * l + 1],
-        b22 = b[2 * l + 2];
-
-    return [a00 * b00 + a01 * b10 + a02 * b20, a00 * b01 + a01 * b11 + a02 * b21, a00 * b02 + a01 * b12 + a02 * b22, a10 * b00 + a11 * b10 + a12 * b20, a10 * b01 + a11 * b11 + a12 * b21, a10 * b02 + a11 * b12 + a12 * b22, a20 * b00 + a21 * b10 + a22 * b20, a20 * b01 + a21 * b11 + a22 * b21, a20 * b02 + a21 * b12 + a22 * b22];
-};
-
-mat3.transformPoint = function (p, a) {
-    var x = p[0],
-        y = p[1];
-    var l = 3,
-        a00 = a[0 * l + 0],
-        a01 = a[0 * l + 1],
-        a02 = a[0 * l + 2],
-        a10 = a[1 * l + 0],
-        a11 = a[1 * l + 1],
-        a12 = a[1 * l + 2],
-        a20 = a[2 * l + 0],
-        a21 = a[2 * l + 1],
-        a22 = a[2 * l + 2];
-
-    return [x * a00 + y * a10 + a20, x * a01 + y * a11 + a21];
-};
-
-mat3.rotateVector = function (v, a) {
-    var x = v[0],
-        y = v[1];
-    var l = 3,
-        a00 = a[0 * l + 0],
-        a01 = a[0 * l + 1],
-        a02 = a[0 * l + 2],
-        a10 = a[1 * l + 0],
-        a11 = a[1 * l + 1],
-        a12 = a[1 * l + 2],
-        a20 = a[2 * l + 0],
-        a21 = a[2 * l + 1],
-        a22 = a[2 * l + 2];
-
-    return [x * a00 + y * a10, x * a01 + y * a11];
-};
-
-mat3.multiMatrix = function (matrixs) {
-    return matrixs.reduce(function (pre, cur) {
-        return mat3.multiply(pre, cur);
-    });
-};
-
-exports.default = mat3;
-
-/***/ }),
 /* 6 */
 /***/ (function(module, exports, __webpack_require__) {
 
@@ -1053,7 +1024,7 @@ var _util = __webpack_require__(0);
 
 var _util2 = _interopRequireDefault(_util);
 
-var _Matrix = __webpack_require__(5);
+var _Matrix = __webpack_require__(2);
 
 var _Matrix2 = _interopRequireDefault(_Matrix);
 
@@ -1061,19 +1032,19 @@ var _EventEmitter2 = __webpack_require__(1);
 
 var _EventEmitter3 = _interopRequireDefault(_EventEmitter2);
 
-var _TextureLoader = __webpack_require__(20);
+var _TextureLoader = __webpack_require__(21);
 
 var _TextureLoader2 = _interopRequireDefault(_TextureLoader);
 
-var _TextureText = __webpack_require__(21);
+var _TextureText = __webpack_require__(22);
 
 var _TextureText2 = _interopRequireDefault(_TextureText);
 
-var _TextureIcon = __webpack_require__(19);
+var _TextureIcon = __webpack_require__(20);
 
 var _TextureIcon2 = _interopRequireDefault(_TextureIcon);
 
-var _Event = __webpack_require__(3);
+var _Event = __webpack_require__(4);
 
 var _Event2 = _interopRequireDefault(_Event);
 
@@ -1090,15 +1061,16 @@ function _inherits(subClass, superClass) { if (typeof superClass !== "function" 
 var WebGLRender = function (_EventEmitter) {
     _inherits(WebGLRender, _EventEmitter);
 
-    function WebGLRender(graph, option) {
+    function WebGLRender(context, config) {
         _classCallCheck(this, WebGLRender);
 
         var _this2 = _possibleConstructorReturn(this, (WebGLRender.__proto__ || Object.getPrototypeOf(WebGLRender)).call(this));
 
-        _this2.option = option;
+        _this2.context = context;
+        _this2.config = config;
 
-        _this2.container = option.container;
-        _this2.graph = graph;
+        _this2.container = config.container;
+        _this2.graph = context.graph;
         _this2.needUpdate = true;
 
         _this2.sampleRatio = 1.5;
@@ -1115,7 +1087,7 @@ var WebGLRender = function (_EventEmitter) {
         _this2.textureText = new _TextureText2.default(_this2.gl);
         _this2.initTextTexture();
 
-        _this2.projectMatrix = _Matrix2.default.matrixFromScale(2 / _this2.gl.canvas.clientWidth, 2 / _this2.gl.canvas.clientHeight);
+        _this2.projectMatrix = null;
 
         _this2.camera = {
             scale: 1,
@@ -1144,6 +1116,8 @@ var WebGLRender = function (_EventEmitter) {
         value: function render() {
             // debugger
 
+            this.resizeCanvas();
+
             var gl = this.gl;
             gl.clear(gl.COLOR_BUFFER_BIT);
 
@@ -1161,19 +1135,19 @@ var WebGLRender = function (_EventEmitter) {
             // console.time('render')
 
             // console.time('renderEdge');
-            this.option.renderEdge && this.renderEdge();
+            this.config.renderEdge && this.renderEdge();
             // console.timeEnd('renderEdge');
 
             // console.time('renderEdgeLabel');
-            this.option.renderEdge && this.option.renderEdgeLabel && this.renderEdgeLabel();
+            this.config.renderEdge && this.config.renderEdgeLabel && this.renderEdgeLabel();
             // console.timeEnd('renderEdgeLabel');
 
             // console.time('renderNode');
-            this.option.renderNode && this.renderNode();
+            this.config.renderNode && this.renderNode();
             // console.timeEnd('renderNode');
 
             // console.time('renderNodeLabel');
-            this.option.renderNode && this.option.renderNodeLabel && this.renderNodeLabel();
+            this.config.renderNode && this.config.renderNodeLabel && this.renderNodeLabel();
             // console.timeEnd('renderNodeLabel');
 
 
@@ -1358,7 +1332,6 @@ var WebGLRender = function (_EventEmitter) {
             this.gl.getExtension('OES_standard_derivatives');
 
             this.resizeCanvas();
-            this.gl.viewport(0, 0, this.gl.canvas.width, this.gl.canvas.height);
             this.gl.blendFunc(this.gl.SRC_ALPHA, this.gl.ONE_MINUS_SRC_ALPHA);
             this.gl.enable(this.gl.BLEND);
             this.gl.disable(this.gl.DEPTH_TEST);
@@ -1371,17 +1344,17 @@ var WebGLRender = function (_EventEmitter) {
             this.graph.on('change', function (type, ids) {
                 if (type == 'node') {
                     // console.time('updateNode');
-                    _this.option.renderNode && _this.updateNodeRenderData(ids);
+                    _this.config.renderNode && _this.updateNodeRenderData(ids);
                     // console.timeEnd('updateNode');
                     // console.time('updateNodeLabel');
-                    _this.option.renderNode && _this.option.renderNodeLabel && _this.updateNodeLabelRenderData(ids);
+                    _this.config.renderNode && _this.config.renderNodeLabel && _this.updateNodeLabelRenderData(ids);
                     // console.timeEnd('updateNodeLabel');
                 } else if (type == 'edge') {
                     // console.time('updateEdge');
-                    _this.option.renderEdge && _this.updateEdgeRenderData(ids);
+                    _this.config.renderEdge && _this.updateEdgeRenderData(ids);
                     // console.timeEnd('updateEdge');
                     // console.time('updateEdgeLabel');
-                    _this.option.renderEdge && _this.option.renderEdgeLabel && _this.updateEdgeLabelRenderData(ids);
+                    _this.config.renderEdge && _this.config.renderEdgeLabel && _this.updateEdgeLabelRenderData(ids);
                     // console.timeEnd('updateEdgeLabel');
                 }
             });
@@ -1505,7 +1478,7 @@ var WebGLRender = function (_EventEmitter) {
                 }
             });
 
-            this.textureIcon = new _TextureIcon2.default(this.gl, this.option);
+            this.textureIcon = new _TextureIcon2.default(this.gl, this.config);
 
             this.textureIcon.createIcons(icons);
 
@@ -1530,6 +1503,9 @@ var WebGLRender = function (_EventEmitter) {
                 canvas.width = width;
                 canvas.height = height;
             }
+
+            this.projectMatrix = _Matrix2.default.matrixFromScale(2 / canvas.clientWidth, 2 / canvas.clientHeight);
+            this.gl.viewport(0, 0, canvas.width, canvas.height);
         }
     }, {
         key: 'graphToDomPos',
@@ -1562,8 +1538,8 @@ var WebGLRender = function (_EventEmitter) {
             var scale = this.camera.scale;
 
             var newscale = ratio * scale;
-            if (newscale < this.option.zoomMin) newscale = this.option.zoomMin;
-            if (newscale > this.option.zoomMax) newscale = this.option.zoomMax;
+            if (newscale < this.config.zoomMin) newscale = this.config.zoomMin;
+            if (newscale > this.config.zoomMax) newscale = this.config.zoomMax;
 
             if (x != null && y != null) {
                 var offset = _Matrix2.default.rotateVector([x * (newscale - scale) / scale, y * (newscale - scale) / scale], this.getCameraMatrix());
@@ -1693,7 +1669,7 @@ exports.default = WebGLRender;
 /* 7 */
 /***/ (function(module, exports) {
 
-module.exports = " precision mediump float;\n\nvec4 color = vec4(77, 72, 91,255);\n\nvarying vec2 v_texCoord;\nuniform sampler2D u_image;\n\n\nvoid main() {\n    color = color / 255.0;\n   vec4 color0 = texture2D(u_image, v_texCoord);\n   gl_FragColor = color * color0.w;\n}"
+module.exports = "attribute vec2 a_position;\nattribute vec2 a_uv;\n\nuniform mat3 u_matrix;\nuniform sampler2D u_image;\n\n\nvarying vec2 v_texCoord;\n\nvoid main() {\ngl_Position = vec4((u_matrix*vec3(a_position,1)).xy,0,1);\nv_texCoord = a_uv;\n}\n"
 
 /***/ }),
 /* 8 */
@@ -1707,11 +1683,175 @@ Object.defineProperty(exports, "__esModule", {
 });
 
 var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }(); /**
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      * Created by chengang on 17-4-6.
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      * Created by chengang on 17-3-29.
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       */
 
+var _util = __webpack_require__(0);
 
-var _Graph = __webpack_require__(4);
+var _util2 = _interopRequireDefault(_util);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+'use strict';
+
+var defaultConfig = {
+    maxLevel: 2
+};
+
+function indexN(x, y, rect) {
+    var x0 = rect.x,
+        y0 = rect.y,
+        w = rect.w,
+        h = rect.h;
+    var right = x > x0 + w / 2;
+    var top = y > y0 + h / 2;
+    return top << 1 | right;
+}
+
+function indexNs(pointRect, rect) {
+    var points = [[pointRect.x, pointRect.y], [pointRect.x + pointRect.w / 2, pointRect.y], [pointRect.x, pointRect.y + pointRect.h / 2], [pointRect.x + pointRect.w / 2, pointRect.y + pointRect.h / 2]];
+    var map = {},
+        n;
+    points.forEach(function (e) {
+        n = indexN(e[0], e[1], rect);
+        map[n] = true;
+    });
+
+    return map;
+}
+
+function getIndexRect(index, rect) {
+    var r;
+    switch (index) {
+        case 0:
+            r = { x: rect.x, y: rect.y, w: rect.w / 2, h: rect.h / 2 };
+            break;
+        case 1:
+            r = { x: rect.x + rect.w / 2, y: rect.y, w: rect.w / 2, h: rect.h / 2 };
+            break;
+        case 2:
+            r = { x: rect.x, y: rect.y + rect.h / 2, w: rect.w / 2, h: rect.h / 2 };
+            break;
+        case 3:
+            r = { x: rect.x + rect.w / 2, y: rect.y + rect.h / 2, w: rect.w / 2, h: rect.h / 2 };
+            break;
+    }
+
+    return r;
+}
+
+function createNode(level, rect) {
+    return {
+        level: level || 0,
+        rect: rect,
+        elements: [],
+        children: null
+    };
+}
+
+function pointRect(n) {
+    return {
+        x: n.x - n.size,
+        y: n.y - n.size,
+        w: n.size * 2,
+        h: n.size * 2
+    };
+}
+
+var Quad = function () {
+    function Quad(option) {
+        _classCallCheck(this, Quad);
+
+        this.option = _util2.default.extend(defaultConfig, option || {});
+        this.root = null;
+    }
+
+    _createClass(Quad, [{
+        key: 'index',
+        value: function index(nodes, option) {
+            console.time('quadindex');
+            option = option || {};
+
+            var x0 = Infinity,
+                y0 = Infinity,
+                x1 = -Infinity,
+                y1 = -Infinity;
+            if (!option.rect) {
+                nodes.forEach(function (e) {
+                    if (e.x < x0) x0 = e.x;
+                    if (e.x > x1) x1 = e.x;
+                    if (e.y < y0) y0 = e.y;
+                    if (e.y > y1) y1 = e.y;
+                });
+                option.rect = { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
+            }
+
+            this.root = createNode(0, option.rect);
+
+            nodes.forEach(function (e) {
+                this.insert(e, this.root);
+            }.bind(this));
+            console.timeEnd('quadindex');
+        }
+    }, {
+        key: 'insert',
+        value: function insert(data, root) {
+            var pointR = pointRect(data);
+            if (root.level < this.option.maxLevel) {
+                root.children = root.children || new Array(4);
+                var indexs = indexNs(pointR, root.rect);
+                var e;
+                for (var i in indexs) {
+                    e = +i;
+                    if (!root.children[e]) root.children[e] = createNode(root.level + 1, getIndexRect(e, root.rect));
+                    this.insert(data, root.children[e]);
+                }
+            } else {
+                root.elements.push({ x: data.x, y: data.y, id: data.id });
+            }
+        }
+    }, {
+        key: 'point',
+        value: function point(x, y) {
+            return this._point(x, y, this.root);
+        }
+    }, {
+        key: '_point',
+        value: function _point(x, y, root) {
+            if (root.children) {
+                var index = indexN(x, y, root.rect);
+                return root.children[index] ? this._point(x, y, root.children[index]) : [];
+            } else {
+                return root.elements;
+            }
+        }
+    }]);
+
+    return Quad;
+}();
+
+exports.default = Quad;
+
+/***/ }),
+/* 9 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+/**
+ * Created by chengang on 17-4-6.
+ */
+
+
+
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+
+var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+var _Graph = __webpack_require__(5);
 
 var _Graph2 = _interopRequireDefault(_Graph);
 
@@ -1723,19 +1863,19 @@ var _util = __webpack_require__(0);
 
 var _util2 = _interopRequireDefault(_util);
 
-var _tween = __webpack_require__(10);
+var _tween = __webpack_require__(11);
 
 var _tween2 = _interopRequireDefault(_tween);
 
-var _Selection = __webpack_require__(11);
+var _Selection = __webpack_require__(13);
 
 var _Selection2 = _interopRequireDefault(_Selection);
 
-var _index = __webpack_require__(18);
+var _index = __webpack_require__(19);
 
 var _index2 = _interopRequireDefault(_index);
 
-var _config = __webpack_require__(12);
+var _config = __webpack_require__(14);
 
 var _config2 = _interopRequireDefault(_config);
 
@@ -1749,9 +1889,7 @@ var Core = function () {
 
         option = option || {};
 
-        this.selected = [];
-
-        this.option = _util2.default.extend(_config2.default, option.config || {});
+        this.config = _util2.default.extend(_config2.default, option.config || {});
 
         this.graph = new _Graph2.default({
             nodes: option.nodes,
@@ -1763,10 +1901,9 @@ var Core = function () {
         this.canvas = {};
         this.initCanvas();
 
-        this.render = new _render3.default(this.graph, _util2.default.extend({ container: this.canvas.render }, this.option));
+        this.render = new _render3.default(this, _util2.default.extend({ container: this.canvas.render }, this.config));
 
-        this.selection = new _Selection2.default(this.canvas.mouse);
-        this.selection.on('selectend', this.onSelectEnd.bind(this));
+        this.selection = new _Selection2.default(this.canvas.mouse, this);
 
         this.on = this.render.on.bind(this.render);
         this.off = this.render.off.bind(this.render);
@@ -1786,6 +1923,10 @@ var Core = function () {
 
             this.canvas.render = this._createCanvas();
             this.container.appendChild(this.canvas.render);
+
+            this.container.oncontextmenu = function (e) {
+                e.preventDefault();
+            };
 
             this.canvas.mouse = this._createCanvas();
             this.canvas.mouse.style.display = 'none';
@@ -1835,6 +1976,7 @@ var Core = function () {
     }, {
         key: '_render',
         value: function _render() {
+            this.resize();
 
             if (this.render && this.render.needUpdate) {
                 // console.time('render')
@@ -1848,24 +1990,17 @@ var Core = function () {
         value: function _initEvent() {
             var _this = this;
             this.render.on('nodeclick', function (node, e) {
-                _this.select(node);
+                if (!_this.selection.isSelected(node)) _this.selection.select(node);
             });
         }
     }, {
-        key: 'select',
-        value: function select(nodes) {
-            var _this = this;
-            if (!_util2.default.isArray(nodes)) nodes = [nodes];
-
-            _this.selected.forEach(function (e) {
-                if (_this.graph.nodesIndex[e.id]) _this.graph.setNodeData(e.id, { selected: false });
-            });
-
-            nodes.forEach(function (node) {
-                _this.graph.setNodeData(node.id, { selected: true });
-            });
-
-            _this.selected = nodes;
+        key: 'resize',
+        value: function resize() {
+            if (this.canvas.mouse.width != this.container.clientWidth || this.canvas.mouse.height != this.container.clientHeight) {
+                this.canvas.mouse.width = this.container.clientWidth;
+                this.canvas.mouse.height = this.container.clientHeight;
+                this.render.forceRender();
+            }
         }
     }, {
         key: 'makeLayout',
@@ -1887,33 +2022,10 @@ var Core = function () {
                 layout = new layoutConfig[type]();
                 data = layout.layout(this.graph);
 
-                (0, _tween2.default)(this.graph.nodes).to(data).duration(2000).on('change', function (t) {
+                new _tween2.default(this.graph.nodes).to(data).duration(2000).on('change', function (t) {
                     _this.graph.emit('reset');
                 });
             }
-        }
-    }, {
-        key: 'getSelection',
-        value: function getSelection() {
-            var _this = this;
-            var nodes = this.selected.filter(function (e) {
-                return _this.graph.nodesIndex[e.id];
-            });
-            return nodes;
-        }
-    }, {
-        key: 'onSelectEnd',
-        value: function onSelectEnd(ctx) {
-            var nodes = this.graph.nodes;
-            var selects = [];
-            var domPos;
-            nodes.forEach(function (node) {
-                domPos = this.render.graphToDomPos({ x: node.x, y: node.y });
-                if (ctx.isPointInPath(domPos.x, domPos.y)) selects.push(node);
-            }.bind(this));
-
-            this.selection.disable();
-            this.select(selects);
         }
     }]);
 
@@ -1924,7 +2036,7 @@ Core.layout = _index2.default;
 exports.default = Core;
 
 /***/ }),
-/* 9 */
+/* 10 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -1939,21 +2051,33 @@ var _render = __webpack_require__(6);
 
 var _render2 = _interopRequireDefault(_render);
 
-var _Node = __webpack_require__(25);
+var _Node = __webpack_require__(28);
 
 var _Node2 = _interopRequireDefault(_Node);
 
-var _default = __webpack_require__(22);
+var _Rect = __webpack_require__(29);
+
+var _Rect2 = _interopRequireDefault(_Rect);
+
+var _default = __webpack_require__(24);
 
 var _default2 = _interopRequireDefault(_default);
 
-var _NodeLabel = __webpack_require__(24);
+var _curve = __webpack_require__(23);
+
+var _curve2 = _interopRequireDefault(_curve);
+
+var _NodeLabel = __webpack_require__(26);
 
 var _NodeLabel2 = _interopRequireDefault(_NodeLabel);
 
-var _EdgeLabel = __webpack_require__(23);
+var _EdgeLabel = __webpack_require__(25);
 
 var _EdgeLabel2 = _interopRequireDefault(_EdgeLabel);
+
+var _curveLabel = __webpack_require__(27);
+
+var _curveLabel2 = _interopRequireDefault(_curveLabel);
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
@@ -1964,18 +2088,24 @@ _render2.default.node = {}; /**
 _render2.default.edge = {};
 _render2.default.nodeLabel = {};
 _render2.default.edgeLabel = {};
-// import node from './webgl/node/index'
 
+// import node from './webgl/node/index'
 _render2.default.node.default = _Node2.default;
+_render2.default.node.rect = _Rect2.default;
+
 _render2.default.edge.default = _default2.default;
+_render2.default.edge.curve = _curve2.default;
 
 _render2.default.nodeLabel.default = _NodeLabel2.default;
+_render2.default.nodeLabel.rect = _NodeLabel2.default;
+
 _render2.default.edgeLabel.default = _EdgeLabel2.default;
+_render2.default.edgeLabel.curve = _curveLabel2.default;
 
 exports.WebGLRender = _render2.default;
 
 /***/ }),
-/* 10 */
+/* 11 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -1988,80 +2118,262 @@ exports.WebGLRender = _render2.default;
 Object.defineProperty(exports, "__esModule", {
     value: true
 });
-exports.default = Tween;
 
-var _eventEmiter = __webpack_require__(13);
+var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
 
-var _eventEmiter2 = _interopRequireDefault(_eventEmiter);
+var _EventEmitter2 = __webpack_require__(1);
+
+var _EventEmitter3 = _interopRequireDefault(_EventEmitter2);
+
+var _timer = __webpack_require__(12);
+
+var _timer2 = _interopRequireDefault(_timer);
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
-function Tween(objs) {
-    if (!(this instanceof Tween)) {
-        return new Tween(objs);
-    }
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
-    _eventEmiter2.default.init(this);
+function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
 
-    if (!Array.isArray(objs)) objs = [objs];
-    this.objs = objs;
-    this.interpolates = [];
-    this.timer = d3.timer(this.timerHandle.bind(this));
-    this._duration = 0;
+function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
+
+/**
+ * from d3-interpolate
+ */
+function interpolateNumber(a, b) {
+    return a = +a, b -= a, function (t) {
+        return a + b * t;
+    };
 }
-var p = Tween.prototype;
 
-p.timerHandle = function (elapsed) {
-    var t = elapsed / this._duration;
+var Tween = function (_EventEmitter) {
+    _inherits(Tween, _EventEmitter);
 
-    t = Math.min(t, 1);
-    var obj, attr, attrInterpolater;
-    for (var i = 0, len = Math.min(this.interpolates.length, this.objs.length); i < len; i++) {
-        obj = this.objs[i];
-        attrInterpolater = this.interpolates[i];
-        for (attr in attrInterpolater) {
-            obj[attr] = attrInterpolater[attr](t);
-        }
+    function Tween(objs) {
+        _classCallCheck(this, Tween);
+
+        var _this = _possibleConstructorReturn(this, (Tween.__proto__ || Object.getPrototypeOf(Tween)).call(this));
+
+        if (!Array.isArray(objs)) objs = [objs];
+        _this.objs = objs;
+        _this.interpolates = [];
+        _this.timer = (0, _timer2.default)(_this.timerHandle.bind(_this));
+        _this._duration = 0;
+
+        // Tween.list.push(this);
+        return _this;
     }
 
-    this.emit('change', [t]);
+    _createClass(Tween, [{
+        key: 'timerHandle',
+        value: function timerHandle(elapsed) {
+            var t = elapsed / this._duration;
 
-    if (elapsed >= this._duration) this.stop();
-};
+            t = Math.min(t, 1);
+            var obj, attr, attrInterpolater;
+            for (var i = 0, len = Math.min(this.interpolates.length, this.objs.length); i < len; i++) {
+                obj = this.objs[i];
+                attrInterpolater = this.interpolates[i];
+                for (attr in attrInterpolater) {
+                    obj[attr] = attrInterpolater[attr](t);
+                }
+            }
 
-p.duration = function (time) {
-    this._duration = time;
-    return this;
-};
-p.to = function (toObjs) {
-    var interpolateNumber = d3.interpolateNumber;
-    if (!Array.isArray(toObjs)) toObjs = [toObjs];
+            this.emit('change', [t]);
 
-    var obj, attr, attrInterpolater;
-    for (var i = 0, len = Math.min(toObjs.length, this.objs.length); i < len; i++) {
-        obj = toObjs[i];
-        attrInterpolater = {};
-        for (attr in obj) {
-            attrInterpolater[attr] = interpolateNumber(this.objs[i][attr], obj[attr]);
+            if (elapsed >= this._duration) this.stop();
         }
-        this.interpolates.push(attrInterpolater);
-    }
+    }, {
+        key: 'duration',
+        value: function duration(time) {
+            this._duration = time;
+            return this;
+        }
+    }, {
+        key: 'to',
+        value: function to(toObjs) {
+            if (!Array.isArray(toObjs)) toObjs = [toObjs];
 
-    return this;
-};
+            var obj, attr, attrInterpolater;
+            for (var i = 0, len = Math.min(toObjs.length, this.objs.length); i < len; i++) {
+                obj = toObjs[i];
+                attrInterpolater = {};
+                for (attr in obj) {
+                    attrInterpolater[attr] = interpolateNumber(this.objs[i][attr], obj[attr]);
+                }
+                this.interpolates.push(attrInterpolater);
+            }
 
-p.stop = function () {
-    this.timer.stop();
-    this.timer = null;
-    this.objs = null;
-    this.interpolates = null;
-};
+            return this;
+        }
+    }, {
+        key: 'stop',
+        value: function stop() {
+            this.timer.stop();
+            this.timer = null;
+            this.objs = null;
+            this.interpolates = null;
+        }
+    }], [{
+        key: 'remove',
+        value: function remove(obj) {}
+    }]);
+
+    return Tween;
+}(_EventEmitter3.default);
+
+Tween.list = [];
+exports.default = Tween;
 
 /***/ }),
-/* 11 */
+/* 12 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
+/**
+ *from d3-timer
+ */
+
+
+
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+
+var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; };
+
+exports.now = now;
+exports.Timer = Timer;
+exports.default = timer;
+exports.timerFlush = timerFlush;
+var frame = 0,
+    // is an animation frame pending?
+timeout = 0,
+    // is a timeout pending?
+interval = 0,
+    // are any timers active?
+pokeDelay = 1000,
+    // how frequently we check for clock skew
+taskHead,
+    taskTail,
+    clockLast = 0,
+    clockNow = 0,
+    clockSkew = 0,
+    clock = (typeof performance === "undefined" ? "undefined" : _typeof(performance)) === "object" && performance.now ? performance : Date,
+    setFrame = typeof requestAnimationFrame === "function" ? requestAnimationFrame : function (f) {
+    setTimeout(f, 17);
+}; //
+
+function now() {
+    return clockNow || (setFrame(clearNow), clockNow = clock.now() + clockSkew);
+}
+
+function clearNow() {
+    clockNow = 0;
+}
+
+function Timer() {
+    this._call = this._time = this._next = null;
+}
+
+Timer.prototype = timer.prototype = {
+    constructor: Timer,
+    restart: function restart(callback, delay, time) {
+        if (typeof callback !== "function") throw new TypeError("callback is not a function");
+        time = (time == null ? now() : +time) + (delay == null ? 0 : +delay);
+        if (!this._next && taskTail !== this) {
+            if (taskTail) taskTail._next = this;else taskHead = this;
+            taskTail = this;
+        }
+        this._call = callback;
+        this._time = time;
+        sleep();
+    },
+    stop: function stop() {
+        if (this._call) {
+            this._call = null;
+            this._time = Infinity;
+            sleep();
+        }
+    }
+};
+
+function timer(callback, delay, time) {
+    var t = new Timer();
+    t.restart(callback, delay, time);
+    return t;
+}
+
+function timerFlush() {
+    now(); // Get the current time, if not already set.
+    ++frame; // Pretend we’ve set an alarm, if we haven’t already.
+    var t = taskHead,
+        e;
+    while (t) {
+        if ((e = clockNow - t._time) >= 0) t._call.call(null, e);
+        t = t._next;
+    }
+    --frame;
+}
+
+function wake() {
+    clockNow = (clockLast = clock.now()) + clockSkew;
+    frame = timeout = 0;
+    try {
+        timerFlush();
+    } finally {
+        frame = 0;
+        nap();
+        clockNow = 0;
+    }
+}
+
+function poke() {
+    var now = clock.now(),
+        delay = now - clockLast;
+    if (delay > pokeDelay) clockSkew -= delay, clockLast = now;
+}
+
+function nap() {
+    var t0,
+        t1 = taskHead,
+        t2,
+        time = Infinity;
+    while (t1) {
+        if (t1._call) {
+            if (time > t1._time) time = t1._time;
+            t0 = t1, t1 = t1._next;
+        } else {
+            t2 = t1._next, t1._next = null;
+            t1 = t0 ? t0._next = t2 : taskHead = t2;
+        }
+    }
+    taskTail = t0;
+    sleep(time);
+}
+
+function sleep(time) {
+    if (frame) return; // Soonest alarm already set, or will be.
+    if (timeout) timeout = clearTimeout(timeout);
+    var delay = time - clockNow;
+    if (delay > 24) {
+        if (time < Infinity) timeout = setTimeout(wake, delay);
+        if (interval) interval = clearInterval(interval);
+    } else {
+        if (!interval) interval = setInterval(poke, pokeDelay);
+        frame = 1, setFrame(wake);
+    }
+}
+
+/***/ }),
+/* 13 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+/**
+ * Created by chengang on 17-4-19.
+ */
+
 
 
 Object.defineProperty(exports, "__esModule", {
@@ -2074,23 +2386,27 @@ var _EventEmitter2 = __webpack_require__(1);
 
 var _EventEmitter3 = _interopRequireDefault(_EventEmitter2);
 
+var _util = __webpack_require__(0);
+
+var _util2 = _interopRequireDefault(_util);
+
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
 function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
 
-function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; } /**
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                * Created by chengang on 17-4-19.
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                */
+function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
 
 var Selection = function (_EventEmitter) {
     _inherits(Selection, _EventEmitter);
 
-    function Selection(canvas) {
+    function Selection(canvas, context) {
         _classCallCheck(this, Selection);
 
         var _this2 = _possibleConstructorReturn(this, (Selection.__proto__ || Object.getPrototypeOf(Selection)).call(this));
+
+        _this2.context = context;
 
         _this2.canvas = canvas;
         _this2.ctx = _this2.canvas.getContext('2d');
@@ -2098,11 +2414,15 @@ var Selection = function (_EventEmitter) {
         _this2.canvas.addEventListener('mousedown', _this2.mouseDown.bind(_this2));
 
         _this2.rect = {
-            x: 100,
-            y: 100,
-            w: 200,
-            h: 200
+            x: 0,
+            y: 0,
+            w: 0,
+            h: 0
         };
+
+        _this2.data = [];
+
+        _this2.initGraphEvent();
         return _this2;
     }
 
@@ -2133,6 +2453,25 @@ var Selection = function (_EventEmitter) {
             this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         }
     }, {
+        key: 'initGraphEvent',
+        value: function initGraphEvent() {
+            var _this = this;
+            this.context.graph.on('remove', function (type, id) {
+                if (type == 'node') {
+                    for (var i = 0; i < _this.data.length; i++) {
+                        if (_this.data[i].id == id) {
+                            _this.data.splice(i, 1);
+                            break;
+                        }
+                    }
+                }
+            });
+
+            this.context.graph.on('reset', function () {
+                _this.data = [];
+            });
+        }
+    }, {
         key: 'mouseDown',
         value: function mouseDown(e) {
             var _this = this;
@@ -2149,14 +2488,91 @@ var Selection = function (_EventEmitter) {
                 _this.renderRect();
             }
             function mouseUp(e) {
-                _this.emit('selectend', [_this.ctx]);
                 document.removeEventListener('mousemove', mouseMove);
                 document.removeEventListener('mouseup', mouseUp);
+                var data = _this.filter(_this.ctx);
+
+                _this.disable();
+                _this.select(data);
+                _this.emit('selectend', [data]);
             }
         }
     }, {
-        key: 'mouseUp',
-        value: function mouseUp(e) {}
+        key: 'select',
+        value: function select(nodes) {
+            var _this = this;
+            if (!_util2.default.isArray(nodes)) nodes = [nodes];
+
+            _this.data.forEach(function (e) {
+                if (_this.context.graph.nodesIndex[e.id]) _this.context.graph.setNodeData(e.id, { selected: false });
+            });
+
+            nodes.forEach(function (node) {
+                _this.context.graph.setNodeData(node.id, { selected: true });
+            });
+
+            _this.data = nodes;
+        }
+    }, {
+        key: 'unSelect',
+        value: function unSelect(nodes) {
+
+            if (this.data.length == 0 || !nodes) return;
+
+            var _this = this;
+            if (!_util2.default.isArray(nodes)) nodes = [nodes];
+
+            var map = {};
+
+            nodes.forEach(function (node) {
+                map[node.id] = true;
+            });
+
+            var newSelected = [];
+            this.data.forEach(function (node) {
+                if (map[node.id]) _this.context.graph.setNodeData(node.id, { selected: false });else newSelected.push(node);
+            });
+
+            this.data = newSelected;
+        }
+    }, {
+        key: 'getSelection',
+        value: function getSelection() {
+            return this.data.slice();
+        }
+    }, {
+        key: 'isSelected',
+        value: function isSelected(node) {
+            for (var i = 0; i < this.data.length; i++) {
+                if (this.data[i].id == node.id) {
+                    return true;
+                }
+            }
+            return false;
+        }
+    }, {
+        key: 'filter',
+        value: function filter(ctx) {
+            var nodes = this.context.graph.nodes;
+            var selects = [];
+            var domPos;
+            nodes.forEach(function (node) {
+                domPos = this.context.render.graphToDomPos({ x: node.x, y: node.y });
+                if (ctx.isPointInPath(domPos.x, domPos.y)) selects.push(node);
+            }.bind(this));
+
+            return selects;
+        }
+    }, {
+        key: 'delete',
+        value: function _delete() {
+            var _this = this;
+            var data = this.data;
+            this.data = [];
+            data.forEach(function (node) {
+                _this.context.graph.removeNode(node.id);
+            });
+        }
     }]);
 
     return Selection;
@@ -2165,19 +2581,19 @@ var Selection = function (_EventEmitter) {
 exports.default = Selection;
 
 /***/ }),
-/* 12 */
+/* 14 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
+/**
+ * Created by chengang on 17-4-12.
+ */
+
 
 
 Object.defineProperty(exports, "__esModule", {
     value: true
 });
-/**
- * Created by chengang on 17-4-12.
- */
-
 exports.default = {
     zoomRatio: 1.2,
     zoomMin: 0.2,
@@ -2188,79 +2604,12 @@ exports.default = {
     renderEdge: true,
     renderEdgeLabel: true,
 
-    textureIconWidth: 400,
-    textureIconHeight: 400
+    textureIconWidth: 512,
+    textureIconHeight: 512
 };
 
 /***/ }),
-/* 13 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", {
-    value: true
-});
-exports.default = EventEmitter;
-/**
- * Created by chengang on 17-2-16.
- */
-
-function EventEmitter() {
-    this._listener = {};
-}
-
-EventEmitter.prototype.on = function (type, cb) {
-    if (!type || !cb) return;
-    this._listener[type] = this._listener[type] || [];
-
-    var listener = this._listener[type];
-    for (var i = 0, len = listener.length; i < len; i++) {
-        if (cb == listener[i]) return;
-    }
-
-    this._listener[type].push(cb);
-    return cb;
-};
-EventEmitter.prototype.off = function (type, cb) {
-    if (!type) return;
-    var listener;
-    if (!(listener = this._listener[type]) || listener.length < 1) return;
-
-    if (cb) {
-        for (var i = 0, len = listener.length; i < len; i++) {
-            if (cb == listener[i]) {
-                listener.splice(i, 1);
-                break;
-            }
-        }
-    } else {
-        this._listener[type] = [];
-    }
-};
-EventEmitter.prototype.emit = function (type, args) {
-    if (!type) return;
-    var listener, fn;
-    if (!(listener = this._listener[type]) || listener.length < 1) return;
-
-    listener = listener.slice();
-
-    for (var i = 0, len = listener.length; i < len; i++) {
-        fn = listener[i];
-        fn.apply(null, args);
-    }
-};
-EventEmitter.init = function (target) {
-    EventEmitter.call(target);
-    var p = EventEmitter.prototype;
-    target.on = p.on;
-    target.off = p.off;
-    target.emit = target.dispatch = p.emit;
-};
-
-/***/ }),
-/* 14 */
+/* 15 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -2281,6 +2630,8 @@ function CircularLayout() {
     this.bc = null;
     this.nodeHeights = {};
     this.node2BiComp = {};
+
+    this.width = 60;
 }
 
 var p = CircularLayout.prototype;
@@ -2426,7 +2777,7 @@ p.__layout = function (biconncts) {
     this.drawnBiComps[maxIndex] = true;
 
     var maxSize = bc.length;
-    var radius = 48 * maxSize / (Math.PI * 2);
+    var radius = this.width * maxSize / (Math.PI * 2);
     var deltaAngle = 2 * Math.PI / maxSize;
     var angle = 0;
 
@@ -2852,7 +3203,7 @@ p.DFSSetPos = function (nodeID, theAngle, theRadius) {
         var comp = component;
         var centerX = nodes[nodeID].x;
         var centerY = nodes[nodeID].y;
-        var radius = 48 * this.bc[comp].length / (2 * Math.PI);
+        var radius = this.width * this.bc[comp].length / (2 * Math.PI);
         var deltaAngle = 2 * Math.PI / this.bc[comp].length;
         var currAngle = theAngle - Math.PI - deltaAngle;
 
@@ -2958,7 +3309,7 @@ p.DFSSetPos = function (nodeID, theAngle, theRadius) {
         var r = 72;
         var rTry;
 
-        if (48 * neighboursCount / (2 * Math.PI) > r) r = 48 * neighboursCount / (2 * Math.PI);
+        if (this.width * neighboursCount / (2 * Math.PI) > r) r = this.width * neighboursCount / (2 * Math.PI);
 
         rTry = r;
 
@@ -3052,7 +3403,7 @@ function setOffset(node, x, y) {
 exports.default = CircularLayout;
 
 /***/ }),
-/* 15 */
+/* 16 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -3123,7 +3474,7 @@ var ColaLayout = function () {
 exports.default = ColaLayout;
 
 /***/ }),
-/* 16 */
+/* 17 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -3189,7 +3540,7 @@ var DargeLayout = function () {
 exports.default = DargeLayout;
 
 /***/ }),
-/* 17 */
+/* 18 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -3309,7 +3660,7 @@ var FlowLayout = function () {
 exports.default = FlowLayout;
 
 /***/ }),
-/* 18 */
+/* 19 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -3319,19 +3670,19 @@ Object.defineProperty(exports, "__esModule", {
     value: true
 });
 
-var _CircularLayout = __webpack_require__(14);
+var _CircularLayout = __webpack_require__(15);
 
 var _CircularLayout2 = _interopRequireDefault(_CircularLayout);
 
-var _ColaLayout = __webpack_require__(15);
+var _ColaLayout = __webpack_require__(16);
 
 var _ColaLayout2 = _interopRequireDefault(_ColaLayout);
 
-var _FlowLayout = __webpack_require__(17);
+var _FlowLayout = __webpack_require__(18);
 
 var _FlowLayout2 = _interopRequireDefault(_FlowLayout);
 
-var _DargeLayout = __webpack_require__(16);
+var _DargeLayout = __webpack_require__(17);
 
 var _DargeLayout2 = _interopRequireDefault(_DargeLayout);
 
@@ -3349,7 +3700,7 @@ exports.default = {
 };
 
 /***/ }),
-/* 19 */
+/* 20 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -3406,6 +3757,8 @@ var TextureIcon = function (_EventEmitter) {
         _this2.fontLoaded = false;
 
         _this2._init();
+
+        _this2.updateGPUTexture(true);
 
         var _this = _this2;
         if (document.fonts) {
@@ -3516,10 +3869,10 @@ var TextureIcon = function (_EventEmitter) {
         }
     }, {
         key: 'updateGPUTexture',
-        value: function updateGPUTexture() {
+        value: function updateGPUTexture(empty) {
             var gl = this.gl;
 
-            this.createTexture();
+            this.createTexture(empty);
 
             gl.activeTexture(gl.TEXTURE11);
             gl.bindTexture(gl.TEXTURE_2D, this.texture);
@@ -3544,7 +3897,7 @@ var TextureIcon = function (_EventEmitter) {
         }
     }, {
         key: 'createTexture',
-        value: function createTexture() {
+        value: function createTexture(empty) {
 
             var gl = this.gl;
 
@@ -3559,7 +3912,7 @@ var TextureIcon = function (_EventEmitter) {
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
 
-            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, this.iconinfo.img);
+            if (empty) gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 2, 2, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);else gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, this.iconinfo.img);
         }
     }]);
 
@@ -3569,7 +3922,7 @@ var TextureIcon = function (_EventEmitter) {
 exports.default = TextureIcon;
 
 /***/ }),
-/* 20 */
+/* 21 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -3678,7 +4031,7 @@ var TextureLoader = function (_EventEmitter) {
 exports.default = TextureLoader;
 
 /***/ }),
-/* 21 */
+/* 22 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -3866,7 +4219,215 @@ var TextureText = function (_EventEmitter) {
 exports.default = TextureText;
 
 /***/ }),
-/* 22 */
+/* 23 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+
+var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+var _util = __webpack_require__(0);
+
+var _util2 = _interopRequireDefault(_util);
+
+var _vert = __webpack_require__(31);
+
+var _vert2 = _interopRequireDefault(_vert);
+
+var _frag = __webpack_require__(30);
+
+var _frag2 = _interopRequireDefault(_frag);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+function addData(arr, attributes, attrData) {
+    for (var i = 0; i < attributes; i++) {
+        arr.push(attrData[i]);
+    }
+}
+
+function scaleTrangles(points, scale) {
+    scale = scale || 1.4;
+    var p1_x = points[0],
+        p1_y = points[1],
+        p2_x = points[2],
+        p2_y = points[3],
+        p3_x = points[4],
+        p3_y = points[5];
+
+    var avg_x = (p1_x + p2_x + p3_x) / 3,
+        avg_y = (p1_y + p2_y + p3_y) / 3;
+
+    var p1_x_new = avg_x + (p1_x - avg_x) * scale,
+        p1_y_new = avg_y + (p1_y - avg_y) * scale,
+        p2_x_new = avg_x + (p2_x - avg_x) * scale,
+        p2_y_new = avg_y + (p2_y - avg_y) * scale,
+        p3_x_new = avg_x + (p3_x - avg_x) * scale,
+        p3_y_new = avg_y + (p3_y - avg_y) * scale;
+
+    return [p1_x_new, p1_y_new, p2_x_new, p2_y_new, p3_x_new, p3_y_new];
+}
+
+var Curve = function () {
+    function Curve() {
+        _classCallCheck(this, Curve);
+
+        // this.POINTS = 9;
+        this.ATTRIBUTES = 11;
+
+        this.shaderVert = _vert2.default;
+        this.shaderFrag = _frag2.default;
+
+        this.arrayBuffer = null;
+        this.dataBuffer = null;
+        this.strip = 6 * 4 + 4 + 4;
+    }
+
+    _createClass(Curve, [{
+        key: 'getRenderData',
+        value: function getRenderData(_ref) {
+            var data = _ref.data,
+                source = _ref.source,
+                target = _ref.target;
+
+            var edge = data;
+            var dx = target.x - source.x;
+            var dy = target.y - source.y;
+
+            var dis = _util2.default.getDistance(source.x, source.y, target.x, target.y);
+            var tSize = Math.max(_util2.default.getNodeSizeX(target), _util2.default.getNodeSizeY(target));
+
+            var aSize = 3,
+                vX,
+                vY;
+
+            var tX = target.x - tSize / dis * dx;
+            var tY = target.y - tSize / dis * dy;
+
+            var ctrlP = _util2.default.getControlPos(source.x, source.y, tX, tY, edge.curveCount, edge.curveOrder);
+
+            data = [];
+
+            //arrow
+            var dx1 = tX - ctrlP[0],
+                dy1 = tY - ctrlP[1];
+            var dis1 = _util2.default.getDistance(tX, tY, ctrlP[0], ctrlP[1]);
+
+            vX = aSize / dis1 * dx1;
+            vY = aSize / dis1 * dy1;
+
+            var arrowX = tX - vX,
+                arrowY = tY - vY;
+
+            //curve
+            var color = _util2.default.parseColor(edge.color || source.color || '#b3d2ff');
+
+            var scalePos = scaleTrangles([source.x, source.y, ctrlP[0], ctrlP[1], tX - vX, tY - vY]);
+            var scaleUV = scaleTrangles([1, 1, 0.5, 0, 0, 0]);
+
+            var dashed = edge.dashed ? 1 : 0;
+            // debugger
+            //curve
+            addData(data, this.ATTRIBUTES, [scalePos[0], scalePos[1], scaleUV[0], scaleUV[1], dis, 0, color.r, color.g, color.b, color.a, dashed]);
+            addData(data, this.ATTRIBUTES, [scalePos[2], scalePos[3], scaleUV[2], scaleUV[3], dis, 0, color.r, color.g, color.b, color.a, dashed]);
+            addData(data, this.ATTRIBUTES, [scalePos[4], scalePos[5], scaleUV[4], scaleUV[5], dis, 0, color.r, color.g, color.b, color.a, dashed]);
+
+            //arrow
+            addData(data, this.ATTRIBUTES, [arrowX + vX, arrowY + vY, 0, 0, 0, 1, color.r, color.g, color.b, color.a, dashed]);
+            addData(data, this.ATTRIBUTES, [arrowX + vY * 0.6, arrowY - vX * 0.6, 0, 0, 0, 1, color.r, color.g, color.b, color.a, dashed]);
+            addData(data, this.ATTRIBUTES, [arrowX - vY * 0.6, arrowY + vX * 0.6, 0, 0, 0, 1, color.r, color.g, color.b, color.a, dashed]);
+
+            return data;
+        }
+    }, {
+        key: 'render',
+        value: function render(_ref2) {
+            var gl = _ref2.gl,
+                program = _ref2.program,
+                data = _ref2.data,
+                matrix = _ref2.matrix,
+                camera = _ref2.camera;
+
+            if (!this.dataBuffer) this.dataBuffer = gl.createBuffer();
+
+            // debugger
+            var positionLocation = gl.getAttribLocation(program, "a_position");
+            var uvLocation = gl.getAttribLocation(program, "a_uv");
+            var disLocation = gl.getAttribLocation(program, "a_dis");
+            var flagLocation = gl.getAttribLocation(program, "a_flag");
+            var colorLocation = gl.getAttribLocation(program, "a_color");
+            var dashedLocation = gl.getAttribLocation(program, "a_dashed");
+
+            var matrixLocation = gl.getUniformLocation(program, "u_matrix");
+            var cameraScaleLocation = gl.getUniformLocation(program, "u_camera_scale");
+
+            var len = data.length / this.ATTRIBUTES | 0;
+
+            if (!this.arrayBuffer || len * this.strip != this.arrayBuffer.byteLength) {
+                this.arrayBuffer = new ArrayBuffer(len * this.strip);
+            }
+
+            var float32View = new Float32Array(this.arrayBuffer);
+            var Uint8View = new Uint8Array(this.arrayBuffer);
+
+            var offset32 = this.strip / 4,
+                offset8 = this.strip;
+            for (var i = 0; i < len; i++) {
+                float32View[i * offset32 + 0] = data[i * this.ATTRIBUTES + 0];
+                float32View[i * offset32 + 1] = data[i * this.ATTRIBUTES + 1];
+                float32View[i * offset32 + 2] = data[i * this.ATTRIBUTES + 2];
+                float32View[i * offset32 + 3] = data[i * this.ATTRIBUTES + 3];
+                float32View[i * offset32 + 4] = data[i * this.ATTRIBUTES + 4];
+                float32View[i * offset32 + 5] = data[i * this.ATTRIBUTES + 5];
+
+                Uint8View[i * offset8 + 25] = data[i * this.ATTRIBUTES + 6];
+                Uint8View[i * offset8 + 26] = data[i * this.ATTRIBUTES + 7];
+                Uint8View[i * offset8 + 27] = data[i * this.ATTRIBUTES + 8];
+                Uint8View[i * offset8 + 28] = data[i * this.ATTRIBUTES + 9];
+
+                float32View[i * offset32 + 7] = data[i * this.ATTRIBUTES + 10];
+            }
+
+            gl.bindBuffer(gl.ARRAY_BUFFER, this.dataBuffer);
+            gl.bufferData(gl.ARRAY_BUFFER, this.arrayBuffer, gl.STATIC_DRAW);
+
+            gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, this.strip, 0);
+            gl.vertexAttribPointer(uvLocation, 2, gl.FLOAT, false, this.strip, 2 * 4);
+            gl.vertexAttribPointer(disLocation, 1, gl.FLOAT, false, this.strip, 4 * 4);
+            gl.vertexAttribPointer(flagLocation, 1, gl.FLOAT, false, this.strip, 5 * 4);
+            gl.vertexAttribPointer(colorLocation, 4, gl.UNSIGNED_BYTE, false, this.strip, 6 * 4);
+            gl.vertexAttribPointer(dashedLocation, 1, gl.FLOAT, false, this.strip, 7 * 4);
+
+            gl.bindBuffer(gl.ARRAY_BUFFER, null);
+            gl.enableVertexAttribArray(positionLocation);
+            gl.enableVertexAttribArray(uvLocation);
+            gl.enableVertexAttribArray(disLocation);
+            gl.enableVertexAttribArray(flagLocation);
+            gl.enableVertexAttribArray(colorLocation);
+            gl.enableVertexAttribArray(dashedLocation);
+
+            gl.uniformMatrix3fv(matrixLocation, false, new Float32Array(matrix));
+            gl.uniform1f(cameraScaleLocation, camera.scale);
+
+            gl.drawArrays(gl.TRIANGLES, 0, len);
+        }
+    }]);
+
+    return Curve;
+}();
+
+exports.default = Curve;
+
+/***/ }),
+/* 24 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -3884,11 +4445,11 @@ var _util = __webpack_require__(0);
 
 var _util2 = _interopRequireDefault(_util);
 
-var _defaultVert = __webpack_require__(27);
+var _defaultVert = __webpack_require__(33);
 
 var _defaultVert2 = _interopRequireDefault(_defaultVert);
 
-var _defaultFrag = __webpack_require__(26);
+var _defaultFrag = __webpack_require__(32);
 
 var _defaultFrag2 = _interopRequireDefault(_defaultFrag);
 
@@ -3928,17 +4489,18 @@ var Edge = function () {
             var dx = target.x - source.x;
             var dy = target.y - source.y;
 
-            var data = [];
+            data = [];
             var size = 0.3,
                 arrowSize = 3;
             var crossVector = _util2.default.normalize([-dy, dx]);
 
             //arrow
+            var targetSize = Math.max(_util2.default.getNodeSizeX(target), _util2.default.getNodeSizeY(target));
             var dis = _util2.default.getDistance(source.x, source.y, target.x, target.y);
-            var arrowX = target.x - (target.size + arrowSize) / dis * dx;
-            var arrowY = target.y - (target.size + arrowSize) / dis * dy;
+            var arrowX = target.x - (targetSize + arrowSize) / dis * dx;
+            var arrowY = target.y - (targetSize + arrowSize) / dis * dy;
 
-            var color = utils.parseColor(edge.color || source.color || '#b3d2ff');
+            var color = _util2.default.parseColor(edge.color || source.color || '#b3d2ff');
 
             addData(data, this.ATTRIBUTES, [source.x, source.y, crossVector[0], crossVector[1], size, color.r, color.g, color.b, color.a]);
             addData(data, this.ATTRIBUTES, [arrowX, arrowY, crossVector[0], crossVector[1], size, color.r, color.g, color.b, color.a]);
@@ -4022,7 +4584,7 @@ var Edge = function () {
 exports.default = Edge;
 
 /***/ }),
-/* 23 */
+/* 25 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -4040,15 +4602,15 @@ var _util = __webpack_require__(0);
 
 var _util2 = _interopRequireDefault(_util);
 
-var _Matrix = __webpack_require__(5);
+var _Matrix = __webpack_require__(2);
 
 var _Matrix2 = _interopRequireDefault(_Matrix);
 
-var _edgeLabelVert = __webpack_require__(28);
+var _edgeLabelVert = __webpack_require__(7);
 
 var _edgeLabelVert2 = _interopRequireDefault(_edgeLabelVert);
 
-var _labelFrag = __webpack_require__(7);
+var _labelFrag = __webpack_require__(3);
 
 var _labelFrag2 = _interopRequireDefault(_labelFrag);
 
@@ -4095,11 +4657,12 @@ var NodeLabel = function () {
             // debugger
             var str = edge.label.split('');
 
-            var data = [];
+            data = [];
 
+            var size = edge.fontSize || Math.max(_util2.default.getNodeSizeX(source), _util2.default.getNodeSizeY(source)) / 3;
             var infos = textureText.textinfo.infos,
-                charWidth = source.size / 2,
-                charHeight = source.size / 2,
+                charWidth = size,
+                charHeight = size,
                 char,
                 uv,
                 width;
@@ -4210,7 +4773,7 @@ var NodeLabel = function () {
 exports.default = NodeLabel;
 
 /***/ }),
-/* 24 */
+/* 26 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -4225,13 +4788,17 @@ var _createClass = function () { function defineProperties(target, props) { for 
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       */
 
 
-var _nodeLabelVert = __webpack_require__(29);
+var _nodeLabelVert = __webpack_require__(34);
 
 var _nodeLabelVert2 = _interopRequireDefault(_nodeLabelVert);
 
-var _labelFrag = __webpack_require__(7);
+var _labelFrag = __webpack_require__(3);
 
 var _labelFrag2 = _interopRequireDefault(_labelFrag);
+
+var _util = __webpack_require__(0);
+
+var _util2 = _interopRequireDefault(_util);
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
@@ -4272,9 +4839,12 @@ var NodeLabel = function () {
 
             var data = [];
 
+            var sizeX = _util2.default.getNodeSizeX(node),
+                sizeY = _util2.default.getNodeSizeY(node);
+            var size = Math.max(sizeX, sizeY);
             var infos = textureText.textinfo.infos,
-                charWidth = node.size / 2,
-                charHeight = node.size / 2,
+                charWidth = size / 2,
+                charHeight = size / 2,
                 char,
                 uv,
                 width;
@@ -4283,20 +4853,20 @@ var NodeLabel = function () {
             for (var i = 0; i < str.length; i++) {
                 char = str[i];
                 if (!infos[char]) {
-                    console.log(1);
+                    // console.log(1);
                     continue;
                 }
                 totalWidht += infos[char].width * charWidth;
             }
 
             var startx = totalWidht / 2 * -1 + node.x;
-            var starty = node.y - node.size;
+            var starty = node.y - sizeY;
             var x1, y1, x2, y2;
 
             for (var i = 0; i < str.length; i++) {
                 char = str[i];
                 if (!infos[char]) {
-                    console.log(1);
+                    // console.log(1);
                     continue;
                 }
 
@@ -4375,7 +4945,211 @@ var NodeLabel = function () {
 exports.default = NodeLabel;
 
 /***/ }),
-/* 25 */
+/* 27 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+
+var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }(); /**
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      * Created by chengang on 17-4-7.
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      */
+
+var _util = __webpack_require__(0);
+
+var _util2 = _interopRequireDefault(_util);
+
+var _Matrix = __webpack_require__(2);
+
+var _Matrix2 = _interopRequireDefault(_Matrix);
+
+var _edgeLabelVert = __webpack_require__(7);
+
+var _edgeLabelVert2 = _interopRequireDefault(_edgeLabelVert);
+
+var _labelFrag = __webpack_require__(3);
+
+var _labelFrag2 = _interopRequireDefault(_labelFrag);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+function addData(arr, attributes, attrData, centerX, centerY, angle) {
+    var rotate = _Matrix2.default.transformPoint([attrData[0], attrData[1]], _Matrix2.default.matrixFromRotation(angle));
+    attrData[0] = rotate[0] + centerX;
+    attrData[1] = rotate[1] + centerY;
+
+    for (var i = 0; i < attributes; i++) {
+        arr.push(attrData[i]);
+    }
+}
+
+var CurveLabel = function () {
+    function CurveLabel() {
+        _classCallCheck(this, CurveLabel);
+
+        // this.POINTS = 1;
+        this.ATTRIBUTES = 4;
+
+        this.shaderVert = _edgeLabelVert2.default;
+        this.shaderFrag = _labelFrag2.default;
+
+        this.arrayBuffer = null;
+        this.dataBuffer = null;
+        this.strip = 4 * 4;
+    }
+
+    _createClass(CurveLabel, [{
+        key: 'getRenderData',
+        value: function getRenderData(_ref) {
+            var data = _ref.data,
+                source = _ref.source,
+                target = _ref.target,
+                textureText = _ref.textureText;
+
+            var edge = data;
+            if (!edge.label) return [];
+
+            // debugger
+            var str = edge.label.split('');
+
+            data = [];
+
+            var size = edge.fontSize || Math.max(_util2.default.getNodeSizeX(source), _util2.default.getNodeSizeY(source)) / 3;
+            var infos = textureText.textinfo.infos,
+                charWidth = size,
+                charHeight = size,
+                char,
+                uv,
+                width;
+
+            var totalWidht = 0;
+            for (var i = 0; i < str.length; i++) {
+                char = str[i];
+                if (!infos[char]) {
+                    console.log(1);
+                    continue;
+                }
+                totalWidht += infos[char].width * charWidth;
+            }
+
+            var dx = target.x - source.x;
+            var dy = target.y - source.y;
+
+            //curve
+            var dis = _util2.default.getDistance(source.x, source.y, target.x, target.y);
+            var tSize = Math.max(_util2.default.getNodeSizeX(target), _util2.default.getNodeSizeY(target));
+
+            var tX = target.x - tSize / dis * dx;
+            var tY = target.y - tSize / dis * dy;
+
+            var ctrlP = _util2.default.getControlPos(source.x, source.y, tX, tY, edge.curveCount, edge.curveOrder);
+
+            var tangent = _util2.default.getPointTangentOnQuadraticCurve(0.5, source.x, source.y, tX, tY, ctrlP[0], ctrlP[1]);
+
+            dx = tangent[0], dy = tangent[1];
+
+            var angle = _util2.default.getAngle(1, 0, dx, dy);
+
+            angle = dy < 0 ? Math.PI - angle : angle;
+            angle = angle > Math.PI / 2 ? angle + Math.PI : angle;
+
+            var center = _util2.default.getPointOnQuadraticCurve(0.5, source.x, source.y, tX, tY, ctrlP[0], ctrlP[1]);
+
+            var centerX = center[0],
+                centerY = center[1];
+            var startx = totalWidht / 2 * -1;
+            var starty = charHeight / 2;
+            var x1, y1, x2, y2;
+
+            for (var i = 0; i < str.length; i++) {
+                char = str[i];
+                if (!infos[char]) {
+                    console.log('no text texture info');
+                    continue;
+                }
+
+                width = infos[char].width * charWidth;
+                uv = infos[char].uvs;
+                x1 = uv[0], y1 = uv[1], x2 = uv[2], y2 = uv[3];
+
+                addData(data, this.ATTRIBUTES, [startx, starty, x1, y1], centerX, centerY, angle);
+                addData(data, this.ATTRIBUTES, [startx, starty - charHeight, x1, y2], centerX, centerY, angle);
+                addData(data, this.ATTRIBUTES, [startx + width, starty, x2, y1], centerX, centerY, angle);
+                addData(data, this.ATTRIBUTES, [startx, starty - charHeight, x1, y2], centerX, centerY, angle);
+                addData(data, this.ATTRIBUTES, [startx + width, starty, x2, y1], centerX, centerY, angle);
+                addData(data, this.ATTRIBUTES, [startx + width, starty - charHeight, x2, y2], centerX, centerY, angle);
+
+                startx += width;
+            }
+
+            return data;
+        }
+    }, {
+        key: 'render',
+        value: function render(_ref2) {
+            var gl = _ref2.gl,
+                program = _ref2.program,
+                data = _ref2.data,
+                matrix = _ref2.matrix,
+                camera = _ref2.camera,
+                textureLoader = _ref2.textureLoader;
+
+            if (!this.dataBuffer) this.dataBuffer = gl.createBuffer();
+
+            var positionLocation = gl.getAttribLocation(program, "a_position");
+            var uvLocation = gl.getAttribLocation(program, "a_uv");
+
+            var matrixLocation = gl.getUniformLocation(program, "u_matrix");
+            var imageLocation = gl.getUniformLocation(program, "u_image");
+
+            var len = data.length / this.ATTRIBUTES | 0;
+
+            if (!this.arrayBuffer || len * this.strip != this.arrayBuffer.byteLength) {
+                this.arrayBuffer = new ArrayBuffer(len * this.strip);
+            }
+
+            var float32View = new Float32Array(this.arrayBuffer);
+            // var Uint8View = new Uint8Array(this.arrayBuffer);
+
+            var offset32 = this.strip / 4,
+                offset8 = this.strip;
+            for (var i = 0; i < len; i++) {
+                float32View[i * offset32 + 0] = data[i * this.ATTRIBUTES + 0];
+                float32View[i * offset32 + 1] = data[i * this.ATTRIBUTES + 1];
+                float32View[i * offset32 + 2] = data[i * this.ATTRIBUTES + 2];
+                float32View[i * offset32 + 3] = data[i * this.ATTRIBUTES + 3];
+            }
+
+            gl.bindBuffer(gl.ARRAY_BUFFER, this.dataBuffer);
+            gl.bufferData(gl.ARRAY_BUFFER, this.arrayBuffer, gl.STATIC_DRAW);
+
+            gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, this.strip, 0);
+            gl.vertexAttribPointer(uvLocation, 2, gl.FLOAT, false, this.strip, 2 * 4);
+
+            gl.bindBuffer(gl.ARRAY_BUFFER, null);
+            gl.enableVertexAttribArray(positionLocation);
+            gl.enableVertexAttribArray(uvLocation);
+
+            gl.uniformMatrix3fv(matrixLocation, false, new Float32Array(matrix));
+            gl.uniform1i(imageLocation, 10);
+
+            gl.drawArrays(gl.TRIANGLES, 0, len);
+        }
+    }]);
+
+    return CurveLabel;
+}();
+
+exports.default = CurveLabel;
+
+/***/ }),
+/* 28 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -4393,11 +5167,11 @@ var _util = __webpack_require__(0);
 
 var _util2 = _interopRequireDefault(_util);
 
-var _defaultVert = __webpack_require__(31);
+var _defaultVert = __webpack_require__(36);
 
 var _defaultVert2 = _interopRequireDefault(_defaultVert);
 
-var _defaultFrag = __webpack_require__(30);
+var _defaultFrag = __webpack_require__(35);
 
 var _defaultFrag2 = _interopRequireDefault(_defaultFrag);
 
@@ -4568,43 +5342,256 @@ var Node = function () {
 exports.default = Node;
 
 /***/ }),
-/* 26 */
-/***/ (function(module, exports) {
-
-module.exports = "precision mediump float;\nvarying vec4 color;\nvoid main(){\ngl_FragColor = color;\n}"
-
-/***/ }),
-/* 27 */
-/***/ (function(module, exports) {
-
-module.exports = "attribute vec2 a_position;\nattribute vec2 a_normal;\nattribute vec4 a_color;\nattribute float a_size;\n\nuniform mat3 u_matrix;\n\nvarying vec4 color;\n\nvoid main() {\n\nvec2 pos  = a_position + a_normal * a_size;\ngl_Position = vec4((u_matrix*vec3(pos,1)).xy,0,1);\n\ncolor = a_color/255.0;\n}\n"
-
-/***/ }),
-/* 28 */
-/***/ (function(module, exports) {
-
-module.exports = "attribute vec2 a_position;\nattribute vec2 a_uv;\n\nuniform mat3 u_matrix;\nuniform sampler2D u_image;\n\n\nvarying vec2 v_texCoord;\n\nvoid main() {\ngl_Position = vec4((u_matrix*vec3(a_position,1)).xy,0,1);\nv_texCoord = a_uv;\n}\n"
-
-/***/ }),
 /* 29 */
-/***/ (function(module, exports) {
+/***/ (function(module, exports, __webpack_require__) {
 
-module.exports = "attribute vec2 a_position;\nattribute vec2 a_uv;\n\nuniform mat3 u_matrix;\nuniform sampler2D u_image;\n\n\nvarying vec2 v_texCoord;\n\nvoid main() {\ngl_Position = vec4((u_matrix*vec3(a_position,1)).xy,0,1);\nv_texCoord = a_uv;\n}\n"
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+
+var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }(); /**
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      * Created by chengang on 17-3-28.
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      */
+
+var _util = __webpack_require__(0);
+
+var _util2 = _interopRequireDefault(_util);
+
+var _vert = __webpack_require__(38);
+
+var _vert2 = _interopRequireDefault(_vert);
+
+var _frag = __webpack_require__(37);
+
+var _frag2 = _interopRequireDefault(_frag);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+function addData(arr, attributes, attrData) {
+    for (var i = 0; i < attributes; i++) {
+        arr.push(attrData[i]);
+    }
+}
+
+var Rect = function () {
+    function Rect() {
+        _classCallCheck(this, Rect);
+
+        this.ATTRIBUTES = 11;
+
+        this.shaderVert = _vert2.default;
+        this.shaderFrag = _frag2.default;
+
+        this.arrayBuffer = null;
+        this.dataBuffer = null;
+        this.strip = 5 * 4 + 4 + 4;
+    }
+
+    _createClass(Rect, [{
+        key: 'getRenderData',
+        value: function getRenderData(_ref) {
+            var data = _ref.data,
+                textureLoader = _ref.textureLoader,
+                textureIcon = _ref.textureIcon;
+
+
+            var node = data;
+            var color = _util2.default.parseColor(node.color || '#34e1ff');
+
+            var img = -1;
+            if (node.img && textureLoader.cache.hasOwnProperty(node.img)) img = textureLoader.cache[node.img];
+
+            var sizeX = node.width || node.size || 10;
+            var sizeY = node.height || node.size || 10;
+            var isSelected = node.selected ? 1.0 : 0.0;
+
+            data = [];
+
+            //base
+            addData(data, this.ATTRIBUTES, [node.x - sizeX, node.y + sizeY, color.r, color.g, color.b, color.a, 0, 0, img, isSelected, 1]);
+            addData(data, this.ATTRIBUTES, [node.x + sizeX, node.y + sizeY, color.r, color.g, color.b, color.a, 1, 0, img, isSelected, 1]);
+            addData(data, this.ATTRIBUTES, [node.x - sizeX, node.y - sizeY, color.r, color.g, color.b, color.a, 0, 1, img, isSelected, 1]);
+            addData(data, this.ATTRIBUTES, [node.x + sizeX, node.y + sizeY, color.r, color.g, color.b, color.a, 1, 0, img, isSelected, 1]);
+            addData(data, this.ATTRIBUTES, [node.x - sizeX, node.y - sizeY, color.r, color.g, color.b, color.a, 0, 1, img, isSelected, 1]);
+            addData(data, this.ATTRIBUTES, [node.x + sizeX, node.y - sizeY, color.r, color.g, color.b, color.a, 1, 1, img, isSelected, 1]);
+
+            var hasIcon = node.icon && textureIcon.iconinfo.infos[node.icon],
+                uvs;
+            var scale = 0.85;
+            var iconSize = Math.min(sizeX, sizeY);
+            //icon
+            if (hasIcon) {
+                // debugger
+                uvs = textureIcon.iconinfo.infos[node.icon].uvs;
+                addData(data, this.ATTRIBUTES, [node.x - iconSize * scale, node.y + iconSize * scale, color.r, color.g, color.b, color.a, uvs[0], uvs[1], -2, isSelected, 2]);
+                addData(data, this.ATTRIBUTES, [node.x + iconSize * scale, node.y + iconSize * scale, color.r, color.g, color.b, color.a, uvs[2], uvs[1], -2, isSelected, 2]);
+                addData(data, this.ATTRIBUTES, [node.x - iconSize * scale, node.y - iconSize * scale, color.r, color.g, color.b, color.a, uvs[0], uvs[3], -2, isSelected, 2]);
+                addData(data, this.ATTRIBUTES, [node.x + iconSize * scale, node.y + iconSize * scale, color.r, color.g, color.b, color.a, uvs[2], uvs[1], -2, isSelected, 2]);
+                addData(data, this.ATTRIBUTES, [node.x - iconSize * scale, node.y - iconSize * scale, color.r, color.g, color.b, color.a, uvs[0], uvs[3], -2, isSelected, 2]);
+                addData(data, this.ATTRIBUTES, [node.x + iconSize * scale, node.y - iconSize * scale, color.r, color.g, color.b, color.a, uvs[2], uvs[3], -2, isSelected, 2]);
+            }
+
+            return data;
+        }
+    }, {
+        key: 'render',
+        value: function render(_ref2) {
+            var gl = _ref2.gl,
+                program = _ref2.program,
+                data = _ref2.data,
+                matrix = _ref2.matrix,
+                camera = _ref2.camera,
+                sampleRatio = _ref2.sampleRatio,
+                textureLoader = _ref2.textureLoader;
+
+            // debugger
+
+            if (!this.dataBuffer) this.dataBuffer = gl.createBuffer();
+
+            var positionLocation = gl.getAttribLocation(program, "a_position");
+            var colorLocation = gl.getAttribLocation(program, "a_color");
+            var imgLocation = gl.getAttribLocation(program, "a_img");
+            var selectedLocation = gl.getAttribLocation(program, "a_selected");
+            var uvLocation = gl.getAttribLocation(program, "a_uv");
+            var flagLocation = gl.getAttribLocation(program, "a_flag");
+
+            var matrixLocation = gl.getUniformLocation(program, "u_matrix");
+            var cameraScaleLocation = gl.getUniformLocation(program, "u_camera_scale");
+            var texturesLocation = gl.getUniformLocation(program, "u_textures");
+            var borderColorLocation = gl.getUniformLocation(program, "u_borderColor");
+            var sampleRatioLocation = gl.getUniformLocation(program, "u_sample_ratio");
+            var iconTextureLocation = gl.getUniformLocation(program, "u_icons_texture");
+
+            var len = data.length / this.ATTRIBUTES | 0;
+
+            // debugger
+            if (!this.arrayBuffer || len * this.strip != this.arrayBuffer.byteLength) {
+                this.arrayBuffer = new ArrayBuffer(len * this.strip);
+            }
+
+            var float32View = new Float32Array(this.arrayBuffer);
+            var Uint8View = new Uint8Array(this.arrayBuffer);
+            var int8View = new Int8Array(this.arrayBuffer);
+            var int16View = new Int16Array(this.arrayBuffer);
+
+            var offset32 = this.strip / 4,
+                offset16 = this.strip / 2;
+            for (var i = 0; i < len; i++) {
+                float32View[i * offset32 + 0] = data[i * this.ATTRIBUTES + 0]; //x
+                float32View[i * offset32 + 1] = data[i * this.ATTRIBUTES + 1]; //y
+
+                Uint8View[i * this.strip + 8] = data[i * this.ATTRIBUTES + 2]; //color.r
+                Uint8View[i * this.strip + 9] = data[i * this.ATTRIBUTES + 3]; //color.g
+                Uint8View[i * this.strip + 10] = data[i * this.ATTRIBUTES + 4]; //color.b
+                Uint8View[i * this.strip + 11] = data[i * this.ATTRIBUTES + 5]; //color.a
+
+                float32View[i * offset32 + 3] = data[i * this.ATTRIBUTES + 6]; //u
+                float32View[i * offset32 + 4] = data[i * this.ATTRIBUTES + 7]; //v
+
+                int16View[i * offset16 + 10] = data[i * this.ATTRIBUTES + 8]; //img
+                int16View[i * offset16 + 11] = data[i * this.ATTRIBUTES + 9]; //selected
+
+                float32View[i * offset32 + 6] = data[i * this.ATTRIBUTES + 10]; //flag
+            }
+
+            // debugger
+
+            gl.bindBuffer(gl.ARRAY_BUFFER, this.dataBuffer);
+            gl.bufferData(gl.ARRAY_BUFFER, this.arrayBuffer, gl.STATIC_DRAW);
+
+            gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, this.strip, 0);
+            gl.vertexAttribPointer(colorLocation, 4, gl.UNSIGNED_BYTE, false, this.strip, 2 * 4);
+            gl.vertexAttribPointer(uvLocation, 2, gl.FLOAT, false, this.strip, 3 * 4);
+            gl.vertexAttribPointer(imgLocation, 1, gl.SHORT, false, this.strip, 5 * 4);
+            gl.vertexAttribPointer(selectedLocation, 1, gl.SHORT, false, this.strip, 5 * 4 + 2);
+            gl.vertexAttribPointer(flagLocation, 1, gl.FLOAT, false, this.strip, 6 * 4);
+
+            gl.bindBuffer(gl.ARRAY_BUFFER, null);
+            gl.enableVertexAttribArray(positionLocation);
+            gl.enableVertexAttribArray(colorLocation);
+            gl.enableVertexAttribArray(imgLocation);
+            gl.enableVertexAttribArray(selectedLocation);
+            gl.enableVertexAttribArray(uvLocation);
+            gl.enableVertexAttribArray(flagLocation);
+
+            gl.uniformMatrix3fv(matrixLocation, false, new Float32Array(matrix));
+            gl.uniform1f(cameraScaleLocation, camera.scale);
+            gl.uniform1f(sampleRatioLocation, sampleRatio);
+            gl.uniform4f(borderColorLocation, 222, 19, 19, 255.0);
+
+            gl.uniform1iv(texturesLocation, textureLoader.texturesIndex);
+            gl.uniform1i(iconTextureLocation, 11);
+
+            gl.drawArrays(gl.TRIANGLES, 0, len);
+        }
+    }]);
+
+    return Rect;
+}();
+
+exports.default = Rect;
 
 /***/ }),
 /* 30 */
 /***/ (function(module, exports) {
 
-module.exports = "//#ifdef GL_OES_standard_derivatives\n//#extension GL_OES_standard_derivatives : enable\n//#endif\n\n precision mediump float;\n\nvarying vec4 color;\nvarying float img;\nvarying float selected;\nvarying vec2 uv;\nvarying float flag;\n\n\nuniform sampler2D u_textures[10];\nuniform sampler2D u_icons_texture;\nuniform vec4 u_borderColor;\nuniform float u_sample_ratio;\n\n\n\n\n\n\n//todo\nvec4 getSampleColore(int index,vec2 uv){\n    vec4 c;\n    if(index == 0){\n        c = texture2D(u_textures[0],uv);\n    }else if(index == 1){\n        c = texture2D(u_textures[1],uv);\n    }else if(index == 2){\n        c = texture2D(u_textures[2],uv);\n    }else if(index == 3){\n        c = texture2D(u_textures[3],uv);\n    }else if(index == 4){\n        c = texture2D(u_textures[4],uv);\n    }else if(index == 5){\n        c = texture2D(u_textures[5],uv);\n    }\n    return c;\n}\n\nvec4 borderColor = u_borderColor/255.0;\n\nvoid main()\n{\n   float r = 0.0, alpha = 1.0,\n   blur = 0.05 ,\n   border = 0.75 ;\n\n   vec4 nodecolor = color;\n   vec2 cxy = 2.0 * uv - 1.0;\n   r = length(cxy);\n\nif(flag > 0.5 && flag < 1.5) //flag =1\n{\n    if(r > 1.0 ){\n        discard;\n    }\n\n    if(img >= 0.0){\n        nodecolor = getSampleColore(int(img),uv);\n    }\n\n     if( selected > 0.5  && r > border && r < border + blur){\n        nodecolor = mix(nodecolor,borderColor,smoothstep(border, border + blur, r));\n    }\n\n     if( selected > 0.5  &&  r >= border + blur){\n        nodecolor = borderColor;\n     }\n\n      gl_FragColor = nodecolor * alpha;\n\n}else if(flag > 1.5 && flag < 2.5) {//flag =2\n    gl_FragColor = texture2D(u_icons_texture,uv).w * vec4(1,1,1,1);\n}\n\n\n}\n"
+module.exports = "#ifdef GL_OES_standard_derivatives\n#extension GL_OES_standard_derivatives : enable\n#endif\n\nprecision mediump float;\nvarying vec4 color;\nvarying vec2 uv;\nvarying float dis;\nvarying float flag;\nvarying float dashed;\n\nuniform float u_camera_scale;\n\n\n\nvoid main(){\n        float a = 0.6;\n        float width = a / u_camera_scale;\n        float scale = 1.0;\n        float base = 0.6;\n        float smooth_factor = 0.4;\n\n        if(flag > -0.5 && flag < 0.5){//curve\n                vec2 px = dFdx(uv);\n                vec2 py = dFdy(uv);\n\n                float fx = 2.0 * uv.x * px.x - px.y;\n                float fy = 2.0 * uv.y * py.x - py.y;\n\n                float sd = (uv.x * uv.x - uv.y) / sqrt(fx * fx + fy * fy);\n\n                float alpha = 1.0 - abs(sd) / width;\n                if (alpha < 0.0 || uv.x < 0.0 || uv.x > 1.0) discard;\n\n                float n = 800.0/dis;\n                float dot = mod(uv.x*100.0,n);\n                if(dashed > 0.5 && dot > n*0.5 && dot < n) discard;\n\n                if(alpha < 0.2) scale = smoothstep(0.0,smooth_factor,alpha);\n\n                gl_FragColor = color*scale;\n\n        }else if(flag > 0.5 && flag < 1.5){//arrow\n                gl_FragColor = color;\n        }\n\n\n}"
 
 /***/ }),
 /* 31 */
 /***/ (function(module, exports) {
 
-module.exports = "\n precision mediump float;\nattribute vec2 a_position;\nattribute vec4 a_color;\nattribute float a_img;\nattribute vec2 a_uv;\nattribute float a_selected;\nattribute float a_flag;\n\nuniform mat3 u_matrix;\nuniform float u_camera_scale;\nuniform float u_sample_ratio;\n\nvarying vec4 color;\nvarying float img;\nvarying float selected;\nvarying vec2 uv;\nvarying float flag;\n\n\nvoid main() {\n\ngl_Position = vec4((u_matrix*vec3(a_position,1)).xy,0,1);\ncolor = a_color/255.0;\nimg = a_img;\nselected = a_selected;\nuv = a_uv;\nflag = a_flag;\n}\n"
+module.exports = "attribute vec2 a_position;\n//attribute vec2 a_normal;\nattribute vec4 a_color;\n//attribute float a_size;\nattribute vec2 a_uv;\nattribute float a_dis;\nattribute float a_flag;\nattribute float a_dashed;\n\nuniform mat3 u_matrix;\n\nvarying vec4 color;\nvarying vec2 uv;\nvarying float dis;\nvarying float flag;\nvarying float dashed;\n\nvoid main() {\n\n//vec2 pos  = a_position + a_normal * a_size;\ngl_Position = vec4((u_matrix*vec3(a_position,1)).xy,0,1);\nuv = a_uv;\ndis = a_dis;\nflag = a_flag;\ncolor = a_color/255.0;\ndashed = a_dashed;\n}\n"
 
 /***/ }),
 /* 32 */
+/***/ (function(module, exports) {
+
+module.exports = "precision mediump float;\nvarying vec4 color;\nvoid main(){\ngl_FragColor = color;\n}"
+
+/***/ }),
+/* 33 */
+/***/ (function(module, exports) {
+
+module.exports = "attribute vec2 a_position;\nattribute vec2 a_normal;\nattribute vec4 a_color;\nattribute float a_size;\n\nuniform mat3 u_matrix;\n\nvarying vec4 color;\n\nvoid main() {\n\nvec2 pos  = a_position + a_normal * a_size;\ngl_Position = vec4((u_matrix*vec3(pos,1)).xy,0,1);\n\ncolor = a_color/255.0;\n}\n"
+
+/***/ }),
+/* 34 */
+/***/ (function(module, exports) {
+
+module.exports = "attribute vec2 a_position;\nattribute vec2 a_uv;\n\nuniform mat3 u_matrix;\nuniform sampler2D u_image;\n\n\nvarying vec2 v_texCoord;\n\nvoid main() {\ngl_Position = vec4((u_matrix*vec3(a_position,1)).xy,0,1);\nv_texCoord = a_uv;\n}\n"
+
+/***/ }),
+/* 35 */
+/***/ (function(module, exports) {
+
+module.exports = "//#ifdef GL_OES_standard_derivatives\n//#extension GL_OES_standard_derivatives : enable\n//#endif\n\n precision mediump float;\n\nvarying vec4 color;\nvarying float img;\nvarying float selected;\nvarying vec2 uv;\nvarying float flag;\n\n\nuniform sampler2D u_textures[10];\nuniform sampler2D u_icons_texture;\nuniform vec4 u_borderColor;\nuniform float u_sample_ratio;\n\n\n\n\n\n\n//todo\nvec4 getSampleColore(int index,vec2 uv){\n    vec4 c;\n    if(index == 0){\n        c = texture2D(u_textures[0],uv);\n    }else if(index == 1){\n        c = texture2D(u_textures[1],uv);\n    }else if(index == 2){\n        c = texture2D(u_textures[2],uv);\n    }else if(index == 3){\n        c = texture2D(u_textures[3],uv);\n    }else if(index == 4){\n        c = texture2D(u_textures[4],uv);\n    }else if(index == 5){\n        c = texture2D(u_textures[5],uv);\n    }\n    return c;\n}\n\nvec4 borderColor = u_borderColor/255.0;\n\nvoid main()\n{\n   float r = 0.0, alpha = 1.0,\n   blur = 0.05 ,\n   border = 0.75 ;\n\nif(flag > 0.5 && flag < 1.5) //flag =1\n{\n    vec4 nodecolor = color;\n    vec2 cxy = 2.0 * uv - 1.0;\n    r = length(cxy);\n\n    if(r > 1.0 ){\n        discard;\n    }\n\n    if(img >= 0.0){\n        nodecolor = getSampleColore(int(img),uv);\n    }\n\n     if( selected > 0.5  && r > border && r < border + blur){\n        nodecolor = mix(nodecolor,borderColor,smoothstep(border, border + blur, r));\n    }\n\n     if( selected > 0.5  &&  r >= border + blur){\n        nodecolor = borderColor;\n     }\n\n      gl_FragColor = nodecolor * alpha;\n\n}else if(flag > 1.5 && flag < 2.5) {//flag =2\n    gl_FragColor = texture2D(u_icons_texture,uv).w * vec4(1,1,1,1);\n}\n\n\n}\n"
+
+/***/ }),
+/* 36 */
+/***/ (function(module, exports) {
+
+module.exports = "\n precision mediump float;\nattribute vec2 a_position;\nattribute vec4 a_color;\nattribute float a_img;\nattribute vec2 a_uv;\nattribute float a_selected;\nattribute float a_flag;\n\nuniform mat3 u_matrix;\nuniform float u_camera_scale;\nuniform float u_sample_ratio;\n\nvarying vec4 color;\nvarying float img;\nvarying float selected;\nvarying vec2 uv;\nvarying float flag;\n\n\nvoid main() {\n\ngl_Position = vec4((u_matrix*vec3(a_position,1)).xy,0,1);\ncolor = a_color/255.0;\nimg = a_img;\nselected = a_selected;\nuv = a_uv;\nflag = a_flag;\n}\n"
+
+/***/ }),
+/* 37 */
+/***/ (function(module, exports) {
+
+module.exports = "//#ifdef GL_OES_standard_derivatives\n//#extension GL_OES_standard_derivatives : enable\n//#endif\n\n precision mediump float;\n\nvarying vec4 color;\nvarying float img;\nvarying float selected;\nvarying vec2 uv;\nvarying float flag;\n\n\nuniform sampler2D u_textures[10];\nuniform sampler2D u_icons_texture;\nuniform vec4 u_borderColor;\nuniform float u_sample_ratio;\n\n//todo\nvec4 getSampleColore(int index,vec2 uv){\n    vec4 c;\n    if(index == 0){\n        c = texture2D(u_textures[0],uv);\n    }else if(index == 1){\n        c = texture2D(u_textures[1],uv);\n    }else if(index == 2){\n        c = texture2D(u_textures[2],uv);\n    }else if(index == 3){\n        c = texture2D(u_textures[3],uv);\n    }else if(index == 4){\n        c = texture2D(u_textures[4],uv);\n    }else if(index == 5){\n        c = texture2D(u_textures[5],uv);\n    }\n    return c;\n}\n\nvec4 borderColor = u_borderColor/255.0;\n\nvoid main()\n{\n   float r = 0.0, alpha = 1.0,\n   blur = 0.05 ,\n   border = 0.75 ;\n\n\nif(flag > 0.5 && flag < 1.5) //flag =1\n{\n    vec4 nodecolor = color;\n    vec2 cxy = 2.0 * uv - 1.0;\n    r = length(cxy);\n\n    if(img >= 0.0){\n        nodecolor = getSampleColore(int(img),uv);\n    }\n\n     if( selected > 0.5  && r > border && r < border + blur){\n        nodecolor = mix(nodecolor,borderColor,smoothstep(border, border + blur, r));\n    }\n\n     if( selected > 0.5  &&  r >= border + blur){\n        nodecolor = borderColor;\n     }\n\n      gl_FragColor = nodecolor * alpha;\n\n}else if(flag > 1.5 && flag < 2.5) {//flag =2\n    gl_FragColor = texture2D(u_icons_texture,uv).w * vec4(1,1,1,1);\n}\n\n\n}\n"
+
+/***/ }),
+/* 38 */
+/***/ (function(module, exports) {
+
+module.exports = "\n precision mediump float;\nattribute vec2 a_position;\nattribute vec4 a_color;\nattribute float a_img;\nattribute vec2 a_uv;\nattribute float a_selected;\nattribute float a_flag;\n\nuniform mat3 u_matrix;\nuniform float u_camera_scale;\nuniform float u_sample_ratio;\n\nvarying vec4 color;\nvarying float img;\nvarying float selected;\nvarying vec2 uv;\nvarying float flag;\n\n\nvoid main() {\n\ngl_Position = vec4((u_matrix*vec3(a_position,1)).xy,0,1);\ncolor = a_color/255.0;\nimg = a_img;\nselected = a_selected;\nuv = a_uv;\nflag = a_flag;\n}\n"
+
+/***/ }),
+/* 39 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -4614,7 +5601,7 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 
-var _Graph = __webpack_require__(4);
+var _Graph = __webpack_require__(5);
 
 Object.defineProperty(exports, 'Graph', {
   enumerable: true,
@@ -4623,7 +5610,7 @@ Object.defineProperty(exports, 'Graph', {
   }
 });
 
-var _index = __webpack_require__(9);
+var _index = __webpack_require__(10);
 
 Object.defineProperty(exports, 'WebGLRender', {
   enumerable: true,
@@ -4632,7 +5619,7 @@ Object.defineProperty(exports, 'WebGLRender', {
   }
 });
 
-var _Quad = __webpack_require__(2);
+var _Quad = __webpack_require__(8);
 
 Object.defineProperty(exports, 'Quad', {
   enumerable: true,
@@ -4641,7 +5628,7 @@ Object.defineProperty(exports, 'Quad', {
   }
 });
 
-var _Event = __webpack_require__(3);
+var _Event = __webpack_require__(4);
 
 Object.defineProperty(exports, 'Event', {
   enumerable: true,
@@ -4650,7 +5637,7 @@ Object.defineProperty(exports, 'Event', {
   }
 });
 
-var _index2 = __webpack_require__(8);
+var _index2 = __webpack_require__(9);
 
 Object.defineProperty(exports, 'GraphView', {
   enumerable: true,
@@ -4663,4 +5650,4 @@ function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { de
 
 /***/ })
 /******/ ]);
-//# sourceMappingURL=bundle.js.map
+//# sourceMappingURL=klgraph.js.map

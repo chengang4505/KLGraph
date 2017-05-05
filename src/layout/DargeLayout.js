@@ -3,7 +3,7 @@
  */
 
 export default class DargeLayout{
-    layout(graph){
+    layout(nodes,edges){
         // debugger
         if(!dagre || !dagre.graphlib) throw 'please add dagre lib first';
         var g = new dagre.graphlib.Graph();
@@ -17,11 +17,11 @@ export default class DargeLayout{
 
         g.setDefaultEdgeLabel(function() { return {}; });
 
-        graph.nodes.forEach(function (e) {
+        nodes.forEach(function (e) {
             g.setNode(e.id,{width:20,height:20});
         });
 
-        graph.edges.forEach(function (e) {
+        edges.forEach(function (e) {
             g.setEdge(e.source,e.target);
         });
 

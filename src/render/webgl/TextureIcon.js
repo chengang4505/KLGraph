@@ -32,6 +32,8 @@ export default class TextureIcon extends EventEmitter{
 
         this._init();
 
+        this.updateGPUTexture(true);
+
         var _this = this;
         if (document.fonts) {
             var fontsReady = document.fonts.ready;
@@ -141,10 +143,10 @@ export default class TextureIcon extends EventEmitter{
         ctx.putImageData(imgData,0,0);
     }
 
-    updateGPUTexture(){
+    updateGPUTexture(empty){
         var gl = this.gl;
 
-        this.createTexture();
+        this.createTexture(empty);
 
         gl.activeTexture(gl.TEXTURE11);
         gl.bindTexture(gl.TEXTURE_2D, this.texture);
@@ -167,7 +169,7 @@ export default class TextureIcon extends EventEmitter{
         this.updateGPUTexture();
     }
 
-    createTexture(){
+    createTexture(empty){
 
         var gl = this.gl;
 
@@ -182,7 +184,22 @@ export default class TextureIcon extends EventEmitter{
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
 
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, this.iconinfo.img);
+        if(empty)gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 2, 2, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+        else gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, this.iconinfo.img);
+    }
+
+    clear(){
+        this.startx =this.border+this.width/2;
+        this.starty =this.border+this.height/2;
+        this.icons = [];
+        this.iconsToCreate = [];
+        this.iconinfo.infos = {};
+
+        var ctx = this.ctx;
+        ctx.save();
+        ctx.fillStyle = "#000000";
+        ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        ctx.restore();
     }
 
 }

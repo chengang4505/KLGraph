@@ -11,13 +11,15 @@ function CircularLayout() {
      this.nodeHeights = {};
      this.node2BiComp = {};
 
+     this.width = 60;
+
 }
 
 var p = CircularLayout.prototype;
 
 //必须有的方法
-p.layout = function (graph) {
-    this.init(graph);
+p.layout = function (nodes,edges) {
+    this.init(nodes,edges);
 
     this.posSet = new Array(this.nodes.length);
     this.depthPosSet = new Array(this.nodes.length);
@@ -28,11 +30,11 @@ p.layout = function (graph) {
     // });
     this.__layout(this.bc);
     return this.nodes.map(function (e) {
-        return {x:e.x,y:e.y};
+        return {x: e.x || 0,y:e.y || 0};
     })
 };
-p.init = function (graph) {
-    var oldNodes = graph.nodes,oldLinks = graph.edges;
+p.init = function (nodes,edges) {
+    var oldNodes = nodes,oldLinks = edges;
     var tempNodes = [],map = {},temp;
     oldNodes.forEach(function (e,i) {
         temp = {
@@ -159,7 +161,7 @@ p.__layout = function(biconncts) {
 
 
     var maxSize = bc.length;
-    var radius = (48 * maxSize) / (Math.PI * 2);
+    var radius = (this.width * maxSize) / (Math.PI * 2);
     var deltaAngle = (2 * Math.PI) / maxSize;
     var angle = 0;
 
@@ -648,7 +650,7 @@ p.DFSSetPos = function( nodeID, theAngle,  theRadius) {
         var comp = component;
         var centerX =nodes[nodeID].x;
         var centerY = nodes[nodeID].y;
-        var radius = (48 * this.bc[comp].length) / (2 * Math.PI);
+        var radius = (this.width * this.bc[comp].length) / (2 * Math.PI);
         var deltaAngle = (2 * Math.PI) / this.bc[comp].length;
         var currAngle = theAngle - Math.PI - deltaAngle;
 
@@ -764,8 +766,8 @@ p.DFSSetPos = function( nodeID, theAngle,  theRadius) {
         var r = 72;
         var rTry;
 
-        if (((48 * neighboursCount) / (2 * Math.PI)) > r)
-            r = (48 * neighboursCount) / (2 * Math.PI);
+        if (((this.width * neighboursCount) / (2 * Math.PI)) > r)
+            r = (this.width * neighboursCount) / (2 * Math.PI);
 
         rTry = r;
 

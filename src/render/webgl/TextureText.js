@@ -127,8 +127,7 @@ export default class TextureText extends EventEmitter{
         }
 
         if(num > 0) {
-            this.textinfo = null;
-            this.texts = null;
+           this.clear();
             this.createCanvasImg(texts);
         }
     }
@@ -149,6 +148,11 @@ export default class TextureText extends EventEmitter{
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
 
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, this.textinfo.img);
+    }
+
+    clear(){
+        this.textinfo = null;
+        this.texts = null;
     }
 
 }

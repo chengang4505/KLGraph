@@ -4,6 +4,9 @@
 
 import util from '../util'
 
+'use strict';
+
+
 var defaultConfig = {
     maxLevel:2,
 };

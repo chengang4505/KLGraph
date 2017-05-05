@@ -3,12 +3,12 @@
  */
 
 export default class FlowLayout{
-    layout(graph){
+    layout(nodes,edges){
         if(!cola || !cola.Layout) throw 'please add cola lib first';
         this.cola = new cola.Layout().convergenceThreshold(1e-4)
             .size([1000, 800]);
 
-        var data = this._init(graph);
+        var data = this._init(nodes,edges);
 
         this.cola.nodes(data.nodes)
             .links(data.edges)
@@ -21,14 +21,14 @@ export default class FlowLayout{
         })
     }
 
-    _init(graph){
+    _init(_nodes,_edges){
 
-        var filterEdge = this._filterEdge(graph);
+        // var filterEdge = this._filterEdge(nodes,edges);
 
         var nodes = [];
         var edges = [];
         var map = {};
-        graph.nodes.forEach(function (e,i) {
+        _nodes.forEach(function (e,i) {
             nodes.push({
                 width:100,
                 height:100
@@ -36,7 +36,7 @@ export default class FlowLayout{
             map[e.id] = i;
         })
 
-        filterEdge.forEach(function (e,i) {
+        _edges.forEach(function (e,i) {
             edges.push({
                 source:map[e.source],
                 target:map[e.target],
@@ -49,11 +49,11 @@ export default class FlowLayout{
         }
     }
 
-    _filterEdge(graph){
+    _filterEdge(nodes,edges){
         var filterEdges = [];
 
         var flag = {};
-        var first = graph.nodes[0];
+        var first = nodes[0];
 
         breadFirst(first);
 
