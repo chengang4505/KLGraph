@@ -1,6 +1,3 @@
-/**
- * Created by chengang on 17-3-17.
- */
 
 'use strict';
 
@@ -52,25 +49,28 @@ class Graph extends EventEmitter{
         this.clear();
 
         (options.nodes || []).forEach(function (e) {
+            if (!e.id) e.id = utils.uuid();
+            e.id += '';
+            this.nodesIndex[e.id] = e;
             this.nodes.push(e);
         }.bind(this));
 
         (options.edges || []).forEach(function (e) {
-            this.edges.push(e);
-        }.bind(this));
-
-        this.nodes.forEach(function (e) {
             if (!e.id) e.id = utils.uuid();
-            e.id += '';
-            this.nodesIndex[e.id] = e;
-        }.bind(this));
 
-        this.edges.forEach(function (e) {
-            if (!e.id) e.id = utils.uuid();
+            if (!e.source || !this.nodesIndex[e.source + ''])
+            {
+                console.log(e);
+                console.error('some edge has not source id or not a node of the id') ;
+                return
+            }
+            if (!e.target || !this.nodesIndex[e.target + '']){
+                console.log(e);
+                console.error('some edge has not target id or not a node of the id');
+                return
+            }
+
             this.edgesIndex['' + e.id] = e;
-
-            if (!e.source || !this.nodesIndex[e.source + '']) throw 'some edge has not source id or not a node of the id';
-            if (!e.target || !this.nodesIndex[e.target + '']) throw 'some edge has not target id or not a node of the id';
 
             e.source += '';
             e.target += '';
@@ -80,6 +80,8 @@ class Graph extends EventEmitter{
 
             this.outEdgesIndex[e.source] = this.outEdgesIndex[e.source] || [];
             this.outEdgesIndex[e.source].push(e.id);
+
+            this.edges.push(e);
 
         }.bind(this));
 
@@ -120,7 +122,9 @@ class Graph extends EventEmitter{
         for (var i = 0; i < nodes.length; i++) {
             node = nodes[i];
             if (!node.id) node.id = utils.uuid();
-            if (this.nodesIndex[node.id]) throw 'node has existed.'
+            if (this.nodesIndex[node.id]) {
+                throw 'node has existed.'
+            }
             this.nodes.push(node);
             this.nodesIndex[node.id] = node;
         }
@@ -185,9 +189,18 @@ class Graph extends EventEmitter{
         for (var i = 0; i < edges.length; i++) {
             edge = edges[i];
             if (!edge.id) edge.id = utils.uuid();
-            if (this.edgesIndex[edge.id]) throw 'edge has existed.';
-            if (!edge.source || !this.nodesIndex[edge.source + '']) throw 'some edge has not source id or not a node of the id';
-            if (!edge.target || !this.nodesIndex[edge.target + '']) throw 'some edge has not target id or not a node of the id';
+            if (this.edgesIndex[edge.id]){
+                // debugger
+                throw 'edge has existed.';
+            }
+            if (!edge.source || !this.nodesIndex[edge.source + '']){
+                console.log(edge);
+                throw 'some edge has not source id or not a node of the id';
+            }
+            if (!edge.target || !this.nodesIndex[edge.target + '']) {
+                console.log(edge);
+                throw 'some edge has not target id or not a node of the id';
+            }
 
             this.edges.push(edge);
             this.edgesIndex[edge.id] = edge;

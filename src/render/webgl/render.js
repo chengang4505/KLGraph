@@ -1,6 +1,5 @@
-/**
- * Created by chengang on 17-3-28.
- */
+
+'use strict';
 
 import util from '../../util'
 import mat3 from '../../base/Matrix'
@@ -9,6 +8,8 @@ import TextureLoader from './TextureLoader'
 import TextureText from './TextureText'
 import TextureIcon from './TextureIcon'
 import initEvent from '../../core/Event'
+import Tween from '../../animation/tween'
+
 
 class WebGLRender extends EventEmitter{
     constructor(context,config) {
@@ -269,7 +270,8 @@ class WebGLRender extends EventEmitter{
         this.gl.blendFunc(this.gl.SRC_ALPHA, this.gl.ONE_MINUS_SRC_ALPHA);
         this.gl.enable(this.gl.BLEND);
         this.gl.disable(this.gl.DEPTH_TEST);
-        this.gl.clearColor(1.0, 1.0, 1.0, 1);
+        // this.gl.clearColor(218/255, 224/255, 231/255, 1);
+        this.gl.clearColor(0,0,0,0);
     }
     initEvent(){
         var _this = this;
@@ -479,9 +481,10 @@ class WebGLRender extends EventEmitter{
     forceRender(){
         this.needUpdate = true;
     }
-    zoomTo(ratio,x,y){
+    zoomTo(ratio,x,y,animation){
 
         var scale = this.camera.scale;
+        var positionX,positionY;
 
         var newscale = ratio * scale;
         if(newscale < this.config.zoomMin) newscale = this.config.zoomMin;
@@ -489,11 +492,32 @@ class WebGLRender extends EventEmitter{
 
         if (x != null && y != null) {
             var offset = mat3.rotateVector([x * (newscale - scale)/scale, y *(newscale - scale)/scale], this.getCameraMatrix());
-            this.camera.positionX -= offset[0] ;
-            this.camera.positionY -= offset[1];
+            positionX = this.camera.positionX - offset[0] ;
+            positionY = this.camera.positionY - offset[1];
         }
 
-        this.camera.scale = newscale;
+        if(animation){
+            this.zoomToAnimation({
+                positionX:positionX,
+                positionY:positionY,
+                scale:newscale
+            });
+        }else {
+            this.camera.positionX = positionX;
+            this.camera.positionY = positionY;
+            this.camera.scale = newscale;
+        }
+    }
+
+    zoomToAnimation(option,time){
+        Tween.removeByType('camera');
+        time = time || 100;
+
+        var _this = this;
+        new Tween(this.camera,'camera').to(option).duration(time).on('change',function () {
+            _this.forceRender();
+        });
+
     }
 
     //cache update

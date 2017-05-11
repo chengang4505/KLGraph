@@ -198,7 +198,7 @@ export  default  class Core {
             layout = new layoutConfig[type]();
             data = layout.layout(nodes,edges);
 
-            if(data.length > this.graph.nodes.length * 2/3){
+            if(data.length > this.graph.nodes.length * 4/5){
                 new Tween(nodes, 'layout').to(data).duration(2000).on('change', function (t) {
                     _this.render.clearRenderCache();
                 });

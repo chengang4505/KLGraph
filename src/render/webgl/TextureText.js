@@ -1,8 +1,7 @@
-/**
- * Created by chengang on 17-4-7.
- */
+
 
 import EventEmitter from '../../base/EventEmitter'
+import TextSdf from './TextSdf'
 
 export default class TextureText extends EventEmitter{
     constructor(gl){
@@ -14,7 +13,7 @@ export default class TextureText extends EventEmitter{
 
         this.border = 2;
 
-        this.fontSize = 26;
+        this.fontSize = 24;
         this.fontFamily = 'Arial';
 
         this.canvas = null;
@@ -22,6 +21,11 @@ export default class TextureText extends EventEmitter{
         this.textinfo = null;
 
         this.texts = null;
+
+        this.sdf = new TextSdf(this.fontSize, this.fontSize/8, this.fontSize/3,null,this.fontFamily);
+
+
+        // test();
     }
 
     createCanvasImg(texts) {
@@ -31,12 +35,12 @@ export default class TextureText extends EventEmitter{
         var c = this.canvas;
 
 
-        var width = this.fontSize + 1;
-        var height = this.fontSize + 1;
+        var width = this.sdf.size;
+        var height = width;
         var num = Math.ceil(Math.sqrt(texts.length));
 
-        c.width  = num * width + 2* this.border;
-        c.height  = num * height + 2* this.border;
+        c.width  = num * (width) + 2* this.border;
+        c.height  = num * (height) + 2* this.border;
 
 
         var ctx = c.getContext("2d");
@@ -52,7 +56,7 @@ export default class TextureText extends EventEmitter{
 
         var startx =this.border;
         var starty =this.border;
-        var infos = {}, px, py, charWidth;
+        var infos = {}, px, py, charWidth,data;
 
         this.texts = [];
 
@@ -60,12 +64,21 @@ export default class TextureText extends EventEmitter{
 
             if(this.textinfo && this.textinfo.infos[texts[i]]) continue;
 
+            // data = this.sdf.draw(texts[i]);
+            // charWidth = data.charWidth
+
             charWidth = ctx.measureText(texts[i]).width;
-            if(startx + charWidth + this.border > c.width){
+
+            if(startx + charWidth > c.width){
                 startx = this.border;
                 starty += height
             }
+
+            // ctx.putImageData(data.data, startx, starty,0,0,data.charWidth,data.data.height);
+
             ctx.fillText(texts[i], startx, starty);
+
+
             infos[texts[i]] = {
                 uvs:[
                     startx/c.width, starty/c.height,
@@ -76,9 +89,9 @@ export default class TextureText extends EventEmitter{
 
             this.texts.push(texts[i]);
 
-            startx += charWidth + this.border;
+            startx += charWidth;
         }
-        this.computeAlpha(ctx);
+        // this.computeAlpha(ctx);
         this.textinfo =  {
             fontSize:this.fontSize,
             img:c,
@@ -88,6 +101,9 @@ export default class TextureText extends EventEmitter{
         };
 
         // document.body.appendChild(c);
+        // c.style.position = 'absolute';
+        // c.style.top = '100px';
+
         this.updateGPUTexture();
     }
 
@@ -154,5 +170,38 @@ export default class TextureText extends EventEmitter{
         this.textinfo = null;
         this.texts = null;
     }
+
+}
+
+function test() {
+    var chars = '泽材abcdefghkilmnopqrstuvwxyz灭逐莫笔亡鲜';
+    var fontSize = 24;
+
+    var sdf = new TextSdf(fontSize, fontSize/8, fontSize/3,null,'Arial');
+
+    var canvas = document.createElement('canvas');
+    canvas.width = 400;
+    canvas.height = 400;
+    canvas.style.position = 'absolute';
+    canvas.style.top = '200px';
+
+    var ctx = canvas.getContext('2d');
+
+    var now = performance.now();
+    var startx = 0,stary=0,data;
+    for (var i = 0;i< chars.length;i++) {
+        data = sdf.draw(chars[i]);
+        if(startx + data.charWidth + 0 >= canvas.width){
+            stary += sdf.size;
+            startx = 0;
+        }
+
+        ctx.putImageData(data.data, startx, stary,0,0,data.charWidth,data.data.height);
+
+        startx += data.charWidth + 0;
+    }
+   console.log(Math.round(performance.now() - now) + 'ms.');
+
+    document.body.appendChild(canvas);
 
 }

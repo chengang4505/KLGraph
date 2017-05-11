@@ -8,6 +8,7 @@ uniform sampler2D u_image;
 
 void main() {
     color = color / 255.0;
-   vec4 color0 = texture2D(u_image, v_texCoord);
-   gl_FragColor = color * color0.w;
+   float dist = texture2D(u_image, v_texCoord).r;
+//   float alpha = smoothstep(0.55, 0.85, dist);
+   gl_FragColor = color *dist;
 }

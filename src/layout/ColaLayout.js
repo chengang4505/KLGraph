@@ -32,11 +32,12 @@ export default class ColaLayout{
             map[e.id] = i;
         })
 
-        _edges.forEach(function (e,i) {
-            edges.push({
-                source:map[e.source],
-                target:map[e.target],
-            });
+        _edges.forEach(function (e, i) {
+            if (map.hasOwnProperty(e.source) && map.hasOwnProperty(e.target))
+                edges.push({
+                    source: map[e.source],
+                    target: map[e.target],
+                });
         })
 
         return {

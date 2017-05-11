@@ -11,7 +11,7 @@ export default class DargeLayout{
         g.setGraph({
             rankdir:'TB',
             nodesep:15,
-            ranksep:100,
+            ranksep:40,
             ranker:'longest-path'//network-simplex  longest-path tight-tree
         });
 

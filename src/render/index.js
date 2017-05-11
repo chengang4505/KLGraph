@@ -11,7 +11,6 @@ WebGLRender.edgeLabel = {};
 
 import node from './webgl/node/default/Node'
 import rect from './webgl/node/rect/Rect'
-// import node from './webgl/node/index'
 WebGLRender.node.default = node;
 WebGLRender.node.rect = rect;
 

@@ -6,8 +6,8 @@
 
 export default {
     zoomRatio:1.2,
-    zoomMin:0.1,
-    zoomMax:10,
+    zoomMin:0.05,
+    zoomMax:20,
 
     renderNode:true,
     renderNodeLabel:true,

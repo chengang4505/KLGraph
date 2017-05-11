@@ -19,17 +19,20 @@ export default function initEvent() {
 
 
     var _this = this;
+    var mouseDown= false,mouseMove = false;
 
     var events = {
-        click:handlerWrap(_clickHandler),
+        // click:handlerWrap(_clickHandler),
         mousemove:handlerWrap(_moveHandler),
         mousedown:handlerWrap(_downHandler),
         mouseup:handlerWrap(_upHandler),
         mousewheel:handlerWrap(_wheelHandler),
     };
 
+
     for(var e in events)    this.container.addEventListener(e, events[e], false);
 
+    events.click = handlerWrap(_clickHandler);
 
     //some little situation maybe need the trigger function.
     this.trigger = function (type,event) {
@@ -80,12 +83,16 @@ export default function initEvent() {
     }
 
     function _moveHandler(e) {
-        var graphPos = _this.toGraphPos({x:e.cameraX,y:e.cameraY});
+        if(mouseDown)   mouseMove = true;
+        // var graphPos = _this.toGraphPos({x:e.cameraX,y:e.cameraY});
         // var node = getNode(graphPos);
     }
 
 
     function _downHandler(e) {
+
+        mouseDown = true;
+
         var graphPos = _this.toGraphPos({x:e.cameraX,y:e.cameraY});
         var node = getNode(graphPos);
          handleDrag(!node);
@@ -109,12 +116,15 @@ export default function initEvent() {
                     _this.camera.positionX -= offsetx;
                     _this.camera.positionY -= offsety;
                 }else {
+
                     if(_this.context.selection.isSelected(node)){
                         _this.context.selection.data.forEach(function (node) {
                             _this.graph.setNodeData(node.id,{x:node.x+offsetx,y:node.y+offsety});
                         });
                     }else _this.graph.setNodeData(node.id,{x:node.x+offsetx,y:node.y+offsety});
                     // _this.emit('drag',['node',offsetx,offsety]);
+
+                    // fit(e);
                 }
 
 
@@ -153,11 +163,19 @@ export default function initEvent() {
                 onmousemove = onmouseup = onmouseout= null;
             }
 
+
         }
 
     }
 
     function _upHandler(e) {
+
+        if(mouseDown && !mouseMove){
+            _clickHandler(e);
+        }
+        mouseDown = false;
+        mouseMove = false;
+
         if ((e.which && e.which == 3) || (e.button && e.button == 2)){
             var graphPos = _this.toGraphPos({x:e.cameraX,y:e.cameraY});
             var node = getNode(graphPos);
@@ -166,8 +184,9 @@ export default function initEvent() {
             }else {
                 _this.emit('rightclick',['stage',null,e]);
             }
-
         }
+
+
 
     }
 
@@ -184,4 +203,43 @@ export default function initEvent() {
     }
 
     //drag
+
+
+    function fit(e) {
+        var x = e.offsetX,y = e.offsetY;
+
+        var camearaX = _this.camera.positionX;
+        var camearaY = _this.camera.positionY;
+        var scale = _this.camera.scale;
+
+        var offset = 20/scale;
+        var update = false;
+
+        if(x < 100 ){
+            update = true;
+            camearaX -= offset;
+        }
+        if(x > _this.container.clientWidth - 100){
+            update = true;
+            camearaX += offset;
+        }
+
+        if(y < 100){
+            update = true;
+            camearaY += offset;
+        }
+
+        if(y > _this.container.clientHeight - 100){
+            update = true;
+            camearaY -= offset;
+        }
+
+        // if(update) _this.zoomToAnimation({
+        //     positionX:camearaX,
+        //     positionY:camearaY,
+        //     scale:scale
+        // });
+
+        if(update) _this.zoomTo(1.01,e.cameraX,e.cameraY,true);
+    }
 }

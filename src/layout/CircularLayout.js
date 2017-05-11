@@ -39,7 +39,8 @@ p.init = function (nodes,edges) {
     oldNodes.forEach(function (e,i) {
         temp = {
             id:e.id,
-            _index:i
+            _index:i,
+            links:[]
         };
         tempNodes.push(temp);
         map[temp.id] = temp;
@@ -49,6 +50,7 @@ p.init = function (nodes,edges) {
     oldLinks.forEach(function (e,i) {
         s = map[e.source];
         t = map[e.target];
+
         s.links = s.links || [];
         s.links.push(t._index);
 

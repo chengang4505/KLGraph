@@ -64,7 +64,7 @@ window["KLGraph"] =
 /******/ 	__webpack_require__.p = "";
 /******/
 /******/ 	// Load entry module and return exports
-/******/ 	return __webpack_require__(__webpack_require__.s = 39);
+/******/ 	return __webpack_require__(__webpack_require__.s = 40);
 /******/ })
 /************************************************************************/
 /******/ ([
@@ -84,6 +84,10 @@ var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol
  * Created by chengang on 17-3-17.
  */
 
+var typeofstr = _typeof('');
+var typeofobj = _typeof({});
+var typeoffn = _typeof(function () {});
+
 var utils = {};
 
 utils.uuid = function (a, b) {
@@ -101,25 +105,21 @@ utils.uuid = function (a, b) {
     return b;
 };
 
-var typeofstr = _typeof('');
-var typeofobj = _typeof({});
-var typeoffn = _typeof(function () {});
-
+//is tool
 utils.isArray = function (obj) {
     return Array.isArray ? Array.isArray(obj) : obj != null && obj instanceof Array;
 };
-
 utils.isString = function (obj) {
     return obj != null && (typeof obj === 'undefined' ? 'undefined' : _typeof(obj)) == typeofstr;
 };
-
 utils.isObject = function (obj) {
     return obj != null && (typeof obj === 'undefined' ? 'undefined' : _typeof(obj)) === typeofobj;
 };
-
 utils.isFunction = function (obj) {
     return obj != null && (typeof obj === 'undefined' ? 'undefined' : _typeof(obj)) === typeoffn;
 };
+
+//webgl shader tool
 
 utils.loadShader = function (gl, shaderSource, shaderType, error) {
     var compiled,
@@ -184,6 +184,8 @@ utils.extend = function () {
     }return res;
 };
 
+// math tool
+
 utils.getDistance = function (x1, y1, x2, y2) {
     var dx = x1 - x2;
     var dy = y1 - y2;
@@ -204,6 +206,8 @@ utils.getAngle = function (x1, y1, x2, y2) {
 utils.inRect = function (posx, posy, x, y, w, h) {
     return posx >= x && posx <= x + w && posy >= y && posy <= y + h;
 };
+
+//color parse
 
 var reI = "\\s*([+-]?\\d+)\\s*",
     reN = "\\s*([+-]?\\d*\\.?\\d+(?:[eE][+-]?\\d+)?)\\s*";
@@ -244,6 +248,26 @@ utils.getNodeSizeY = function (node) {
     if (node.type == 'rect' && node.height) size = node.height;
 
     return size;
+};
+
+utils.getBBox = function (nodes) {
+    var x0 = Infinity,
+        y0 = Infinity,
+        x1 = -Infinity,
+        y1 = -Infinity;
+    nodes.forEach(function (e) {
+        if (e.x < x0) x0 = e.x;
+        if (e.x > x1) x1 = e.x;
+        if (e.y < y0) y0 = e.y;
+        if (e.y > y1) y1 = e.y;
+    });
+
+    return {
+        x: x0,
+        y: y0,
+        w: x1 - x0,
+        h: y1 - y0
+    };
 };
 
 /**
@@ -489,7 +513,7 @@ exports.default = mat3;
 /* 3 */
 /***/ (function(module, exports) {
 
-module.exports = " precision mediump float;\n\nvec4 color = vec4(77, 72, 91,255);\n\nvarying vec2 v_texCoord;\nuniform sampler2D u_image;\n\n\nvoid main() {\n    color = color / 255.0;\n   vec4 color0 = texture2D(u_image, v_texCoord);\n   gl_FragColor = color * color0.w;\n}"
+module.exports = " precision mediump float;\n\nvec4 color = vec4(77, 72, 91,255);\n\nvarying vec2 v_texCoord;\nuniform sampler2D u_image;\n\n\nvoid main() {\n    color = color / 255.0;\n   float dist = texture2D(u_image, v_texCoord).r;\n//   float alpha = smoothstep(0.55, 0.85, dist);\n   gl_FragColor = color *dist;\n}"
 
 /***/ }),
 /* 4 */
@@ -497,196 +521,7 @@ module.exports = " precision mediump float;\n\nvec4 color = vec4(77, 72, 91,255)
 
 "use strict";
 /**
- * Created by chengang on 17-3-29.
- */
-
-
-
-Object.defineProperty(exports, "__esModule", {
-    value: true
-});
-exports.default = initEvent;
-
-var _util = __webpack_require__(0);
-
-var _util2 = _interopRequireDefault(_util);
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-function initEvent() {
-
-    function handlerWrap(handle) {
-        return function (e) {
-            var pos = _this.toCameraPos({ x: e.offsetX, y: e.offsetY });
-            e.cameraX = pos.x;
-            e.cameraY = pos.y;
-            handle(e);
-        };
-    }
-
-    var _this = this;
-
-    var events = {
-        click: handlerWrap(_clickHandler),
-        mousemove: handlerWrap(_moveHandler),
-        mousedown: handlerWrap(_downHandler),
-        mouseup: handlerWrap(_upHandler),
-        mousewheel: handlerWrap(_wheelHandler)
-    };
-
-    for (var e in events) {
-        this.container.addEventListener(e, events[e], false);
-    } //some little situation maybe need the trigger function.
-    this.trigger = function (type, event) {
-        if (events[type]) events[type](event);
-    };
-
-    function checkInNode(posx, posy, node) {
-        var isFind = false;
-        var dis, sizeX, sizeY;
-        if (node.type == 'rect') {
-            sizeX = _util2.default.getNodeSizeX(node);
-            sizeY = _util2.default.getNodeSizeY(node);
-            isFind = _util2.default.inRect(posx, posy, node.x - sizeX, node.y - sizeY, sizeX * 2, sizeY * 2);
-        } else {
-            dis = _util2.default.getDistance(posx, posy, node.x, node.y);
-            isFind = dis <= node.size;
-        }
-        return isFind;
-    }
-
-    function getNode(pos) {
-        // var nodes = _this.graph.quad.point(pos.x, pos.y);
-        var nodes = _this.graph.nodes;
-
-        var node, dis;
-        var findNode = null;
-        if (nodes.length > 0) {
-            for (var i = nodes.length - 1; i >= 0; i--) {
-                node = nodes[i];
-                // node = _this.graph.nodesIndex[node.id];
-                if (checkInNode(pos.x, pos.y, node)) {
-                    findNode = node;
-                    break;
-                }
-            }
-        }
-        return findNode;
-    }
-
-    function _clickHandler(e) {
-        var graphPos = _this.toGraphPos({ x: e.cameraX, y: e.cameraY });
-        var node = getNode(graphPos);
-        if (node) _this.emit('nodeclick', [node, e]);else _this.emit('stageclick', [e]);
-    }
-
-    function _moveHandler(e) {
-        var graphPos = _this.toGraphPos({ x: e.cameraX, y: e.cameraY });
-        // var node = getNode(graphPos);
-    }
-
-    function _downHandler(e) {
-        var graphPos = _this.toGraphPos({ x: e.cameraX, y: e.cameraY });
-        var node = getNode(graphPos);
-        handleDrag(!node);
-        _this.forceRender();
-
-        function handleDrag(isCamera) {
-            var isDown = true;
-            var startx = graphPos.x,
-                starty = graphPos.y;
-
-            var onmousemove = handlerWrap(function (e) {
-                if (!isDown) return;
-                // console.time('move')
-
-                _this.forceRender();
-
-                var graphPos = _this.toGraphPos({ x: e.cameraX, y: e.cameraY });
-                var offsetx = graphPos.x - startx;
-                var offsety = graphPos.y - starty;
-
-                if (isCamera) {
-                    _this.camera.position.x -= offsetx;
-                    _this.camera.position.y -= offsety;
-                } else {
-                    if (_this.context.selection.isSelected(node)) {
-                        _this.context.selection.data.forEach(function (node) {
-                            _this.graph.setNodeData(node.id, { x: node.x + offsetx, y: node.y + offsety });
-                        });
-                    } else _this.graph.setNodeData(node.id, { x: node.x + offsetx, y: node.y + offsety });
-                    // _this.emit('drag',['node',offsetx,offsety]);
-                }
-
-                if (isCamera) {
-                    var newgraphPos = _this.toGraphPos({ x: e.cameraX, y: e.cameraY });
-                    startx = newgraphPos.x;
-                    starty = newgraphPos.y;
-                } else {
-                    startx = graphPos.x;
-                    starty = graphPos.y;
-                }
-                // console.timeEnd('move')
-            });
-
-            var onmouseup = handlerWrap(function (e) {
-                e.preventDefault();
-                isDown = false;
-                clear();
-            });
-
-            var onmouseout = handlerWrap(function (e) {
-                isDown = false;
-                clear();
-            });
-
-            _this.container.addEventListener('mousemove', onmousemove);
-            _this.container.addEventListener('mouseup', onmouseup);
-            _this.container.addEventListener('mouseout', onmouseout);
-
-            function clear() {
-                onmousemove && _this.container.removeEventListener('mousemove', onmousemove);
-                onmouseup && _this.container.removeEventListener('mouseup', onmouseup);
-                onmouseout && _this.container.removeEventListener('mouseout', onmouseout);
-                onmousemove = onmouseup = onmouseout = null;
-            }
-        }
-    }
-
-    function _upHandler(e) {
-        if (e.which && e.which == 3 || e.button && e.button == 2) {
-            var graphPos = _this.toGraphPos({ x: e.cameraX, y: e.cameraY });
-            var node = getNode(graphPos);
-            if (node) {
-                _this.emit('rightclick', ['node', node, e]);
-            } else {
-                _this.emit('rightclick', ['stage', null, e]);
-            }
-        }
-    }
-
-    function _wheelHandler(e) {
-        _this.forceRender();
-        var ratio = _this.config.zoomRatio;
-        if (e.wheelDelta > 0) {
-            _this.zoomTo(1 / ratio, e.cameraX, e.cameraY);
-            _this.emit('zoom', [1 / ratio]);
-        } else {
-            _this.zoomTo(ratio, e.cameraX, e.cameraY);
-            _this.emit('zoom', [ratio]);
-        }
-    }
-
-    //drag
-}
-
-/***/ }),
-/* 5 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-/**
- * Created by chengang on 17-3-17.
+ * Created by chengang on 17-2-16.
  */
 
 
@@ -697,13 +532,13 @@ Object.defineProperty(exports, "__esModule", {
 
 var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
 
-var _util = __webpack_require__(0);
-
-var _util2 = _interopRequireDefault(_util);
-
 var _EventEmitter2 = __webpack_require__(1);
 
 var _EventEmitter3 = _interopRequireDefault(_EventEmitter2);
+
+var _timer = __webpack_require__(9);
+
+var _timer2 = _interopRequireDefault(_timer);
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
@@ -712,303 +547,160 @@ function _classCallCheck(instance, Constructor) { if (!(instance instanceof Cons
 function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
 
 function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
-// import  Quad from '../base/Quad'
 
+/**
+ * from d3-interpolate
+ */
+function interpolateNumber(a, b) {
+    return a = +a, b -= a, function (t) {
+        return a + b * t;
+    };
+}
 
-var Graph = function (_EventEmitter) {
-    _inherits(Graph, _EventEmitter);
+var Tween = function (_EventEmitter) {
+    _inherits(Tween, _EventEmitter);
 
-    function Graph(options) {
-        _classCallCheck(this, Graph);
+    function Tween(objs, type) {
+        _classCallCheck(this, Tween);
 
-        var _this = _possibleConstructorReturn(this, (Graph.__proto__ || Object.getPrototypeOf(Graph)).call(this));
+        var _this = _possibleConstructorReturn(this, (Tween.__proto__ || Object.getPrototypeOf(Tween)).call(this));
 
-        options = options || {};
+        if (!objs) throw 'must have a obj';
 
-        /**
-         * node edge data
-         */
-        _this.nodes = [];
-        _this.edges = [];
+        type = type || '';
 
-        /**
-         * node edge index
-         */
-        _this.nodesIndex = {};
-        _this.edgesIndex = {};
+        _this.objs = objs;
+        _this.type = type;
+        _this.interpolates = null;
+        _this.timer = (0, _timer2.default)(_this.timerHandle.bind(_this));
+        _this._duration = 0;
 
-        /**
-         *nodes degrees info
-         */
-        _this.inEdgesIndex = {};
-        _this.outEdgesIndex = {};
-
-        // this.quad = new Quad();
-
-        if (options.nodes || options.edges) _this.read(options);
-
+        Tween.list.push(_this);
         return _this;
     }
 
-    /**
-     * 读取 node ,edge 信息
-     * @param options
-     */
+    _createClass(Tween, [{
+        key: 'timerHandle',
+        value: function timerHandle(elapsed) {
+            var t = elapsed / this._duration;
 
+            t = Math.min(t, 1);
 
-    _createClass(Graph, [{
-        key: 'read',
-        value: function read(options) {
-
-            (options.nodes || []).forEach(function (e) {
-                this.nodes.push(e);
-            }.bind(this));
-
-            (options.edges || []).forEach(function (e) {
-                this.edges.push(e);
-            }.bind(this));
-
-            this.nodes.forEach(function (e) {
-                if (!e.id) e.id = _util2.default.uuid();
-                e.id += '';
-                this.nodesIndex[e.id] = e;
-            }.bind(this));
-
-            this.edges.forEach(function (e) {
-                if (!e.id) e.id = _util2.default.uuid();
-                this.edgesIndex['' + e.id] = e;
-
-                if (!e.source || !this.nodesIndex[e.source + '']) throw 'some edge has not source id or not a node of the id';
-                if (!e.target || !this.nodesIndex[e.target + '']) throw 'some edge has not target id or not a node of the id';
-
-                e.source += '';
-                e.target += '';
-
-                this.inEdgesIndex[e.target] = this.inEdgesIndex[e.target] || [];
-                this.inEdgesIndex[e.target].push(e.id);
-
-                this.outEdgesIndex[e.source] = this.outEdgesIndex[e.source] || [];
-                this.outEdgesIndex[e.source].push(e.id);
-            }.bind(this));
-
-            this.updateEdgeCount();
-
-            this.emit('reset');
-
-            // this.quad.index(this.nodes);
-        }
-    }, {
-        key: 'updateEdgeCount',
-        value: function updateEdgeCount() {
-            var source,
-                target,
-                attr,
-                map = {};
-            this.edges.forEach(function (edge) {
-                source = this.nodesIndex[edge.source];
-                target = this.nodesIndex[edge.target];
-                attr = edge.source + edge.target;
-                if (!map[attr]) map[attr] = map[edge.target + edge.source] = { counter: 0, source: edge.source };
-
-                edge.curveCount = map[attr].counter;
-                map[attr].counter++;
-                edge.curveOrder = edge.source == map[attr].source;
-            }.bind(this));
-        }
-
-        /**
-         * add nodes
-         * @param nodes
-         */
-
-    }, {
-        key: 'addNode',
-        value: function addNode(nodes) {
-            nodes = nodes || [];
-
-            if (nodes.length == 0) return;
-
-            if (!_util2.default.isArray(nodes)) nodes = [nodes];
-
-            var node;
-            for (var i = 0; i < nodes.length; i++) {
-                node = nodes[i];
-                if (!node.id) node.id = _util2.default.uuid();
-                if (this.nodesIndex[node.id]) throw 'node has existed.';
-                this.nodes.push(node);
-                this.nodesIndex[node.id] = node;
+            var obj, attr, attrInterpolater;
+            if (Array.isArray(this.interpolates)) {
+                for (var i = 0, len = this.interpolates.length; i < len; i++) {
+                    obj = this.objs[i];
+                    attrInterpolater = this.interpolates[i];
+                    for (attr in attrInterpolater) {
+                        obj[attr] = attrInterpolater[attr](t);
+                    }
+                }
+            } else {
+                obj = this.objs;
+                attrInterpolater = this.interpolates;
+                for (attr in attrInterpolater) {
+                    obj[attr] = attrInterpolater[attr](t);
+                }
             }
 
-            var ids = nodes.map(function (e) {
-                return e.id;
+            this.emit('change', [t]);
+
+            if (elapsed >= this._duration) this.stop();
+        }
+    }, {
+        key: 'duration',
+        value: function duration(time) {
+            this._duration = time;
+            return this;
+        }
+    }, {
+        key: 'to',
+        value: function to(toObjs) {
+            if (Array.isArray(toObjs) && toObjs.length !== this.objs.length) {
+                console.error('toObjs lenght not eq objs length');
+                this.stop();
+                return this;
+            }
+
+            var obj, attr, attrInterpolater;
+            if (Array.isArray(toObjs)) {
+                this.interpolates = [];
+                for (var i = 0, len = toObjs.length; i < len; i++) {
+                    obj = toObjs[i];
+                    attrInterpolater = {};
+                    for (attr in obj) {
+                        attrInterpolater[attr] = interpolateNumber(this.objs[i][attr], obj[attr]);
+                    }
+                    this.interpolates.push(attrInterpolater);
+                }
+            } else {
+                obj = toObjs;
+                attrInterpolater = {};
+                for (attr in obj) {
+                    attrInterpolater[attr] = interpolateNumber(this.objs[attr], obj[attr]);
+                }
+                this.interpolates = attrInterpolater;
+            }
+
+            return this;
+        }
+    }, {
+        key: 'stop',
+        value: function stop() {
+            if (this.timer) {
+                this.timer.stop();
+                this.timer = null;
+                this.objs = null;
+                this.interpolates = null;
+
+                Tween.remove(this.objs);
+            }
+        }
+    }], [{
+        key: 'remove',
+        value: function remove(obj) {
+            var list = Tween.list;
+            Tween.list = [];
+            list.forEach(function (e) {
+                if (e.objs == obj) {
+                    e.stop();
+                } else {
+                    Tween.list.push(e);
+                }
             });
-            this.emit('add', ['node', ids]);
         }
-
-        /**
-         * remove node
-         * @param nodeid
-         */
-
     }, {
-        key: 'removeNode',
-        value: function removeNode(nodeid) {
-            if (!nodeid || !this.nodesIndex[nodeid]) return;
-
-            var nodes = this.nodes;
-            for (var i = 0; i < nodes.length; i++) {
-                if (nodes[i].id == nodeid) {
-                    nodes.splice(i, 1);
-                    break;
+        key: 'removeByType',
+        value: function removeByType(type) {
+            var list = Tween.list;
+            Tween.list = [];
+            list.forEach(function (e) {
+                if (e.type === type) {
+                    e.stop();
+                } else {
+                    Tween.list.push(e);
                 }
-            }
-            var edges;
-            edges = this.inEdgesIndex[nodeid];
-            if (edges && edges.length > 0) {
-                edges = edges.slice();
-                edges.forEach(function (e) {
-                    this.removeEdge(e);
-                }.bind(this));
-            }
-
-            edges = this.outEdgesIndex[nodeid];
-            if (edges && edges.length > 0) {
-                edges = edges.slice();
-                edges.forEach(function (e) {
-                    this.removeEdge(e);
-                }.bind(this));
-            }
-
-            this.nodesIndex[nodeid] = null;
-            this.inEdgesIndex[nodeid] = null;
-            this.outEdgesIndex[nodeid] = null;
-
-            this.emit('remove', ['node', nodeid]);
-        }
-
-        /**
-         * add edges ,
-         * @param edges
-         */
-
-    }, {
-        key: 'addEdge',
-        value: function addEdge(edges) {
-            edges = edges || [];
-
-            if (edges.length == 0) return;
-
-            if (!_util2.default.isArray(edges)) edges = [edges];
-
-            var edge;
-            for (var i = 0; i < edges.length; i++) {
-                edge = edges[i];
-                if (!edge.id) edge.id = _util2.default.uuid();
-                if (this.edgesIndex[edge.id]) throw 'edge has existed.';
-                if (!edge.source || !this.nodesIndex[edge.source + '']) throw 'some edge has not source id or not a node of the id';
-                if (!edge.target || !this.nodesIndex[edge.target + '']) throw 'some edge has not target id or not a node of the id';
-
-                this.edges.push(edge);
-                this.edgesIndex[edge.id] = edge;
-
-                edge.source += '';
-                edge.target += '';
-
-                this.inEdgesIndex[edge.target] = this.inEdgesIndex[edge.target] || [];
-                this.inEdgesIndex[edge.target].push(edge.id);
-
-                this.outEdgesIndex[edge.source] = this.outEdgesIndex[edge.source] || [];
-                this.outEdgesIndex[edge.source].push(edge.id);
-            }
-
-            var ids = edges.map(function (e) {
-                return e.id;
             });
-            this.emit('add', ['edge', ids]);
         }
     }, {
-        key: 'removeEdge',
-        value: function removeEdge(edgeid) {
-            if (!edgeid || !this.edgesIndex[edgeid]) return;
+        key: 'removeAll',
+        value: function removeAll() {
+            Tween.list.forEach(function (e) {
+                e.stop();
+            });
 
-            var edge = this.edgesIndex[edgeid],
-                edges;
-            var outEdgesIndex, inEdgesIndex;
-
-            outEdgesIndex = this.outEdgesIndex[edge.source];
-            if (outEdgesIndex.length > 0) {
-                for (var i = 0; i < outEdgesIndex.length; i++) {
-                    if (outEdgesIndex[i] == edgeid) {
-                        outEdgesIndex.splice(i, 1);
-                        break;
-                    }
-                }
-            }
-            inEdgesIndex = this.inEdgesIndex[edge.target];
-            if (inEdgesIndex.length > 0) {
-                for (var i = 0; i < inEdgesIndex.length; i++) {
-                    if (inEdgesIndex[i] == edgeid) {
-                        inEdgesIndex.splice(i, 1);
-                        break;
-                    }
-                }
-            }
-
-            edges = this.edges;
-            for (var i = 0; i < edges.length; i++) {
-                if (edges[i].id == edgeid) {
-                    edges.splice(i, 1);
-                    break;
-                }
-            }
-
-            this.edgesIndex[edgeid] = null;
-            this.emit('remove', ['edge', edgeid]);
-        }
-    }, {
-        key: 'getNodes',
-        value: function getNodes() {
-            return this.nodes;
-        }
-    }, {
-        key: 'setNodeData',
-        value: function setNodeData(id, obj) {
-            var node = this.nodesIndex[id];
-
-            var updatePos = false;
-            if (obj.hasOwnProperty('x') || obj.hasOwnProperty('y')) updatePos = true;
-
-            for (var attr in obj) {
-                node[attr] = obj[attr];
-            }this.emit('change', ['node', id]);
-            if (updatePos) {
-                this.inEdgesIndex[id] && this.inEdgesIndex[id].length > 0 && this.emit('change', ['edge', this.inEdgesIndex[id]]);
-                this.outEdgesIndex[id] && this.outEdgesIndex[id].length > 0 && this.emit('change', ['edge', this.outEdgesIndex[id]]);
-            }
-        }
-    }, {
-        key: 'updateNodeQuad',
-        value: function updateNodeQuad(id, oldpos) {
-            var nodes = this.quad.point(oldpos.x, oldpos.y);
-            if (nodes.length > 0) {
-                for (var i = 0, len = nodes.length; i < len; i++) {
-                    if (nodes[i].id == id) {
-                        nodes.splice(i, 1);
-                        break;
-                    }
-                }
-                this.quad.insert(this.nodesIndex[id], this.quad.root);
-            }
+            Tween.list = [];
         }
     }]);
 
-    return Graph;
+    return Tween;
 }(_EventEmitter3.default);
 
-exports.default = Graph;
+Tween.list = [];
+exports.default = Tween;
 
 /***/ }),
-/* 6 */
+/* 5 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -1032,19 +724,19 @@ var _EventEmitter2 = __webpack_require__(1);
 
 var _EventEmitter3 = _interopRequireDefault(_EventEmitter2);
 
-var _TextureLoader = __webpack_require__(21);
+var _TextureLoader = __webpack_require__(22);
 
 var _TextureLoader2 = _interopRequireDefault(_TextureLoader);
 
-var _TextureText = __webpack_require__(22);
+var _TextureText = __webpack_require__(23);
 
 var _TextureText2 = _interopRequireDefault(_TextureText);
 
-var _TextureIcon = __webpack_require__(20);
+var _TextureIcon = __webpack_require__(21);
 
 var _TextureIcon2 = _interopRequireDefault(_TextureIcon);
 
-var _Event = __webpack_require__(4);
+var _Event = __webpack_require__(10);
 
 var _Event2 = _interopRequireDefault(_Event);
 
@@ -1071,29 +763,27 @@ var WebGLRender = function (_EventEmitter) {
 
         _this2.container = config.container;
         _this2.graph = context.graph;
-        _this2.needUpdate = true;
 
+        _this2.needUpdate = true;
         _this2.sampleRatio = 1.5;
 
         _this2.initRender();
-        _this2.initGraphChangeEvent();
 
         _this2.initTexture = false;
         _this2.textureLoader = new _TextureLoader2.default(_this2.gl);
-        _this2.textureLoader.on('load', _this2.textureUpdate.bind(_this2));
-
-        _this2.initIconTexture();
-
+        _this2.textureIcon = new _TextureIcon2.default(_this2.gl, _this2.config);
         _this2.textureText = new _TextureText2.default(_this2.gl);
+
+        _this2.initEvent();
+        _this2.initIconTexture();
         _this2.initTextTexture();
 
         _this2.projectMatrix = null;
 
         _this2.camera = {
             scale: 1,
-            position: {
-                x: 0, y: 0
-            },
+            positionX: 0,
+            positionY: 0,
             rotation: 0
         };
 
@@ -1323,7 +1013,10 @@ var WebGLRender = function (_EventEmitter) {
     }, {
         key: 'initRender',
         value: function initRender() {
-            this.gl = this.container.getContext('experimental-webgl') || this.container.getContext('webgl');
+            var option = {
+                preserveDrawingBuffer: true
+            };
+            this.gl = this.container.getContext('experimental-webgl', option) || this.container.getContext('webgl', option);
 
             if (!this.gl) {
                 throw '浏览器不支持webGl';
@@ -1335,11 +1028,12 @@ var WebGLRender = function (_EventEmitter) {
             this.gl.blendFunc(this.gl.SRC_ALPHA, this.gl.ONE_MINUS_SRC_ALPHA);
             this.gl.enable(this.gl.BLEND);
             this.gl.disable(this.gl.DEPTH_TEST);
-            this.gl.clearColor(1.0, 1.0, 1.0, 1);
+            // this.gl.clearColor(218/255, 224/255, 231/255, 1);
+            this.gl.clearColor(0, 0, 0, 0);
         }
     }, {
-        key: 'initGraphChangeEvent',
-        value: function initGraphChangeEvent() {
+        key: 'initEvent',
+        value: function initEvent() {
             var _this = this;
             this.graph.on('change', function (type, ids) {
                 if (type == 'node') {
@@ -1358,11 +1052,11 @@ var WebGLRender = function (_EventEmitter) {
                     // console.timeEnd('updateEdgeLabel');
                 }
             });
-
             this.graph.on('reset', function () {
                 _this.clearRenderCache();
+                _this.initIconTexture();
+                _this.initTextTexture();
             });
-
             this.graph.on('add', function (type, ids) {
                 if (!_util2.default.isArray(ids)) ids = [ids];
 
@@ -1377,9 +1071,19 @@ var WebGLRender = function (_EventEmitter) {
                 _this.textureText.addTexts(getAddText(objs));
                 _this.clearRenderCache();
             });
-
             this.graph.on('remove', function (type, ids) {
                 _this.clearRenderCache();
+            });
+
+            this.textureIcon.on('load', function () {
+                this.clearRenderCache('node');
+            }.bind(this));
+
+            this.textureLoader.on('load', function (url) {
+                var nodes = _this.graph.nodes;
+                nodes.forEach(function (e) {
+                    if (e.img && e.img == url) _this.updateNodeRenderData(e.id);
+                });
             });
 
             function getAddText(objs) {
@@ -1394,6 +1098,9 @@ var WebGLRender = function (_EventEmitter) {
     }, {
         key: 'initTextTexture',
         value: function initTextTexture() {
+
+            this.textureText.clear();
+
             var nodes = this.graph.nodes;
             var edges = this.graph.edges;
 
@@ -1465,6 +1172,8 @@ var WebGLRender = function (_EventEmitter) {
         key: 'initIconTexture',
         value: function initIconTexture() {
 
+            this.textureIcon.clear();
+
             var nodes = this.graph.nodes;
 
             var map = {};
@@ -1478,18 +1187,12 @@ var WebGLRender = function (_EventEmitter) {
                 }
             });
 
-            this.textureIcon = new _TextureIcon2.default(this.gl, this.config);
-
             this.textureIcon.createIcons(icons);
-
-            this.textureIcon.on('load', function () {
-                this.clearRenderCache('node');
-            }.bind(this));
         }
     }, {
         key: 'getCameraMatrix',
         value: function getCameraMatrix(isInvert) {
-            var mat = _Matrix2.default.multiMatrix([_Matrix2.default.matrixFromScale(this.camera.scale, this.camera.scale), _Matrix2.default.matrixFromRotation(this.camera.rotation), _Matrix2.default.matrixFromTranslate(this.camera.position.x, this.camera.position.y)]);
+            var mat = _Matrix2.default.multiMatrix([_Matrix2.default.matrixFromScale(this.camera.scale, this.camera.scale), _Matrix2.default.matrixFromRotation(this.camera.rotation), _Matrix2.default.matrixFromTranslate(this.camera.positionX, this.camera.positionY)]);
             return isInvert ? _Matrix2.default.invert(mat) : mat;
         }
     }, {
@@ -1543,19 +1246,11 @@ var WebGLRender = function (_EventEmitter) {
 
             if (x != null && y != null) {
                 var offset = _Matrix2.default.rotateVector([x * (newscale - scale) / scale, y * (newscale - scale) / scale], this.getCameraMatrix());
-                this.camera.position.x -= offset[0];
-                this.camera.position.y -= offset[1];
+                this.camera.positionX -= offset[0];
+                this.camera.positionY -= offset[1];
             }
 
             this.camera.scale = newscale;
-        }
-    }, {
-        key: 'textureUpdate',
-        value: function textureUpdate(url) {
-            var nodes = this.graph.nodes;
-            nodes.forEach(function (e) {
-                if (e.img && e.img == url) this.updateNodeRenderData(e.id);
-            }.bind(this));
         }
 
         //cache update
@@ -1666,176 +1361,13 @@ var WebGLRender = function (_EventEmitter) {
 exports.default = WebGLRender;
 
 /***/ }),
-/* 7 */
+/* 6 */
 /***/ (function(module, exports) {
 
 module.exports = "attribute vec2 a_position;\nattribute vec2 a_uv;\n\nuniform mat3 u_matrix;\nuniform sampler2D u_image;\n\n\nvarying vec2 v_texCoord;\n\nvoid main() {\ngl_Position = vec4((u_matrix*vec3(a_position,1)).xy,0,1);\nv_texCoord = a_uv;\n}\n"
 
 /***/ }),
-/* 8 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", {
-    value: true
-});
-
-var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }(); /**
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      * Created by chengang on 17-3-29.
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      */
-
-var _util = __webpack_require__(0);
-
-var _util2 = _interopRequireDefault(_util);
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
-
-'use strict';
-
-var defaultConfig = {
-    maxLevel: 2
-};
-
-function indexN(x, y, rect) {
-    var x0 = rect.x,
-        y0 = rect.y,
-        w = rect.w,
-        h = rect.h;
-    var right = x > x0 + w / 2;
-    var top = y > y0 + h / 2;
-    return top << 1 | right;
-}
-
-function indexNs(pointRect, rect) {
-    var points = [[pointRect.x, pointRect.y], [pointRect.x + pointRect.w / 2, pointRect.y], [pointRect.x, pointRect.y + pointRect.h / 2], [pointRect.x + pointRect.w / 2, pointRect.y + pointRect.h / 2]];
-    var map = {},
-        n;
-    points.forEach(function (e) {
-        n = indexN(e[0], e[1], rect);
-        map[n] = true;
-    });
-
-    return map;
-}
-
-function getIndexRect(index, rect) {
-    var r;
-    switch (index) {
-        case 0:
-            r = { x: rect.x, y: rect.y, w: rect.w / 2, h: rect.h / 2 };
-            break;
-        case 1:
-            r = { x: rect.x + rect.w / 2, y: rect.y, w: rect.w / 2, h: rect.h / 2 };
-            break;
-        case 2:
-            r = { x: rect.x, y: rect.y + rect.h / 2, w: rect.w / 2, h: rect.h / 2 };
-            break;
-        case 3:
-            r = { x: rect.x + rect.w / 2, y: rect.y + rect.h / 2, w: rect.w / 2, h: rect.h / 2 };
-            break;
-    }
-
-    return r;
-}
-
-function createNode(level, rect) {
-    return {
-        level: level || 0,
-        rect: rect,
-        elements: [],
-        children: null
-    };
-}
-
-function pointRect(n) {
-    return {
-        x: n.x - n.size,
-        y: n.y - n.size,
-        w: n.size * 2,
-        h: n.size * 2
-    };
-}
-
-var Quad = function () {
-    function Quad(option) {
-        _classCallCheck(this, Quad);
-
-        this.option = _util2.default.extend(defaultConfig, option || {});
-        this.root = null;
-    }
-
-    _createClass(Quad, [{
-        key: 'index',
-        value: function index(nodes, option) {
-            console.time('quadindex');
-            option = option || {};
-
-            var x0 = Infinity,
-                y0 = Infinity,
-                x1 = -Infinity,
-                y1 = -Infinity;
-            if (!option.rect) {
-                nodes.forEach(function (e) {
-                    if (e.x < x0) x0 = e.x;
-                    if (e.x > x1) x1 = e.x;
-                    if (e.y < y0) y0 = e.y;
-                    if (e.y > y1) y1 = e.y;
-                });
-                option.rect = { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
-            }
-
-            this.root = createNode(0, option.rect);
-
-            nodes.forEach(function (e) {
-                this.insert(e, this.root);
-            }.bind(this));
-            console.timeEnd('quadindex');
-        }
-    }, {
-        key: 'insert',
-        value: function insert(data, root) {
-            var pointR = pointRect(data);
-            if (root.level < this.option.maxLevel) {
-                root.children = root.children || new Array(4);
-                var indexs = indexNs(pointR, root.rect);
-                var e;
-                for (var i in indexs) {
-                    e = +i;
-                    if (!root.children[e]) root.children[e] = createNode(root.level + 1, getIndexRect(e, root.rect));
-                    this.insert(data, root.children[e]);
-                }
-            } else {
-                root.elements.push({ x: data.x, y: data.y, id: data.id });
-            }
-        }
-    }, {
-        key: 'point',
-        value: function point(x, y) {
-            return this._point(x, y, this.root);
-        }
-    }, {
-        key: '_point',
-        value: function _point(x, y, root) {
-            if (root.children) {
-                var index = indexN(x, y, root.rect);
-                return root.children[index] ? this._point(x, y, root.children[index]) : [];
-            } else {
-                return root.elements;
-            }
-        }
-    }]);
-
-    return Quad;
-}();
-
-exports.default = Quad;
-
-/***/ }),
-/* 9 */
+/* 7 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -1851,11 +1383,11 @@ Object.defineProperty(exports, "__esModule", {
 
 var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
 
-var _Graph = __webpack_require__(5);
+var _Graph = __webpack_require__(11);
 
 var _Graph2 = _interopRequireDefault(_Graph);
 
-var _render2 = __webpack_require__(6);
+var _render2 = __webpack_require__(5);
 
 var _render3 = _interopRequireDefault(_render2);
 
@@ -1863,11 +1395,11 @@ var _util = __webpack_require__(0);
 
 var _util2 = _interopRequireDefault(_util);
 
-var _tween = __webpack_require__(11);
+var _tween = __webpack_require__(4);
 
 var _tween2 = _interopRequireDefault(_tween);
 
-var _Selection = __webpack_require__(13);
+var _Selection = __webpack_require__(12);
 
 var _Selection2 = _interopRequireDefault(_Selection);
 
@@ -1875,7 +1407,7 @@ var _index = __webpack_require__(19);
 
 var _index2 = _interopRequireDefault(_index);
 
-var _config = __webpack_require__(14);
+var _config = __webpack_require__(13);
 
 var _config2 = _interopRequireDefault(_config);
 
@@ -1908,7 +1440,7 @@ var Core = function () {
         this.on = this.render.on.bind(this.render);
         this.off = this.render.off.bind(this.render);
 
-        this.makeLayout(option.layout || 'preset');
+        if (this.graph.nodes.length > 0) this.makeLayout(option.layout || 'preset');
 
         this._start();
 
@@ -1953,6 +1485,7 @@ var Core = function () {
         value: function _start() {
             var _this = this;
             var frames = state();
+
             function state() {
                 var n = -1,
                     start = 0;
@@ -1966,11 +1499,13 @@ var Core = function () {
                     }
                 };
             }
+
             function render(time) {
                 _this._render();
                 frames(time);
                 requestAnimationFrame(render);
             }
+
             requestAnimationFrame(render);
         }
     }, {
@@ -1990,7 +1525,11 @@ var Core = function () {
         value: function _initEvent() {
             var _this = this;
             this.render.on('nodeclick', function (node, e) {
-                if (!_this.selection.isSelected(node)) _this.selection.select(node);
+                if (!_this.selection.isSelected(node)) _this.selection.select(node, e.shiftKey);else if (e.shiftKey) _this.selection.unSelect(node);
+            });
+
+            this.render.on('rightclick', function (type, node, e) {
+                if (type == 'node' && !_this.selection.isSelected(node)) _this.selection.select(node);
             });
         }
     }, {
@@ -2003,28 +1542,104 @@ var Core = function () {
             }
         }
     }, {
+        key: 'getFitOptions',
+        value: function getFitOptions(nodes) {
+            var x0 = Infinity,
+                y0 = Infinity,
+                x1 = -Infinity,
+                y1 = -Infinity;
+            nodes.forEach(function (e) {
+                if (e.x < x0) x0 = e.x;
+                if (e.x > x1) x1 = e.x;
+                if (e.y < y0) y0 = e.y;
+                if (e.y > y1) y1 = e.y;
+            });
+
+            return {
+                scale: Math.max((x1 - x0) / this.render.container.clientWidth, (y1 - y0) / this.render.container.clientHeight),
+                positionX: (x0 + x1) / 2,
+                positionY: (y0 + y1) / 2
+            };
+        }
+    }, {
+        key: 'fit',
+        value: function fit(duration, option) {
+            var _this = this;
+            _tween2.default.removeByType('camera');
+            duration = duration || 1000;
+            option = option || this.getFitOptions(this.graph.nodes);
+            new _tween2.default(this.render.camera, 'camera').to(option).duration(duration).on('change', function () {
+                _this.render.forceRender();
+            });
+        }
+    }, {
         key: 'makeLayout',
-        value: function makeLayout(type) {
+        value: function makeLayout(type, nodes) {
 
             var _this = this;
             var layout, data;
             var layoutConfig = Core.layout;
+
+            _tween2.default.removeByType('layout');
+
+            var edges = null;
+            if (nodes == null) {
+                nodes = this.graph.nodes;
+                edges = this.graph.edges;
+            } else {
+                edges = getEdges(nodes);
+            }
 
             if (type == 'preset') {
                 this.graph.nodes.forEach(function (e) {
                     if (!('x' in e)) e.x = Math.random() * _this.render.gl.clientWidth;
                     if (!('y' in e)) e.y = Math.random() * _this.render.gl.clientWidth;
                 });
-
-                this.graph.emit('reset');
+                this.render.clearRenderCache();
             } else if (layout = layoutConfig[type]) {
 
                 layout = new layoutConfig[type]();
-                data = layout.layout(this.graph);
+                data = layout.layout(nodes, edges);
 
-                new _tween2.default(this.graph.nodes).to(data).duration(2000).on('change', function (t) {
-                    _this.graph.emit('reset');
+                if (data.length > this.graph.nodes.length * 4 / 5) {
+                    new _tween2.default(nodes, 'layout').to(data).duration(2000).on('change', function (t) {
+                        _this.render.clearRenderCache();
+                    });
+
+                    this.fit(2000, this.getFitOptions(data));
+                } else {
+
+                    var bbox = _util2.default.getBBox(nodes);
+                    var bbox1 = _util2.default.getBBox(data);
+
+                    var offsetX = bbox.x + bbox.w / 2 - (bbox1.x + bbox1.w / 2);
+                    var offsetY = bbox.y + bbox.h / 2 - (bbox1.y + bbox1.h / 2);
+
+                    data.forEach(function (e) {
+                        e.x += offsetX;
+                        e.y += offsetY;
+                    });
+
+                    new _tween2.default(nodes, 'layout').to(data).duration(2000).on('change', function (t) {
+                        nodes.forEach(function (node) {
+                            _this.graph.setNodeData(node.id, { x: node.x });
+                        });
+                    });
+                }
+            }
+
+            function getEdges(nodes) {
+                var map = {};
+                var edges = [];
+                nodes.forEach(function (e) {
+                    map[e.id] = true;
                 });
+
+                _this.graph.edges.forEach(function (e) {
+                    if (map[e.source] && map[e.target]) edges.push(e);
+                });
+
+                return edges;
             }
         }
     }]);
@@ -2036,7 +1651,7 @@ Core.layout = _index2.default;
 exports.default = Core;
 
 /***/ }),
-/* 10 */
+/* 8 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -2047,35 +1662,35 @@ Object.defineProperty(exports, "__esModule", {
 });
 exports.WebGLRender = undefined;
 
-var _render = __webpack_require__(6);
+var _render = __webpack_require__(5);
 
 var _render2 = _interopRequireDefault(_render);
 
-var _Node = __webpack_require__(28);
+var _Node = __webpack_require__(29);
 
 var _Node2 = _interopRequireDefault(_Node);
 
-var _Rect = __webpack_require__(29);
+var _Rect = __webpack_require__(30);
 
 var _Rect2 = _interopRequireDefault(_Rect);
 
-var _default = __webpack_require__(24);
+var _default = __webpack_require__(25);
 
 var _default2 = _interopRequireDefault(_default);
 
-var _curve = __webpack_require__(23);
+var _curve = __webpack_require__(24);
 
 var _curve2 = _interopRequireDefault(_curve);
 
-var _NodeLabel = __webpack_require__(26);
+var _NodeLabel = __webpack_require__(27);
 
 var _NodeLabel2 = _interopRequireDefault(_NodeLabel);
 
-var _EdgeLabel = __webpack_require__(25);
+var _EdgeLabel = __webpack_require__(26);
 
 var _EdgeLabel2 = _interopRequireDefault(_EdgeLabel);
 
-var _curveLabel = __webpack_require__(27);
+var _curveLabel = __webpack_require__(28);
 
 var _curveLabel2 = _interopRequireDefault(_curveLabel);
 
@@ -2089,7 +1704,6 @@ _render2.default.edge = {};
 _render2.default.nodeLabel = {};
 _render2.default.edgeLabel = {};
 
-// import node from './webgl/node/index'
 _render2.default.node.default = _Node2.default;
 _render2.default.node.rect = _Rect2.default;
 
@@ -2105,128 +1719,7 @@ _render2.default.edgeLabel.curve = _curveLabel2.default;
 exports.WebGLRender = _render2.default;
 
 /***/ }),
-/* 11 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-/**
- * Created by chengang on 17-2-16.
- */
-
-
-
-Object.defineProperty(exports, "__esModule", {
-    value: true
-});
-
-var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
-
-var _EventEmitter2 = __webpack_require__(1);
-
-var _EventEmitter3 = _interopRequireDefault(_EventEmitter2);
-
-var _timer = __webpack_require__(12);
-
-var _timer2 = _interopRequireDefault(_timer);
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
-
-function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
-
-function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
-
-/**
- * from d3-interpolate
- */
-function interpolateNumber(a, b) {
-    return a = +a, b -= a, function (t) {
-        return a + b * t;
-    };
-}
-
-var Tween = function (_EventEmitter) {
-    _inherits(Tween, _EventEmitter);
-
-    function Tween(objs) {
-        _classCallCheck(this, Tween);
-
-        var _this = _possibleConstructorReturn(this, (Tween.__proto__ || Object.getPrototypeOf(Tween)).call(this));
-
-        if (!Array.isArray(objs)) objs = [objs];
-        _this.objs = objs;
-        _this.interpolates = [];
-        _this.timer = (0, _timer2.default)(_this.timerHandle.bind(_this));
-        _this._duration = 0;
-
-        // Tween.list.push(this);
-        return _this;
-    }
-
-    _createClass(Tween, [{
-        key: 'timerHandle',
-        value: function timerHandle(elapsed) {
-            var t = elapsed / this._duration;
-
-            t = Math.min(t, 1);
-            var obj, attr, attrInterpolater;
-            for (var i = 0, len = Math.min(this.interpolates.length, this.objs.length); i < len; i++) {
-                obj = this.objs[i];
-                attrInterpolater = this.interpolates[i];
-                for (attr in attrInterpolater) {
-                    obj[attr] = attrInterpolater[attr](t);
-                }
-            }
-
-            this.emit('change', [t]);
-
-            if (elapsed >= this._duration) this.stop();
-        }
-    }, {
-        key: 'duration',
-        value: function duration(time) {
-            this._duration = time;
-            return this;
-        }
-    }, {
-        key: 'to',
-        value: function to(toObjs) {
-            if (!Array.isArray(toObjs)) toObjs = [toObjs];
-
-            var obj, attr, attrInterpolater;
-            for (var i = 0, len = Math.min(toObjs.length, this.objs.length); i < len; i++) {
-                obj = toObjs[i];
-                attrInterpolater = {};
-                for (attr in obj) {
-                    attrInterpolater[attr] = interpolateNumber(this.objs[i][attr], obj[attr]);
-                }
-                this.interpolates.push(attrInterpolater);
-            }
-
-            return this;
-        }
-    }, {
-        key: 'stop',
-        value: function stop() {
-            this.timer.stop();
-            this.timer = null;
-            this.objs = null;
-            this.interpolates = null;
-        }
-    }], [{
-        key: 'remove',
-        value: function remove(obj) {}
-    }]);
-
-    return Tween;
-}(_EventEmitter3.default);
-
-Tween.list = [];
-exports.default = Tween;
-
-/***/ }),
-/* 12 */
+/* 9 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -2261,7 +1754,8 @@ taskHead,
     clockSkew = 0,
     clock = (typeof performance === "undefined" ? "undefined" : _typeof(performance)) === "object" && performance.now ? performance : Date,
     setFrame = typeof requestAnimationFrame === "function" ? requestAnimationFrame : function (f) {
-    setTimeout(f, 17);
+    // setTimeout(f, 17);
+    setTimeout(f, 30);
 }; //
 
 function now() {
@@ -2366,7 +1860,558 @@ function sleep(time) {
 }
 
 /***/ }),
-/* 13 */
+/* 10 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+/**
+ * Created by chengang on 17-3-29.
+ */
+
+
+
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+exports.default = initEvent;
+
+var _util = __webpack_require__(0);
+
+var _util2 = _interopRequireDefault(_util);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+function initEvent() {
+
+    function handlerWrap(handle) {
+        return function (e) {
+            var pos = _this.toCameraPos({ x: e.offsetX, y: e.offsetY });
+            e.cameraX = pos.x;
+            e.cameraY = pos.y;
+            handle(e);
+        };
+    }
+
+    var _this = this;
+    var mouseDown = false,
+        mouseMove = false;
+
+    var events = {
+        // click:handlerWrap(_clickHandler),
+        mousemove: handlerWrap(_moveHandler),
+        mousedown: handlerWrap(_downHandler),
+        mouseup: handlerWrap(_upHandler),
+        mousewheel: handlerWrap(_wheelHandler)
+    };
+
+    for (var e in events) {
+        this.container.addEventListener(e, events[e], false);
+    }events.click = handlerWrap(_clickHandler);
+
+    //some little situation maybe need the trigger function.
+    this.trigger = function (type, event) {
+        if (events[type]) events[type](event);
+    };
+
+    function checkInNode(posx, posy, node) {
+        var isFind = false;
+        var dis, sizeX, sizeY;
+        if (node.type == 'rect') {
+            sizeX = _util2.default.getNodeSizeX(node);
+            sizeY = _util2.default.getNodeSizeY(node);
+            isFind = _util2.default.inRect(posx, posy, node.x - sizeX, node.y - sizeY, sizeX * 2, sizeY * 2);
+        } else {
+            dis = _util2.default.getDistance(posx, posy, node.x, node.y);
+            isFind = dis <= node.size;
+        }
+        return isFind;
+    }
+
+    function getNode(pos) {
+        // var nodes = _this.graph.quad.point(pos.x, pos.y);
+        var nodes = _this.graph.nodes;
+
+        var node, dis;
+        var findNode = null;
+        if (nodes.length > 0) {
+            for (var i = nodes.length - 1; i >= 0; i--) {
+                node = nodes[i];
+                // node = _this.graph.nodesIndex[node.id];
+                if (checkInNode(pos.x, pos.y, node)) {
+                    findNode = node;
+                    break;
+                }
+            }
+        }
+        return findNode;
+    }
+
+    function _clickHandler(e) {
+        var graphPos = _this.toGraphPos({ x: e.cameraX, y: e.cameraY });
+        var node = getNode(graphPos);
+        if (node) _this.emit('nodeclick', [node, e]);else _this.emit('stageclick', [e]);
+    }
+
+    function _moveHandler(e) {
+        if (mouseDown) mouseMove = true;
+        // var graphPos = _this.toGraphPos({x:e.cameraX,y:e.cameraY});
+        // var node = getNode(graphPos);
+    }
+
+    function _downHandler(e) {
+
+        mouseDown = true;
+
+        var graphPos = _this.toGraphPos({ x: e.cameraX, y: e.cameraY });
+        var node = getNode(graphPos);
+        handleDrag(!node);
+        _this.forceRender();
+
+        function handleDrag(isCamera) {
+            var isDown = true;
+            var startx = graphPos.x,
+                starty = graphPos.y;
+
+            var onmousemove = handlerWrap(function (e) {
+                if (!isDown) return;
+                // console.time('move')
+
+                _this.forceRender();
+
+                var graphPos = _this.toGraphPos({ x: e.cameraX, y: e.cameraY });
+                var offsetx = graphPos.x - startx;
+                var offsety = graphPos.y - starty;
+
+                if (isCamera) {
+                    _this.camera.positionX -= offsetx;
+                    _this.camera.positionY -= offsety;
+                } else {
+                    if (_this.context.selection.isSelected(node)) {
+                        _this.context.selection.data.forEach(function (node) {
+                            _this.graph.setNodeData(node.id, { x: node.x + offsetx, y: node.y + offsety });
+                        });
+                    } else _this.graph.setNodeData(node.id, { x: node.x + offsetx, y: node.y + offsety });
+                    // _this.emit('drag',['node',offsetx,offsety]);
+                }
+
+                if (isCamera) {
+                    var newgraphPos = _this.toGraphPos({ x: e.cameraX, y: e.cameraY });
+                    startx = newgraphPos.x;
+                    starty = newgraphPos.y;
+                } else {
+                    startx = graphPos.x;
+                    starty = graphPos.y;
+                }
+                // console.timeEnd('move')
+            });
+
+            var onmouseup = handlerWrap(function (e) {
+                e.preventDefault();
+                isDown = false;
+                clear();
+            });
+
+            var onmouseout = handlerWrap(function (e) {
+                isDown = false;
+                clear();
+            });
+
+            _this.container.addEventListener('mousemove', onmousemove);
+            _this.container.addEventListener('mouseup', onmouseup);
+            _this.container.addEventListener('mouseout', onmouseout);
+
+            function clear() {
+                onmousemove && _this.container.removeEventListener('mousemove', onmousemove);
+                onmouseup && _this.container.removeEventListener('mouseup', onmouseup);
+                onmouseout && _this.container.removeEventListener('mouseout', onmouseout);
+                onmousemove = onmouseup = onmouseout = null;
+            }
+        }
+    }
+
+    function _upHandler(e) {
+
+        if (mouseDown && !mouseMove) {
+            _clickHandler(e);
+        }
+        mouseDown = false;
+        mouseMove = false;
+
+        if (e.which && e.which == 3 || e.button && e.button == 2) {
+            var graphPos = _this.toGraphPos({ x: e.cameraX, y: e.cameraY });
+            var node = getNode(graphPos);
+            if (node) {
+                _this.emit('rightclick', ['node', node, e]);
+            } else {
+                _this.emit('rightclick', ['stage', null, e]);
+            }
+        }
+    }
+
+    function _wheelHandler(e) {
+        _this.forceRender();
+        var ratio = _this.config.zoomRatio;
+        if (e.wheelDelta > 0) {
+            _this.zoomTo(1 / ratio, e.cameraX, e.cameraY);
+            _this.emit('zoom', [1 / ratio]);
+        } else {
+            _this.zoomTo(ratio, e.cameraX, e.cameraY);
+            _this.emit('zoom', [ratio]);
+        }
+    }
+
+    //drag
+}
+
+/***/ }),
+/* 11 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+/**
+ * Created by chengang on 17-3-17.
+ */
+
+
+
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+
+var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+var _util = __webpack_require__(0);
+
+var _util2 = _interopRequireDefault(_util);
+
+var _EventEmitter2 = __webpack_require__(1);
+
+var _EventEmitter3 = _interopRequireDefault(_EventEmitter2);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
+
+function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
+// import  Quad from '../base/Quad'
+
+
+var Graph = function (_EventEmitter) {
+    _inherits(Graph, _EventEmitter);
+
+    function Graph(options) {
+        _classCallCheck(this, Graph);
+
+        var _this = _possibleConstructorReturn(this, (Graph.__proto__ || Object.getPrototypeOf(Graph)).call(this));
+
+        options = options || {};
+
+        // this.quad = new Quad();
+
+        if (options.nodes || options.edges) _this.read(options);
+
+        return _this;
+    }
+
+    _createClass(Graph, [{
+        key: 'clear',
+        value: function clear() {
+            /**
+             * node edge data
+             */
+            this.nodes = [];
+            this.edges = [];
+
+            /**
+             * node edge index
+             */
+            this.nodesIndex = {};
+            this.edgesIndex = {};
+
+            /**
+             *nodes degrees info
+             */
+            this.inEdgesIndex = {};
+            this.outEdgesIndex = {};
+        }
+
+        /**
+         * 读取 node ,edge 信息
+         * @param options
+         */
+
+    }, {
+        key: 'read',
+        value: function read(options) {
+
+            this.clear();
+
+            (options.nodes || []).forEach(function (e) {
+                if (!e.id) e.id = _util2.default.uuid();
+                e.id += '';
+                this.nodesIndex[e.id] = e;
+                this.nodes.push(e);
+            }.bind(this));
+
+            (options.edges || []).forEach(function (e) {
+                if (!e.id) e.id = _util2.default.uuid();
+
+                if (!e.source || !this.nodesIndex[e.source + '']) {
+                    console.log(e);
+                    console.error('some edge has not source id or not a node of the id');
+                    return;
+                }
+                if (!e.target || !this.nodesIndex[e.target + '']) {
+                    console.log(e);
+                    console.error('some edge has not target id or not a node of the id');
+                    return;
+                }
+
+                this.edgesIndex['' + e.id] = e;
+
+                e.source += '';
+                e.target += '';
+
+                this.inEdgesIndex[e.target] = this.inEdgesIndex[e.target] || [];
+                this.inEdgesIndex[e.target].push(e.id);
+
+                this.outEdgesIndex[e.source] = this.outEdgesIndex[e.source] || [];
+                this.outEdgesIndex[e.source].push(e.id);
+
+                this.edges.push(e);
+            }.bind(this));
+
+            this.updateEdgeCount();
+
+            this.emit('reset');
+
+            // this.quad.index(this.nodes);
+        }
+    }, {
+        key: 'updateEdgeCount',
+        value: function updateEdgeCount() {
+            var source,
+                target,
+                attr,
+                map = {};
+            this.edges.forEach(function (edge) {
+                source = this.nodesIndex[edge.source];
+                target = this.nodesIndex[edge.target];
+                attr = edge.source + edge.target;
+                if (!map[attr]) map[attr] = map[edge.target + edge.source] = { counter: 0, source: edge.source };
+
+                edge.curveCount = map[attr].counter;
+                map[attr].counter++;
+                edge.curveOrder = edge.source == map[attr].source;
+            }.bind(this));
+        }
+
+        /**
+         * add nodes
+         * @param nodes
+         */
+
+    }, {
+        key: 'addNode',
+        value: function addNode(nodes) {
+            nodes = nodes || [];
+
+            if (nodes.length == 0) return;
+
+            if (!_util2.default.isArray(nodes)) nodes = [nodes];
+
+            var node;
+            for (var i = 0; i < nodes.length; i++) {
+                node = nodes[i];
+                if (!node.id) node.id = _util2.default.uuid();
+                if (this.nodesIndex[node.id]) {
+                    throw 'node has existed.';
+                }
+                this.nodes.push(node);
+                this.nodesIndex[node.id] = node;
+            }
+
+            var ids = nodes.map(function (e) {
+                return e.id;
+            });
+            this.emit('add', ['node', ids]);
+        }
+
+        /**
+         * remove node
+         * @param nodeid
+         */
+
+    }, {
+        key: 'removeNode',
+        value: function removeNode(nodeid) {
+            if (!nodeid || !this.nodesIndex[nodeid]) return;
+
+            var nodes = this.nodes;
+            for (var i = 0; i < nodes.length; i++) {
+                if (nodes[i].id == nodeid) {
+                    nodes.splice(i, 1);
+                    break;
+                }
+            }
+            var edges;
+            edges = this.inEdgesIndex[nodeid];
+            if (edges && edges.length > 0) {
+                edges = edges.slice();
+                edges.forEach(function (e) {
+                    this.removeEdge(e);
+                }.bind(this));
+            }
+
+            edges = this.outEdgesIndex[nodeid];
+            if (edges && edges.length > 0) {
+                edges = edges.slice();
+                edges.forEach(function (e) {
+                    this.removeEdge(e);
+                }.bind(this));
+            }
+
+            this.nodesIndex[nodeid] = null;
+            this.inEdgesIndex[nodeid] = null;
+            this.outEdgesIndex[nodeid] = null;
+
+            this.emit('remove', ['node', nodeid]);
+        }
+
+        /**
+         * add edges ,
+         * @param edges
+         */
+
+    }, {
+        key: 'addEdge',
+        value: function addEdge(edges) {
+            edges = edges || [];
+
+            if (edges.length == 0) return;
+
+            if (!_util2.default.isArray(edges)) edges = [edges];
+
+            var edge;
+            for (var i = 0; i < edges.length; i++) {
+                edge = edges[i];
+                if (!edge.id) edge.id = _util2.default.uuid();
+                if (this.edgesIndex[edge.id]) {
+                    // debugger
+                    throw 'edge has existed.';
+                }
+                if (!edge.source || !this.nodesIndex[edge.source + '']) {
+                    console.log(edge);
+                    throw 'some edge has not source id or not a node of the id';
+                }
+                if (!edge.target || !this.nodesIndex[edge.target + '']) {
+                    console.log(edge);
+                    throw 'some edge has not target id or not a node of the id';
+                }
+
+                this.edges.push(edge);
+                this.edgesIndex[edge.id] = edge;
+
+                edge.source += '';
+                edge.target += '';
+
+                this.inEdgesIndex[edge.target] = this.inEdgesIndex[edge.target] || [];
+                this.inEdgesIndex[edge.target].push(edge.id);
+
+                this.outEdgesIndex[edge.source] = this.outEdgesIndex[edge.source] || [];
+                this.outEdgesIndex[edge.source].push(edge.id);
+            }
+
+            var ids = edges.map(function (e) {
+                return e.id;
+            });
+            this.emit('add', ['edge', ids]);
+        }
+    }, {
+        key: 'removeEdge',
+        value: function removeEdge(edgeid) {
+            if (!edgeid || !this.edgesIndex[edgeid]) return;
+
+            var edge = this.edgesIndex[edgeid],
+                edges;
+            var outEdgesIndex, inEdgesIndex;
+
+            outEdgesIndex = this.outEdgesIndex[edge.source];
+            if (outEdgesIndex.length > 0) {
+                for (var i = 0; i < outEdgesIndex.length; i++) {
+                    if (outEdgesIndex[i] == edgeid) {
+                        outEdgesIndex.splice(i, 1);
+                        break;
+                    }
+                }
+            }
+            inEdgesIndex = this.inEdgesIndex[edge.target];
+            if (inEdgesIndex.length > 0) {
+                for (var i = 0; i < inEdgesIndex.length; i++) {
+                    if (inEdgesIndex[i] == edgeid) {
+                        inEdgesIndex.splice(i, 1);
+                        break;
+                    }
+                }
+            }
+
+            edges = this.edges;
+            for (var i = 0; i < edges.length; i++) {
+                if (edges[i].id == edgeid) {
+                    edges.splice(i, 1);
+                    break;
+                }
+            }
+
+            this.edgesIndex[edgeid] = null;
+            this.emit('remove', ['edge', edgeid]);
+        }
+    }, {
+        key: 'getNodes',
+        value: function getNodes() {
+            return this.nodes;
+        }
+    }, {
+        key: 'setNodeData',
+        value: function setNodeData(id, obj) {
+            var node = this.nodesIndex[id];
+
+            var updatePos = false;
+            if (obj.hasOwnProperty('x') || obj.hasOwnProperty('y')) updatePos = true;
+
+            for (var attr in obj) {
+                node[attr] = obj[attr];
+            }this.emit('change', ['node', id]);
+            if (updatePos) {
+                this.inEdgesIndex[id] && this.inEdgesIndex[id].length > 0 && this.emit('change', ['edge', this.inEdgesIndex[id]]);
+                this.outEdgesIndex[id] && this.outEdgesIndex[id].length > 0 && this.emit('change', ['edge', this.outEdgesIndex[id]]);
+            }
+        }
+    }, {
+        key: 'updateNodeQuad',
+        value: function updateNodeQuad(id, oldpos) {
+            var nodes = this.quad.point(oldpos.x, oldpos.y);
+            if (nodes.length > 0) {
+                for (var i = 0, len = nodes.length; i < len; i++) {
+                    if (nodes[i].id == id) {
+                        nodes.splice(i, 1);
+                        break;
+                    }
+                }
+                this.quad.insert(this.nodesIndex[id], this.quad.root);
+            }
+        }
+    }]);
+
+    return Graph;
+}(_EventEmitter3.default);
+
+exports.default = Graph;
+
+/***/ }),
+/* 12 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -2479,6 +2524,8 @@ var Selection = function (_EventEmitter) {
             this.rect.x = e.offsetX;
             this.rect.y = e.offsetY;
 
+            _this.emit('selectstart');
+
             document.addEventListener('mousemove', mouseMove);
             document.addEventListener('mouseup', mouseUp);
             function mouseMove(e) {
@@ -2499,19 +2546,32 @@ var Selection = function (_EventEmitter) {
         }
     }, {
         key: 'select',
-        value: function select(nodes) {
+        value: function select(nodes, isAdd) {
+            var sendMessage = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : true;
+
             var _this = this;
+
             if (!_util2.default.isArray(nodes)) nodes = [nodes];
 
-            _this.data.forEach(function (e) {
-                if (_this.context.graph.nodesIndex[e.id]) _this.context.graph.setNodeData(e.id, { selected: false });
-            });
+            if (isAdd) {
+                nodes.forEach(function (node) {
+                    _this.context.graph.setNodeData(node.id, { selected: true });
+                    _this.data.push(node);
+                });
+            } else {
 
-            nodes.forEach(function (node) {
-                _this.context.graph.setNodeData(node.id, { selected: true });
-            });
+                _this.data.forEach(function (e) {
+                    if (_this.context.graph.nodesIndex[e.id]) _this.context.graph.setNodeData(e.id, { selected: false });
+                });
 
-            _this.data = nodes;
+                nodes.forEach(function (node) {
+                    _this.context.graph.setNodeData(node.id, { selected: true });
+                });
+
+                _this.data = nodes;
+            }
+
+            sendMessage && _this.emit('select', [_this.getSelection()]);
         }
     }, {
         key: 'unSelect',
@@ -2534,6 +2594,8 @@ var Selection = function (_EventEmitter) {
             });
 
             this.data = newSelected;
+
+            _this.emit('select', [_this.getSelection()]);
         }
     }, {
         key: 'getSelection',
@@ -2581,7 +2643,7 @@ var Selection = function (_EventEmitter) {
 exports.default = Selection;
 
 /***/ }),
-/* 14 */
+/* 13 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -2596,20 +2658,20 @@ Object.defineProperty(exports, "__esModule", {
 });
 exports.default = {
     zoomRatio: 1.2,
-    zoomMin: 0.2,
-    zoomMax: 5,
+    zoomMin: 0.05,
+    zoomMax: 20,
 
     renderNode: true,
     renderNodeLabel: true,
     renderEdge: true,
     renderEdgeLabel: true,
 
-    textureIconWidth: 512,
-    textureIconHeight: 512
+    textureIconWidth: 1024,
+    textureIconHeight: 1024
 };
 
 /***/ }),
-/* 15 */
+/* 14 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -2637,8 +2699,8 @@ function CircularLayout() {
 var p = CircularLayout.prototype;
 
 //必须有的方法
-p.layout = function (graph) {
-    this.init(graph);
+p.layout = function (nodes, edges) {
+    this.init(nodes, edges);
 
     this.posSet = new Array(this.nodes.length);
     this.depthPosSet = new Array(this.nodes.length);
@@ -2649,19 +2711,20 @@ p.layout = function (graph) {
     // });
     this.__layout(this.bc);
     return this.nodes.map(function (e) {
-        return { x: e.x, y: e.y };
+        return { x: e.x || 0, y: e.y || 0 };
     });
 };
-p.init = function (graph) {
-    var oldNodes = graph.nodes,
-        oldLinks = graph.edges;
+p.init = function (nodes, edges) {
+    var oldNodes = nodes,
+        oldLinks = edges;
     var tempNodes = [],
         map = {},
         temp;
     oldNodes.forEach(function (e, i) {
         temp = {
             id: e.id,
-            _index: i
+            _index: i,
+            links: []
         };
         tempNodes.push(temp);
         map[temp.id] = temp;
@@ -2671,6 +2734,7 @@ p.init = function (graph) {
     oldLinks.forEach(function (e, i) {
         s = map[e.source];
         t = map[e.target];
+
         s.links = s.links || [];
         s.links.push(t._index);
 
@@ -3403,7 +3467,7 @@ function setOffset(node, x, y) {
 exports.default = CircularLayout;
 
 /***/ }),
-/* 16 */
+/* 15 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -3428,13 +3492,13 @@ var ColaLayout = function () {
 
     _createClass(ColaLayout, [{
         key: 'layout',
-        value: function layout(graph) {
+        value: function layout(nodes, edges) {
             if (!cola || !cola.Layout) throw 'please add cola lib first';
-            this.cola = new cola.Layout().convergenceThreshold(1e-4).size([1000, 800]);
+            this.cola = new cola.Layout().convergenceThreshold(1e-4).size([1000, 1000]);
 
-            var data = this._init(graph);
+            var data = this._init(nodes, edges);
 
-            this.cola.nodes(data.nodes).links(data.edges).symmetricDiffLinkLengths(50).start(60, 0, 0, 0, false);
+            this.cola.nodes(data.nodes).links(data.edges).symmetricDiffLinkLengths(30).start(60, 0, 0, 0, false);
 
             return data.nodes.map(function (e) {
                 return { x: e.x, y: e.y };
@@ -3442,11 +3506,11 @@ var ColaLayout = function () {
         }
     }, {
         key: '_init',
-        value: function _init(graph) {
+        value: function _init(_nodes, _edges) {
             var nodes = [];
             var edges = [];
             var map = {};
-            graph.nodes.forEach(function (e, i) {
+            _nodes.forEach(function (e, i) {
                 nodes.push({
                     width: 100,
                     height: 100
@@ -3454,8 +3518,8 @@ var ColaLayout = function () {
                 map[e.id] = i;
             });
 
-            graph.edges.forEach(function (e, i) {
-                edges.push({
+            _edges.forEach(function (e, i) {
+                if (map.hasOwnProperty(e.source) && map.hasOwnProperty(e.target)) edges.push({
                     source: map[e.source],
                     target: map[e.target]
                 });
@@ -3474,7 +3538,7 @@ var ColaLayout = function () {
 exports.default = ColaLayout;
 
 /***/ }),
-/* 17 */
+/* 16 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -3499,7 +3563,7 @@ var DargeLayout = function () {
 
     _createClass(DargeLayout, [{
         key: 'layout',
-        value: function layout(graph) {
+        value: function layout(nodes, edges) {
             // debugger
             if (!dagre || !dagre.graphlib) throw 'please add dagre lib first';
             var g = new dagre.graphlib.Graph();
@@ -3507,7 +3571,7 @@ var DargeLayout = function () {
             g.setGraph({
                 rankdir: 'TB',
                 nodesep: 15,
-                ranksep: 100,
+                ranksep: 40,
                 ranker: 'longest-path' //network-simplex  longest-path tight-tree
             });
 
@@ -3515,11 +3579,11 @@ var DargeLayout = function () {
                 return {};
             });
 
-            graph.nodes.forEach(function (e) {
+            nodes.forEach(function (e) {
                 g.setNode(e.id, { width: 20, height: 20 });
             });
 
-            graph.edges.forEach(function (e) {
+            edges.forEach(function (e) {
                 g.setEdge(e.source, e.target);
             });
 
@@ -3540,7 +3604,7 @@ var DargeLayout = function () {
 exports.default = DargeLayout;
 
 /***/ }),
-/* 18 */
+/* 17 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -3565,11 +3629,11 @@ var FlowLayout = function () {
 
     _createClass(FlowLayout, [{
         key: "layout",
-        value: function layout(graph) {
+        value: function layout(nodes, edges) {
             if (!cola || !cola.Layout) throw 'please add cola lib first';
             this.cola = new cola.Layout().convergenceThreshold(1e-4).size([1000, 800]);
 
-            var data = this._init(graph);
+            var data = this._init(nodes, edges);
 
             this.cola.nodes(data.nodes).links(data.edges).flowLayout("y", 30).symmetricDiffLinkLengths(30).start(10, 20, 20, 0, false);
 
@@ -3579,14 +3643,14 @@ var FlowLayout = function () {
         }
     }, {
         key: "_init",
-        value: function _init(graph) {
+        value: function _init(_nodes, _edges) {
 
-            var filterEdge = this._filterEdge(graph);
+            // var filterEdge = this._filterEdge(nodes,edges);
 
             var nodes = [];
             var edges = [];
             var map = {};
-            graph.nodes.forEach(function (e, i) {
+            _nodes.forEach(function (e, i) {
                 nodes.push({
                     width: 100,
                     height: 100
@@ -3594,7 +3658,7 @@ var FlowLayout = function () {
                 map[e.id] = i;
             });
 
-            filterEdge.forEach(function (e, i) {
+            _edges.forEach(function (e, i) {
                 edges.push({
                     source: map[e.source],
                     target: map[e.target]
@@ -3608,11 +3672,11 @@ var FlowLayout = function () {
         }
     }, {
         key: "_filterEdge",
-        value: function _filterEdge(graph) {
+        value: function _filterEdge(nodes, edges) {
             var filterEdges = [];
 
             var flag = {};
-            var first = graph.nodes[0];
+            var first = nodes[0];
 
             breadFirst(first);
 
@@ -3660,6 +3724,61 @@ var FlowLayout = function () {
 exports.default = FlowLayout;
 
 /***/ }),
+/* 18 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+
+var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+/**
+ * Created by chengang on 17-4-12.
+ */
+
+var Grid = function () {
+    function Grid() {
+        _classCallCheck(this, Grid);
+    }
+
+    _createClass(Grid, [{
+        key: "layout",
+        value: function layout(_nodes, _edges) {
+
+            var nodes = [];
+
+            var width = 50;
+            var height = 50;
+
+            var num = (Math.sqrt(_nodes.length) | 0) + 1;
+
+            var nx, ny;
+
+            _nodes.forEach(function (e, id) {
+                nx = id % num | 0;
+                ny = id / num | 0;
+                nodes.push({
+                    x: nx * width,
+                    y: ny * height
+                });
+            });
+
+            return nodes;
+        }
+    }]);
+
+    return Grid;
+}();
+
+exports.default = Grid;
+
+/***/ }),
 /* 19 */
 /***/ (function(module, exports, __webpack_require__) {
 
@@ -3670,37 +3789,160 @@ Object.defineProperty(exports, "__esModule", {
     value: true
 });
 
-var _CircularLayout = __webpack_require__(15);
+var _CircularLayout = __webpack_require__(14);
 
 var _CircularLayout2 = _interopRequireDefault(_CircularLayout);
 
-var _ColaLayout = __webpack_require__(16);
+var _ColaLayout = __webpack_require__(15);
 
 var _ColaLayout2 = _interopRequireDefault(_ColaLayout);
 
-var _FlowLayout = __webpack_require__(18);
+var _FlowLayout = __webpack_require__(17);
 
 var _FlowLayout2 = _interopRequireDefault(_FlowLayout);
 
-var _DargeLayout = __webpack_require__(17);
+var _DargeLayout = __webpack_require__(16);
 
 var _DargeLayout2 = _interopRequireDefault(_DargeLayout);
 
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+var _Grid = __webpack_require__(18);
 
-/**
- * Created by chengang on 17-2-20.
- */
+var _Grid2 = _interopRequireDefault(_Grid);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 exports.default = {
     circular: _CircularLayout2.default,
     cola: _ColaLayout2.default,
     flow: _FlowLayout2.default,
-    darge: _DargeLayout2.default
-};
+    darge: _DargeLayout2.default,
+    grid: _Grid2.default
+}; /**
+    * Created by chengang on 17-2-20.
+    */
 
 /***/ }),
 /* 20 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+exports.default = TextSdf;
+var INF = 1e20;
+
+function TextSdf(fontSize, buffer, radius, cutoff, fontFamily) {
+    this.fontSize = fontSize || 24;
+    this.buffer = buffer === undefined ? 3 : buffer;
+    this.cutoff = cutoff || 0.25;
+    this.fontFamily = fontFamily || 'sans-serif';
+    this.radius = radius || 8;
+    var size = this.size = this.fontSize + this.buffer * 2;
+
+    this.canvas = document.createElement('canvas');
+    this.canvas.width = this.canvas.height = size;
+
+    this.ctx = this.canvas.getContext('2d');
+    this.ctx.font = fontSize + 'px ' + this.fontFamily;
+    this.ctx.textBaseline = 'middle';
+    this.ctx.fillStyle = 'black';
+
+    // temporary arrays for the distance transform
+    this.gridOuter = new Float64Array(size * size);
+    this.gridInner = new Float64Array(size * size);
+    this.f = new Float64Array(size);
+    this.d = new Float64Array(size);
+    this.z = new Float64Array(size + 1);
+    this.v = new Int16Array(size);
+
+    // hack around https://bugzilla.mozilla.org/show_bug.cgi?id=737852
+    this.middle = Math.round(size / 2 * (navigator.userAgent.indexOf('Gecko/') >= 0 ? 1.2 : 1));
+}
+
+TextSdf.prototype.draw = function (char) {
+    this.ctx.clearRect(0, 0, this.size, this.size);
+    this.ctx.fillText(char, this.buffer, this.middle);
+
+    var charSize = this.ctx.measureText(char).width + 1 | 0;
+    var imgData = this.ctx.getImageData(0, 0, this.size, this.size);
+    var data = imgData.data;
+
+    for (var i = 0; i < this.size * this.size; i++) {
+        var a = data[i * 4 + 3] / 255; // alpha value
+        this.gridOuter[i] = a === 1 ? 0 : a === 0 ? INF : Math.pow(Math.max(0, 0.5 - a), 2);
+        this.gridInner[i] = a === 1 ? INF : a === 0 ? 0 : Math.pow(Math.max(0, a - 0.5), 2);
+    }
+
+    edt(this.gridOuter, this.size, this.size, this.f, this.d, this.v, this.z);
+    edt(this.gridInner, this.size, this.size, this.f, this.d, this.v, this.z);
+
+    for (i = 0; i < this.size * this.size; i++) {
+        var d = this.gridOuter[i] - this.gridInner[i];
+        var c = Math.max(0, Math.min(255, Math.round(255 - 255 * (d / this.radius + this.cutoff))));
+        data[4 * i + 0] = c;
+        data[4 * i + 1] = c;
+        data[4 * i + 2] = c;
+        data[4 * i + 3] = 255;
+    }
+
+    return {
+        data: imgData,
+        charWidth: charSize + this.buffer * 2
+    };
+};
+
+// 2D Euclidean distance transform by Felzenszwalb & Huttenlocher https://cs.brown.edu/~pff/dt/
+function edt(data, width, height, f, d, v, z) {
+    for (var x = 0; x < width; x++) {
+        for (var y = 0; y < height; y++) {
+            f[y] = data[y * width + x];
+        }
+        edt1d(f, d, v, z, height);
+        for (y = 0; y < height; y++) {
+            data[y * width + x] = d[y];
+        }
+    }
+    for (y = 0; y < height; y++) {
+        for (x = 0; x < width; x++) {
+            f[x] = data[y * width + x];
+        }
+        edt1d(f, d, v, z, width);
+        for (x = 0; x < width; x++) {
+            data[y * width + x] = Math.sqrt(d[x]);
+        }
+    }
+}
+
+// 1D squared distance transform
+function edt1d(f, d, v, z, n) {
+    v[0] = 0;
+    z[0] = -INF;
+    z[1] = +INF;
+
+    for (var q = 1, k = 0; q < n; q++) {
+        var s = (f[q] + q * q - (f[v[k]] + v[k] * v[k])) / (2 * q - 2 * v[k]);
+        while (s <= z[k]) {
+            k--;
+            s = (f[q] + q * q - (f[v[k]] + v[k] * v[k])) / (2 * q - 2 * v[k]);
+        }
+        k++;
+        v[k] = q;
+        z[k] = s;
+        z[k + 1] = +INF;
+    }
+
+    for (q = 0, k = 0; q < n; q++) {
+        while (z[k + 1] < q) {
+            k++;
+        }d[q] = (q - v[k]) * (q - v[k]) + f[v[k]];
+    }
+}
+
+/***/ }),
+/* 21 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -3914,6 +4156,21 @@ var TextureIcon = function (_EventEmitter) {
 
             if (empty) gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 2, 2, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);else gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, this.iconinfo.img);
         }
+    }, {
+        key: 'clear',
+        value: function clear() {
+            this.startx = this.border + this.width / 2;
+            this.starty = this.border + this.height / 2;
+            this.icons = [];
+            this.iconsToCreate = [];
+            this.iconinfo.infos = {};
+
+            var ctx = this.ctx;
+            ctx.save();
+            ctx.fillStyle = "#000000";
+            ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+            ctx.restore();
+        }
     }]);
 
     return TextureIcon;
@@ -3922,7 +4179,7 @@ var TextureIcon = function (_EventEmitter) {
 exports.default = TextureIcon;
 
 /***/ }),
-/* 21 */
+/* 22 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -4031,7 +4288,7 @@ var TextureLoader = function (_EventEmitter) {
 exports.default = TextureLoader;
 
 /***/ }),
-/* 22 */
+/* 23 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -4047,15 +4304,17 @@ var _EventEmitter2 = __webpack_require__(1);
 
 var _EventEmitter3 = _interopRequireDefault(_EventEmitter2);
 
+var _TextSdf = __webpack_require__(20);
+
+var _TextSdf2 = _interopRequireDefault(_TextSdf);
+
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
 function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
 
-function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; } /**
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                * Created by chengang on 17-4-7.
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                */
+function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
 
 var TextureText = function (_EventEmitter) {
     _inherits(TextureText, _EventEmitter);
@@ -4071,7 +4330,7 @@ var TextureText = function (_EventEmitter) {
 
         _this.border = 2;
 
-        _this.fontSize = 26;
+        _this.fontSize = 24;
         _this.fontFamily = 'Arial';
 
         _this.canvas = null;
@@ -4079,6 +4338,10 @@ var TextureText = function (_EventEmitter) {
         _this.textinfo = null;
 
         _this.texts = null;
+
+        _this.sdf = new _TextSdf2.default(_this.fontSize, _this.fontSize / 8, _this.fontSize / 3, null, _this.fontFamily);
+
+        // test();
         return _this;
     }
 
@@ -4090,8 +4353,8 @@ var TextureText = function (_EventEmitter) {
 
             var c = this.canvas;
 
-            var width = this.fontSize + 1;
-            var height = this.fontSize + 1;
+            var width = this.sdf.size;
+            var height = width;
             var num = Math.ceil(Math.sqrt(texts.length));
 
             c.width = num * width + 2 * this.border;
@@ -4112,7 +4375,8 @@ var TextureText = function (_EventEmitter) {
             var infos = {},
                 px,
                 py,
-                charWidth;
+                charWidth,
+                data;
 
             this.texts = [];
 
@@ -4120,12 +4384,20 @@ var TextureText = function (_EventEmitter) {
 
                 if (this.textinfo && this.textinfo.infos[texts[i]]) continue;
 
+                // data = this.sdf.draw(texts[i]);
+                // charWidth = data.charWidth
+
                 charWidth = ctx.measureText(texts[i]).width;
-                if (startx + charWidth + this.border > c.width) {
+
+                if (startx + charWidth > c.width) {
                     startx = this.border;
                     starty += height;
                 }
+
+                // ctx.putImageData(data.data, startx, starty,0,0,data.charWidth,data.data.height);
+
                 ctx.fillText(texts[i], startx, starty);
+
                 infos[texts[i]] = {
                     uvs: [startx / c.width, starty / c.height, (startx + charWidth) / c.width, (starty + height) / c.height],
                     width: charWidth / width
@@ -4133,9 +4405,9 @@ var TextureText = function (_EventEmitter) {
 
                 this.texts.push(texts[i]);
 
-                startx += charWidth + this.border;
+                startx += charWidth;
             }
-            this.computeAlpha(ctx);
+            // this.computeAlpha(ctx);
             this.textinfo = {
                 fontSize: this.fontSize,
                 img: c,
@@ -4145,6 +4417,9 @@ var TextureText = function (_EventEmitter) {
             };
 
             // document.body.appendChild(c);
+            // c.style.position = 'absolute';
+            // c.style.top = '100px';
+
             this.updateGPUTexture();
         }
     }, {
@@ -4187,8 +4462,7 @@ var TextureText = function (_EventEmitter) {
             }
 
             if (num > 0) {
-                this.textinfo = null;
-                this.texts = null;
+                this.clear();
                 this.createCanvasImg(texts);
             }
         }
@@ -4211,6 +4485,12 @@ var TextureText = function (_EventEmitter) {
 
             gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, this.textinfo.img);
         }
+    }, {
+        key: 'clear',
+        value: function clear() {
+            this.textinfo = null;
+            this.texts = null;
+        }
     }]);
 
     return TextureText;
@@ -4218,8 +4498,43 @@ var TextureText = function (_EventEmitter) {
 
 exports.default = TextureText;
 
+
+function test() {
+    var chars = '泽材abcdefghkilmnopqrstuvwxyz灭逐莫笔亡鲜';
+    var fontSize = 24;
+
+    var sdf = new _TextSdf2.default(fontSize, fontSize / 8, fontSize / 3, null, 'Arial');
+
+    var canvas = document.createElement('canvas');
+    canvas.width = 400;
+    canvas.height = 400;
+    canvas.style.position = 'absolute';
+    canvas.style.top = '200px';
+
+    var ctx = canvas.getContext('2d');
+
+    var now = performance.now();
+    var startx = 0,
+        stary = 0,
+        data;
+    for (var i = 0; i < chars.length; i++) {
+        data = sdf.draw(chars[i]);
+        if (startx + data.charWidth + 0 >= canvas.width) {
+            stary += sdf.size;
+            startx = 0;
+        }
+
+        ctx.putImageData(data.data, startx, stary, 0, 0, data.charWidth, data.data.height);
+
+        startx += data.charWidth + 0;
+    }
+    console.log(Math.round(performance.now() - now) + 'ms.');
+
+    document.body.appendChild(canvas);
+}
+
 /***/ }),
-/* 23 */
+/* 24 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -4236,11 +4551,11 @@ var _util = __webpack_require__(0);
 
 var _util2 = _interopRequireDefault(_util);
 
-var _vert = __webpack_require__(31);
+var _vert = __webpack_require__(32);
 
 var _vert2 = _interopRequireDefault(_vert);
 
-var _frag = __webpack_require__(30);
+var _frag = __webpack_require__(31);
 
 var _frag2 = _interopRequireDefault(_frag);
 
@@ -4427,7 +4742,7 @@ var Curve = function () {
 exports.default = Curve;
 
 /***/ }),
-/* 24 */
+/* 25 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -4445,11 +4760,11 @@ var _util = __webpack_require__(0);
 
 var _util2 = _interopRequireDefault(_util);
 
-var _defaultVert = __webpack_require__(33);
+var _defaultVert = __webpack_require__(34);
 
 var _defaultVert2 = _interopRequireDefault(_defaultVert);
 
-var _defaultFrag = __webpack_require__(32);
+var _defaultFrag = __webpack_require__(33);
 
 var _defaultFrag2 = _interopRequireDefault(_defaultFrag);
 
@@ -4490,8 +4805,8 @@ var Edge = function () {
             var dy = target.y - source.y;
 
             data = [];
-            var size = 0.3,
-                arrowSize = 3;
+            var size = 0.6,
+                arrowSize = 6;
             var crossVector = _util2.default.normalize([-dy, dx]);
 
             //arrow
@@ -4584,7 +4899,7 @@ var Edge = function () {
 exports.default = Edge;
 
 /***/ }),
-/* 25 */
+/* 26 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -4606,7 +4921,7 @@ var _Matrix = __webpack_require__(2);
 
 var _Matrix2 = _interopRequireDefault(_Matrix);
 
-var _edgeLabelVert = __webpack_require__(7);
+var _edgeLabelVert = __webpack_require__(6);
 
 var _edgeLabelVert2 = _interopRequireDefault(_edgeLabelVert);
 
@@ -4773,7 +5088,7 @@ var NodeLabel = function () {
 exports.default = NodeLabel;
 
 /***/ }),
-/* 26 */
+/* 27 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -4788,7 +5103,7 @@ var _createClass = function () { function defineProperties(target, props) { for 
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       */
 
 
-var _nodeLabelVert = __webpack_require__(34);
+var _nodeLabelVert = __webpack_require__(35);
 
 var _nodeLabelVert2 = _interopRequireDefault(_nodeLabelVert);
 
@@ -4945,7 +5260,7 @@ var NodeLabel = function () {
 exports.default = NodeLabel;
 
 /***/ }),
-/* 27 */
+/* 28 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -4967,7 +5282,7 @@ var _Matrix = __webpack_require__(2);
 
 var _Matrix2 = _interopRequireDefault(_Matrix);
 
-var _edgeLabelVert = __webpack_require__(7);
+var _edgeLabelVert = __webpack_require__(6);
 
 var _edgeLabelVert2 = _interopRequireDefault(_edgeLabelVert);
 
@@ -5149,7 +5464,7 @@ var CurveLabel = function () {
 exports.default = CurveLabel;
 
 /***/ }),
-/* 28 */
+/* 29 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -5167,11 +5482,11 @@ var _util = __webpack_require__(0);
 
 var _util2 = _interopRequireDefault(_util);
 
-var _defaultVert = __webpack_require__(36);
+var _defaultVert = __webpack_require__(37);
 
 var _defaultVert2 = _interopRequireDefault(_defaultVert);
 
-var _defaultFrag = __webpack_require__(35);
+var _defaultFrag = __webpack_require__(36);
 
 var _defaultFrag2 = _interopRequireDefault(_defaultFrag);
 
@@ -5189,14 +5504,14 @@ var Node = function () {
     function Node() {
         _classCallCheck(this, Node);
 
-        this.ATTRIBUTES = 11;
+        this.ATTRIBUTES = 12;
 
         this.shaderVert = _defaultVert2.default;
         this.shaderFrag = _defaultFrag2.default;
 
         this.arrayBuffer = null;
         this.dataBuffer = null;
-        this.strip = 5 * 4 + 4 + 4;
+        this.strip = 5 * 4 + 4 + 4 + 4;
     }
 
     _createClass(Node, [{
@@ -5219,26 +5534,26 @@ var Node = function () {
             var data = [];
 
             //base
-            addData(data, this.ATTRIBUTES, [node.x - node.size, node.y + node.size, color.r, color.g, color.b, color.a, 0, 0, img, isSelected, 1]);
-            addData(data, this.ATTRIBUTES, [node.x + node.size, node.y + node.size, color.r, color.g, color.b, color.a, 1, 0, img, isSelected, 1]);
-            addData(data, this.ATTRIBUTES, [node.x - node.size, node.y - node.size, color.r, color.g, color.b, color.a, 0, 1, img, isSelected, 1]);
-            addData(data, this.ATTRIBUTES, [node.x + node.size, node.y + node.size, color.r, color.g, color.b, color.a, 1, 0, img, isSelected, 1]);
-            addData(data, this.ATTRIBUTES, [node.x - node.size, node.y - node.size, color.r, color.g, color.b, color.a, 0, 1, img, isSelected, 1]);
-            addData(data, this.ATTRIBUTES, [node.x + node.size, node.y - node.size, color.r, color.g, color.b, color.a, 1, 1, img, isSelected, 1]);
+            addData(data, this.ATTRIBUTES, [node.x - node.size, node.y + node.size, color.r, color.g, color.b, color.a, 0, 0, img, isSelected, 1, node.size]);
+            addData(data, this.ATTRIBUTES, [node.x + node.size, node.y + node.size, color.r, color.g, color.b, color.a, 1, 0, img, isSelected, 1, node.size]);
+            addData(data, this.ATTRIBUTES, [node.x - node.size, node.y - node.size, color.r, color.g, color.b, color.a, 0, 1, img, isSelected, 1, node.size]);
+            addData(data, this.ATTRIBUTES, [node.x + node.size, node.y + node.size, color.r, color.g, color.b, color.a, 1, 0, img, isSelected, 1, node.size]);
+            addData(data, this.ATTRIBUTES, [node.x - node.size, node.y - node.size, color.r, color.g, color.b, color.a, 0, 1, img, isSelected, 1, node.size]);
+            addData(data, this.ATTRIBUTES, [node.x + node.size, node.y - node.size, color.r, color.g, color.b, color.a, 1, 1, img, isSelected, 1, node.size]);
 
             var hasIcon = node.icon && textureIcon.iconinfo.infos[node.icon],
                 uvs;
             var scale = 0.7;
             //icon
             if (hasIcon) {
-                // debugger
+
                 uvs = textureIcon.iconinfo.infos[node.icon].uvs;
-                addData(data, this.ATTRIBUTES, [node.x - node.size * scale, node.y + node.size * scale, color.r, color.g, color.b, color.a, uvs[0], uvs[1], -2, isSelected, 2]);
-                addData(data, this.ATTRIBUTES, [node.x + node.size * scale, node.y + node.size * scale, color.r, color.g, color.b, color.a, uvs[2], uvs[1], -2, isSelected, 2]);
-                addData(data, this.ATTRIBUTES, [node.x - node.size * scale, node.y - node.size * scale, color.r, color.g, color.b, color.a, uvs[0], uvs[3], -2, isSelected, 2]);
-                addData(data, this.ATTRIBUTES, [node.x + node.size * scale, node.y + node.size * scale, color.r, color.g, color.b, color.a, uvs[2], uvs[1], -2, isSelected, 2]);
-                addData(data, this.ATTRIBUTES, [node.x - node.size * scale, node.y - node.size * scale, color.r, color.g, color.b, color.a, uvs[0], uvs[3], -2, isSelected, 2]);
-                addData(data, this.ATTRIBUTES, [node.x + node.size * scale, node.y - node.size * scale, color.r, color.g, color.b, color.a, uvs[2], uvs[3], -2, isSelected, 2]);
+                addData(data, this.ATTRIBUTES, [node.x - node.size * scale, node.y + node.size * scale, color.r, color.g, color.b, color.a, uvs[0], uvs[1], -2, isSelected, 2, node.size]);
+                addData(data, this.ATTRIBUTES, [node.x + node.size * scale, node.y + node.size * scale, color.r, color.g, color.b, color.a, uvs[2], uvs[1], -2, isSelected, 2, node.size]);
+                addData(data, this.ATTRIBUTES, [node.x - node.size * scale, node.y - node.size * scale, color.r, color.g, color.b, color.a, uvs[0], uvs[3], -2, isSelected, 2, node.size]);
+                addData(data, this.ATTRIBUTES, [node.x + node.size * scale, node.y + node.size * scale, color.r, color.g, color.b, color.a, uvs[2], uvs[1], -2, isSelected, 2, node.size]);
+                addData(data, this.ATTRIBUTES, [node.x - node.size * scale, node.y - node.size * scale, color.r, color.g, color.b, color.a, uvs[0], uvs[3], -2, isSelected, 2, node.size]);
+                addData(data, this.ATTRIBUTES, [node.x + node.size * scale, node.y - node.size * scale, color.r, color.g, color.b, color.a, uvs[2], uvs[3], -2, isSelected, 2, node.size]);
             }
 
             return data;
@@ -5264,6 +5579,7 @@ var Node = function () {
             var selectedLocation = gl.getAttribLocation(program, "a_selected");
             var uvLocation = gl.getAttribLocation(program, "a_uv");
             var flagLocation = gl.getAttribLocation(program, "a_flag");
+            var sizeLocation = gl.getAttribLocation(program, "a_size");
 
             var matrixLocation = gl.getUniformLocation(program, "u_matrix");
             var cameraScaleLocation = gl.getUniformLocation(program, "u_camera_scale");
@@ -5302,6 +5618,7 @@ var Node = function () {
                 int16View[i * offset16 + 11] = data[i * this.ATTRIBUTES + 9]; //selected
 
                 float32View[i * offset32 + 6] = data[i * this.ATTRIBUTES + 10]; //flag
+                float32View[i * offset32 + 7] = data[i * this.ATTRIBUTES + 11]; //size
             }
 
             // debugger
@@ -5315,6 +5632,7 @@ var Node = function () {
             gl.vertexAttribPointer(imgLocation, 1, gl.SHORT, false, this.strip, 5 * 4);
             gl.vertexAttribPointer(selectedLocation, 1, gl.SHORT, false, this.strip, 5 * 4 + 2);
             gl.vertexAttribPointer(flagLocation, 1, gl.FLOAT, false, this.strip, 6 * 4);
+            gl.vertexAttribPointer(sizeLocation, 1, gl.FLOAT, false, this.strip, 7 * 4);
 
             gl.bindBuffer(gl.ARRAY_BUFFER, null);
             gl.enableVertexAttribArray(positionLocation);
@@ -5323,11 +5641,12 @@ var Node = function () {
             gl.enableVertexAttribArray(selectedLocation);
             gl.enableVertexAttribArray(uvLocation);
             gl.enableVertexAttribArray(flagLocation);
+            gl.enableVertexAttribArray(sizeLocation);
 
             gl.uniformMatrix3fv(matrixLocation, false, new Float32Array(matrix));
             gl.uniform1f(cameraScaleLocation, camera.scale);
             gl.uniform1f(sampleRatioLocation, sampleRatio);
-            gl.uniform4f(borderColorLocation, 222, 19, 19, 255.0);
+            gl.uniform4f(borderColorLocation, 212, 82, 95, 255.0);
 
             gl.uniform1iv(texturesLocation, textureLoader.texturesIndex);
             gl.uniform1i(iconTextureLocation, 11);
@@ -5342,7 +5661,7 @@ var Node = function () {
 exports.default = Node;
 
 /***/ }),
-/* 29 */
+/* 30 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -5360,11 +5679,11 @@ var _util = __webpack_require__(0);
 
 var _util2 = _interopRequireDefault(_util);
 
-var _vert = __webpack_require__(38);
+var _vert = __webpack_require__(39);
 
 var _vert2 = _interopRequireDefault(_vert);
 
-var _frag = __webpack_require__(37);
+var _frag = __webpack_require__(38);
 
 var _frag2 = _interopRequireDefault(_frag);
 
@@ -5537,61 +5856,61 @@ var Rect = function () {
 exports.default = Rect;
 
 /***/ }),
-/* 30 */
+/* 31 */
 /***/ (function(module, exports) {
 
 module.exports = "#ifdef GL_OES_standard_derivatives\n#extension GL_OES_standard_derivatives : enable\n#endif\n\nprecision mediump float;\nvarying vec4 color;\nvarying vec2 uv;\nvarying float dis;\nvarying float flag;\nvarying float dashed;\n\nuniform float u_camera_scale;\n\n\n\nvoid main(){\n        float a = 0.6;\n        float width = a / u_camera_scale;\n        float scale = 1.0;\n        float base = 0.6;\n        float smooth_factor = 0.4;\n\n        if(flag > -0.5 && flag < 0.5){//curve\n                vec2 px = dFdx(uv);\n                vec2 py = dFdy(uv);\n\n                float fx = 2.0 * uv.x * px.x - px.y;\n                float fy = 2.0 * uv.y * py.x - py.y;\n\n                float sd = (uv.x * uv.x - uv.y) / sqrt(fx * fx + fy * fy);\n\n                float alpha = 1.0 - abs(sd) / width;\n                if (alpha < 0.0 || uv.x < 0.0 || uv.x > 1.0) discard;\n\n                float n = 800.0/dis;\n                float dot = mod(uv.x*100.0,n);\n                if(dashed > 0.5 && dot > n*0.5 && dot < n) discard;\n\n                if(alpha < 0.2) scale = smoothstep(0.0,smooth_factor,alpha);\n\n                gl_FragColor = color*scale;\n\n        }else if(flag > 0.5 && flag < 1.5){//arrow\n                gl_FragColor = color;\n        }\n\n\n}"
 
 /***/ }),
-/* 31 */
+/* 32 */
 /***/ (function(module, exports) {
 
 module.exports = "attribute vec2 a_position;\n//attribute vec2 a_normal;\nattribute vec4 a_color;\n//attribute float a_size;\nattribute vec2 a_uv;\nattribute float a_dis;\nattribute float a_flag;\nattribute float a_dashed;\n\nuniform mat3 u_matrix;\n\nvarying vec4 color;\nvarying vec2 uv;\nvarying float dis;\nvarying float flag;\nvarying float dashed;\n\nvoid main() {\n\n//vec2 pos  = a_position + a_normal * a_size;\ngl_Position = vec4((u_matrix*vec3(a_position,1)).xy,0,1);\nuv = a_uv;\ndis = a_dis;\nflag = a_flag;\ncolor = a_color/255.0;\ndashed = a_dashed;\n}\n"
 
 /***/ }),
-/* 32 */
+/* 33 */
 /***/ (function(module, exports) {
 
 module.exports = "precision mediump float;\nvarying vec4 color;\nvoid main(){\ngl_FragColor = color;\n}"
 
 /***/ }),
-/* 33 */
+/* 34 */
 /***/ (function(module, exports) {
 
 module.exports = "attribute vec2 a_position;\nattribute vec2 a_normal;\nattribute vec4 a_color;\nattribute float a_size;\n\nuniform mat3 u_matrix;\n\nvarying vec4 color;\n\nvoid main() {\n\nvec2 pos  = a_position + a_normal * a_size;\ngl_Position = vec4((u_matrix*vec3(pos,1)).xy,0,1);\n\ncolor = a_color/255.0;\n}\n"
 
 /***/ }),
-/* 34 */
+/* 35 */
 /***/ (function(module, exports) {
 
 module.exports = "attribute vec2 a_position;\nattribute vec2 a_uv;\n\nuniform mat3 u_matrix;\nuniform sampler2D u_image;\n\n\nvarying vec2 v_texCoord;\n\nvoid main() {\ngl_Position = vec4((u_matrix*vec3(a_position,1)).xy,0,1);\nv_texCoord = a_uv;\n}\n"
 
 /***/ }),
-/* 35 */
-/***/ (function(module, exports) {
-
-module.exports = "//#ifdef GL_OES_standard_derivatives\n//#extension GL_OES_standard_derivatives : enable\n//#endif\n\n precision mediump float;\n\nvarying vec4 color;\nvarying float img;\nvarying float selected;\nvarying vec2 uv;\nvarying float flag;\n\n\nuniform sampler2D u_textures[10];\nuniform sampler2D u_icons_texture;\nuniform vec4 u_borderColor;\nuniform float u_sample_ratio;\n\n\n\n\n\n\n//todo\nvec4 getSampleColore(int index,vec2 uv){\n    vec4 c;\n    if(index == 0){\n        c = texture2D(u_textures[0],uv);\n    }else if(index == 1){\n        c = texture2D(u_textures[1],uv);\n    }else if(index == 2){\n        c = texture2D(u_textures[2],uv);\n    }else if(index == 3){\n        c = texture2D(u_textures[3],uv);\n    }else if(index == 4){\n        c = texture2D(u_textures[4],uv);\n    }else if(index == 5){\n        c = texture2D(u_textures[5],uv);\n    }\n    return c;\n}\n\nvec4 borderColor = u_borderColor/255.0;\n\nvoid main()\n{\n   float r = 0.0, alpha = 1.0,\n   blur = 0.05 ,\n   border = 0.75 ;\n\nif(flag > 0.5 && flag < 1.5) //flag =1\n{\n    vec4 nodecolor = color;\n    vec2 cxy = 2.0 * uv - 1.0;\n    r = length(cxy);\n\n    if(r > 1.0 ){\n        discard;\n    }\n\n    if(img >= 0.0){\n        nodecolor = getSampleColore(int(img),uv);\n    }\n\n     if( selected > 0.5  && r > border && r < border + blur){\n        nodecolor = mix(nodecolor,borderColor,smoothstep(border, border + blur, r));\n    }\n\n     if( selected > 0.5  &&  r >= border + blur){\n        nodecolor = borderColor;\n     }\n\n      gl_FragColor = nodecolor * alpha;\n\n}else if(flag > 1.5 && flag < 2.5) {//flag =2\n    gl_FragColor = texture2D(u_icons_texture,uv).w * vec4(1,1,1,1);\n}\n\n\n}\n"
-
-/***/ }),
 /* 36 */
 /***/ (function(module, exports) {
 
-module.exports = "\n precision mediump float;\nattribute vec2 a_position;\nattribute vec4 a_color;\nattribute float a_img;\nattribute vec2 a_uv;\nattribute float a_selected;\nattribute float a_flag;\n\nuniform mat3 u_matrix;\nuniform float u_camera_scale;\nuniform float u_sample_ratio;\n\nvarying vec4 color;\nvarying float img;\nvarying float selected;\nvarying vec2 uv;\nvarying float flag;\n\n\nvoid main() {\n\ngl_Position = vec4((u_matrix*vec3(a_position,1)).xy,0,1);\ncolor = a_color/255.0;\nimg = a_img;\nselected = a_selected;\nuv = a_uv;\nflag = a_flag;\n}\n"
+module.exports = "//#ifdef GL_OES_standard_derivatives\n//#extension GL_OES_standard_derivatives : enable\n//#endif\n\n precision mediump float;\n\nvarying vec4 color;\nvarying float img;\nvarying float selected;\nvarying vec2 uv;\nvarying float flag;\nvarying float size;\n\n\nuniform sampler2D u_textures[10];\nuniform sampler2D u_icons_texture;\nuniform vec4 u_borderColor;\nuniform float u_sample_ratio;\n\n\n\n\n\n\n\n//todo\nvec4 getSampleColore(int index,vec2 uv){\n    vec4 c;\n    if(index == 0){\n        c = texture2D(u_textures[0],uv);\n    }else if(index == 1){\n        c = texture2D(u_textures[1],uv);\n    }else if(index == 2){\n        c = texture2D(u_textures[2],uv);\n    }else if(index == 3){\n        c = texture2D(u_textures[3],uv);\n    }else if(index == 4){\n        c = texture2D(u_textures[4],uv);\n    }else if(index == 5){\n        c = texture2D(u_textures[5],uv);\n    }\n    return c;\n}\n\nvec4 borderColor = u_borderColor/255.0;\n\nvoid main()\n{\n   float r = 0.0, alpha = 1.0,\n   blur = min(0.05,4.0/size) ,\n   border = min(0.75,0.04*size) ;\n\nif(flag > 0.5 && flag < 1.5) //flag =1 base\n{\n    vec4 nodecolor = color;\n    vec2 cxy = 2.0 * uv - 1.0;\n    r = length(cxy);\n\n    if(r > 1.0 ){\n        discard;\n    }\n\n    if(img >= 0.0){\n        nodecolor = getSampleColore(int(img),uv);\n    }\n\n    if(r > 1.0-blur && r <=1.0){\n        alpha = 1.0 - smoothstep(1.0-blur, 1.0, r);\n     }\n\n\n     if( selected > 0.5  && r > border && r < border + blur){\n        nodecolor = mix(nodecolor,borderColor,smoothstep(border, border + blur, r));\n    }\n\n     if( selected > 0.5  &&  r >= border + blur){\n        nodecolor = borderColor;\n     }\n\n      gl_FragColor = nodecolor * alpha;\n\n}else if(flag > 1.5 && flag < 2.5) {//flag =2 icon\n    gl_FragColor = texture2D(u_icons_texture,uv).w * vec4(1,1,1,1);\n}\n\n\n}\n"
 
 /***/ }),
 /* 37 */
 /***/ (function(module, exports) {
 
-module.exports = "//#ifdef GL_OES_standard_derivatives\n//#extension GL_OES_standard_derivatives : enable\n//#endif\n\n precision mediump float;\n\nvarying vec4 color;\nvarying float img;\nvarying float selected;\nvarying vec2 uv;\nvarying float flag;\n\n\nuniform sampler2D u_textures[10];\nuniform sampler2D u_icons_texture;\nuniform vec4 u_borderColor;\nuniform float u_sample_ratio;\n\n//todo\nvec4 getSampleColore(int index,vec2 uv){\n    vec4 c;\n    if(index == 0){\n        c = texture2D(u_textures[0],uv);\n    }else if(index == 1){\n        c = texture2D(u_textures[1],uv);\n    }else if(index == 2){\n        c = texture2D(u_textures[2],uv);\n    }else if(index == 3){\n        c = texture2D(u_textures[3],uv);\n    }else if(index == 4){\n        c = texture2D(u_textures[4],uv);\n    }else if(index == 5){\n        c = texture2D(u_textures[5],uv);\n    }\n    return c;\n}\n\nvec4 borderColor = u_borderColor/255.0;\n\nvoid main()\n{\n   float r = 0.0, alpha = 1.0,\n   blur = 0.05 ,\n   border = 0.75 ;\n\n\nif(flag > 0.5 && flag < 1.5) //flag =1\n{\n    vec4 nodecolor = color;\n    vec2 cxy = 2.0 * uv - 1.0;\n    r = length(cxy);\n\n    if(img >= 0.0){\n        nodecolor = getSampleColore(int(img),uv);\n    }\n\n     if( selected > 0.5  && r > border && r < border + blur){\n        nodecolor = mix(nodecolor,borderColor,smoothstep(border, border + blur, r));\n    }\n\n     if( selected > 0.5  &&  r >= border + blur){\n        nodecolor = borderColor;\n     }\n\n      gl_FragColor = nodecolor * alpha;\n\n}else if(flag > 1.5 && flag < 2.5) {//flag =2\n    gl_FragColor = texture2D(u_icons_texture,uv).w * vec4(1,1,1,1);\n}\n\n\n}\n"
+module.exports = "\n precision mediump float;\nattribute vec2 a_position;\nattribute vec4 a_color;\nattribute float a_img;\nattribute vec2 a_uv;\nattribute float a_selected;\nattribute float a_flag;\nattribute float a_size;\n\nuniform mat3 u_matrix;\nuniform float u_camera_scale;\nuniform float u_sample_ratio;\n\nvarying vec4 color;\nvarying float img;\nvarying float selected;\nvarying vec2 uv;\nvarying float flag;\nvarying float size;\n\n\nvoid main() {\n\ngl_Position = vec4((u_matrix*vec3(a_position,1)).xy,0,1);\ncolor = a_color/255.0;\nimg = a_img;\nselected = a_selected;\nuv = a_uv;\nflag = a_flag;\n\nsize = a_size / u_camera_scale ;\n}\n"
 
 /***/ }),
 /* 38 */
 /***/ (function(module, exports) {
 
-module.exports = "\n precision mediump float;\nattribute vec2 a_position;\nattribute vec4 a_color;\nattribute float a_img;\nattribute vec2 a_uv;\nattribute float a_selected;\nattribute float a_flag;\n\nuniform mat3 u_matrix;\nuniform float u_camera_scale;\nuniform float u_sample_ratio;\n\nvarying vec4 color;\nvarying float img;\nvarying float selected;\nvarying vec2 uv;\nvarying float flag;\n\n\nvoid main() {\n\ngl_Position = vec4((u_matrix*vec3(a_position,1)).xy,0,1);\ncolor = a_color/255.0;\nimg = a_img;\nselected = a_selected;\nuv = a_uv;\nflag = a_flag;\n}\n"
+module.exports = "//#ifdef GL_OES_standard_derivatives\n//#extension GL_OES_standard_derivatives : enable\n//#endif\n\n precision mediump float;\n\nvarying vec4 color;\nvarying float img;\nvarying float selected;\nvarying vec2 uv;\nvarying float flag;\n\n\nuniform sampler2D u_textures[10];\nuniform sampler2D u_icons_texture;\nuniform vec4 u_borderColor;\nuniform float u_sample_ratio;\n\n//todo\nvec4 getSampleColore(int index,vec2 uv){\n    vec4 c;\n    if(index == 0){\n        c = texture2D(u_textures[0],uv);\n    }else if(index == 1){\n        c = texture2D(u_textures[1],uv);\n    }else if(index == 2){\n        c = texture2D(u_textures[2],uv);\n    }else if(index == 3){\n        c = texture2D(u_textures[3],uv);\n    }else if(index == 4){\n        c = texture2D(u_textures[4],uv);\n    }else if(index == 5){\n        c = texture2D(u_textures[5],uv);\n    }\n    return c;\n}\n\nvec4 borderColor = u_borderColor/255.0;\n\nvoid main()\n{\n   float r = 0.0, alpha = 1.0,\n   blur = 0.05 ,\n   border = 0.75 ;\n\n\nif(flag > 0.5 && flag < 1.5) //flag =1\n{\n    vec4 nodecolor = color;\n    vec2 cxy = 2.0 * uv - 1.0;\n    r = length(cxy);\n\n    if(img >= 0.0){\n        nodecolor = getSampleColore(int(img),uv);\n    }\n\n     if( selected > 0.5  && r > border && r < border + blur){\n        nodecolor = mix(nodecolor,borderColor,smoothstep(border, border + blur, r));\n    }\n\n     if( selected > 0.5  &&  r >= border + blur){\n        nodecolor = borderColor;\n     }\n\n      gl_FragColor = nodecolor * alpha;\n\n}else if(flag > 1.5 && flag < 2.5) {//flag =2\n    gl_FragColor = texture2D(u_icons_texture,uv).w * vec4(1,1,1,1);\n}\n\n\n}\n"
 
 /***/ }),
 /* 39 */
+/***/ (function(module, exports) {
+
+module.exports = "\n precision mediump float;\nattribute vec2 a_position;\nattribute vec4 a_color;\nattribute float a_img;\nattribute vec2 a_uv;\nattribute float a_selected;\nattribute float a_flag;\n\nuniform mat3 u_matrix;\nuniform float u_camera_scale;\nuniform float u_sample_ratio;\n\nvarying vec4 color;\nvarying float img;\nvarying float selected;\nvarying vec2 uv;\nvarying float flag;\n\n\nvoid main() {\n\ngl_Position = vec4((u_matrix*vec3(a_position,1)).xy,0,1);\ncolor = a_color/255.0;\nimg = a_img;\nselected = a_selected;\nuv = a_uv;\nflag = a_flag;\n}\n"
+
+/***/ }),
+/* 40 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -5601,16 +5920,7 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 
-var _Graph = __webpack_require__(5);
-
-Object.defineProperty(exports, 'Graph', {
-  enumerable: true,
-  get: function get() {
-    return _interopRequireDefault(_Graph).default;
-  }
-});
-
-var _index = __webpack_require__(10);
+var _index = __webpack_require__(8);
 
 Object.defineProperty(exports, 'WebGLRender', {
   enumerable: true,
@@ -5619,30 +5929,30 @@ Object.defineProperty(exports, 'WebGLRender', {
   }
 });
 
-var _Quad = __webpack_require__(8);
-
-Object.defineProperty(exports, 'Quad', {
-  enumerable: true,
-  get: function get() {
-    return _interopRequireDefault(_Quad).default;
-  }
-});
-
-var _Event = __webpack_require__(4);
-
-Object.defineProperty(exports, 'Event', {
-  enumerable: true,
-  get: function get() {
-    return _interopRequireDefault(_Event).default;
-  }
-});
-
-var _index2 = __webpack_require__(9);
+var _index2 = __webpack_require__(7);
 
 Object.defineProperty(exports, 'GraphView', {
   enumerable: true,
   get: function get() {
     return _interopRequireDefault(_index2).default;
+  }
+});
+
+var _util = __webpack_require__(0);
+
+Object.defineProperty(exports, 'util', {
+  enumerable: true,
+  get: function get() {
+    return _interopRequireDefault(_util).default;
+  }
+});
+
+var _tween = __webpack_require__(4);
+
+Object.defineProperty(exports, 'Tween', {
+  enumerable: true,
+  get: function get() {
+    return _interopRequireDefault(_tween).default;
   }
 });
 
