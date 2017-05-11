@@ -13,7 +13,7 @@ export default class TextureText extends EventEmitter{
 
         this.border = 2;
 
-        this.fontSize = 24;
+        this.fontSize = 48;
         this.fontFamily = 'Arial';
 
         this.canvas = null;
@@ -64,19 +64,19 @@ export default class TextureText extends EventEmitter{
 
             if(this.textinfo && this.textinfo.infos[texts[i]]) continue;
 
-            // data = this.sdf.draw(texts[i]);
-            // charWidth = data.charWidth
+            data = this.sdf.draw(texts[i]);
+            charWidth = data.charWidth;
 
-            charWidth = ctx.measureText(texts[i]).width;
+            // charWidth = ctx.measureText(texts[i]).width;
 
             if(startx + charWidth > c.width){
                 startx = this.border;
                 starty += height
             }
 
-            // ctx.putImageData(data.data, startx, starty,0,0,data.charWidth,data.data.height);
+            ctx.putImageData(data.data, startx, starty,0,0,charWidth,data.data.height);
 
-            ctx.fillText(texts[i], startx, starty);
+            // ctx.fillText(texts[i], startx, starty);
 
 
             infos[texts[i]] = {
@@ -99,7 +99,7 @@ export default class TextureText extends EventEmitter{
             height:c.height,
             infos:infos
         };
-
+        //
         // document.body.appendChild(c);
         // c.style.position = 'absolute';
         // c.style.top = '100px';
