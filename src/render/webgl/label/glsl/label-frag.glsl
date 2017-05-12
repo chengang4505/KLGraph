@@ -15,7 +15,7 @@ void main() {
 
     float offset = size * u_camera_scale * 0.12;
 
-    offset = pow(offset,1.5);
+    offset = pow(offset,1.2);
 
     offset = min((1.0-0.72),offset);
 

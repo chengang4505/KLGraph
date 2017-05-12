@@ -697,7 +697,7 @@ exports.default = mat3;
 /* 4 */
 /***/ (function(module, exports) {
 
-module.exports = " precision mediump float;\n\nvec4 color = vec4(77, 72, 91,255);\n\nvarying vec2 v_texCoord;\nvarying float size;\n\n\nuniform sampler2D u_image;\nuniform float u_camera_scale;\n\n\nvoid main() {\n    color = color / 255.0;\n\n    float offset = size * u_camera_scale * 0.12;\n\n    offset = pow(offset,1.5);\n\n    offset = min((1.0-0.72),offset);\n\n   float dist = texture2D(u_image, v_texCoord).r;\n   float alpha = smoothstep(0.72 - offset, 0.72 + offset, dist);\n   gl_FragColor = color *alpha;\n}"
+module.exports = " precision mediump float;\n\nvec4 color = vec4(77, 72, 91,255);\n\nvarying vec2 v_texCoord;\nvarying float size;\n\n\nuniform sampler2D u_image;\nuniform float u_camera_scale;\n\n\nvoid main() {\n    color = color / 255.0;\n\n    float offset = size * u_camera_scale * 0.12;\n\n    offset = pow(offset,1.2);\n\n    offset = min((1.0-0.72),offset);\n\n   float dist = texture2D(u_image, v_texCoord).r;\n   float alpha = smoothstep(0.72 - offset, 0.72 + offset, dist);\n   gl_FragColor = color *alpha;\n}"
 
 /***/ }),
 /* 5 */
