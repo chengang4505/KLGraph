@@ -2729,7 +2729,7 @@ exports.default = {
     renderNode: true,
     renderNodeLabel: true,
     renderEdge: true,
-    renderEdgeLabel: false,
+    renderEdgeLabel: true,
 
     textureIconWidth: 1024,
     textureIconHeight: 1024
@@ -4987,9 +4987,9 @@ var _Matrix = __webpack_require__(3);
 
 var _Matrix2 = _interopRequireDefault(_Matrix);
 
-var _nodeLabelVert = __webpack_require__(6);
+var _edgeLabelVert = __webpack_require__(6);
 
-var _nodeLabelVert2 = _interopRequireDefault(_nodeLabelVert);
+var _edgeLabelVert2 = _interopRequireDefault(_edgeLabelVert);
 
 var _labelFrag = __webpack_require__(4);
 
@@ -5016,7 +5016,7 @@ var NodeLabel = function () {
         // this.POINTS = 1;
         this.ATTRIBUTES = 5;
 
-        this.shaderVert = _nodeLabelVert2.default;
+        this.shaderVert = _edgeLabelVert2.default;
         this.shaderFrag = _labelFrag2.default;
 
         this.arrayBuffer = null;
@@ -5144,6 +5144,7 @@ var NodeLabel = function () {
             gl.bindBuffer(gl.ARRAY_BUFFER, null);
             gl.enableVertexAttribArray(positionLocation);
             gl.enableVertexAttribArray(uvLocation);
+            gl.enableVertexAttribArray(sizeLocation);
 
             gl.uniformMatrix3fv(matrixLocation, false, new Float32Array(matrix));
             gl.uniform1i(imageLocation, 10);
@@ -5174,7 +5175,7 @@ var _createClass = function () { function defineProperties(target, props) { for 
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       */
 
 
-var _nodeLabelVert = __webpack_require__(6);
+var _nodeLabelVert = __webpack_require__(35);
 
 var _nodeLabelVert2 = _interopRequireDefault(_nodeLabelVert);
 
@@ -5321,6 +5322,7 @@ var NodeLabel = function () {
             gl.bindBuffer(gl.ARRAY_BUFFER, null);
             gl.enableVertexAttribArray(positionLocation);
             gl.enableVertexAttribArray(uvLocation);
+            gl.enableVertexAttribArray(sizeLocation);
 
             gl.uniformMatrix3fv(matrixLocation, false, new Float32Array(matrix));
             gl.uniform1i(imageLocation, 10);
@@ -5358,7 +5360,7 @@ var _Matrix = __webpack_require__(3);
 
 var _Matrix2 = _interopRequireDefault(_Matrix);
 
-var _edgeLabelVert = __webpack_require__(35);
+var _edgeLabelVert = __webpack_require__(6);
 
 var _edgeLabelVert2 = _interopRequireDefault(_edgeLabelVert);
 

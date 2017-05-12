@@ -5,7 +5,7 @@
 import util from '../../../util'
 import mat3 from '../../../base/Matrix'
 
-import vert from './glsl/node-label-vert.glsl'
+import vert from './glsl/edge-label-vert.glsl'
 import frag from './glsl/label-frag.glsl'
 
 
@@ -114,6 +114,7 @@ export default class NodeLabel{
             this.arrayBuffer = new ArrayBuffer(len * this.strip);
         }
 
+
         var float32View = new Float32Array(this.arrayBuffer);
         // var Uint8View = new Uint8Array(this.arrayBuffer);
 
@@ -137,6 +138,7 @@ export default class NodeLabel{
         gl.bindBuffer(gl.ARRAY_BUFFER, null);
         gl.enableVertexAttribArray(positionLocation);
         gl.enableVertexAttribArray(uvLocation);
+        gl.enableVertexAttribArray(sizeLocation);
 
         gl.uniformMatrix3fv(matrixLocation, false,new Float32Array(matrix));
         gl.uniform1i(imageLocation, 10);

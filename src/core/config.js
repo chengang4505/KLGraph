@@ -12,7 +12,7 @@ export default {
     renderNode:true,
     renderNodeLabel:true,
     renderEdge:true,
-    renderEdgeLabel:false,
+    renderEdgeLabel:true,
 
     textureIconWidth:1024,
     textureIconHeight:1024,

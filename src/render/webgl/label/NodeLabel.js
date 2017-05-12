@@ -121,6 +121,7 @@ export default class NodeLabel{
         gl.bindBuffer(gl.ARRAY_BUFFER, null);
         gl.enableVertexAttribArray(positionLocation);
         gl.enableVertexAttribArray(uvLocation);
+        gl.enableVertexAttribArray(sizeLocation);
 
         gl.uniformMatrix3fv(matrixLocation, false,new Float32Array(matrix));
         gl.uniform1i(imageLocation, 10);
