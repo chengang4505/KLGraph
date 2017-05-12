@@ -397,130 +397,6 @@ exports.default = EventEmitter;
 
 "use strict";
 /**
- * Created by chengang on 17-3-28.
- */
-
-
-
-Object.defineProperty(exports, "__esModule", {
-    value: true
-});
-var mat3 = {};
-
-mat3.normalize = function () {
-    return [1, 0, 0, 0, 1, 0, 0, 0, 1];
-};
-
-mat3.matrixFromTranslate = function (dx, dy) {
-    return [1, 0, 0, 0, 1, 0, dx, dy, 1];
-};
-
-mat3.matrixFromRotation = function (angle) {
-    var cos = Math.cos(angle),
-        sin = Math.sin(angle);
-
-    return [cos, sin, 0, -sin, cos, 0, 0, 0, 1];
-};
-
-mat3.matrixFromScale = function (x, y) {
-    return [x, 0, 0, 0, y, 0, 0, 0, 1];
-};
-
-mat3.invert = function (a) {
-    var l = 3,
-        a11 = a[0 * l + 0],
-        a12 = a[0 * l + 1],
-        a13 = a[0 * l + 2],
-        a21 = a[1 * l + 0],
-        a22 = a[1 * l + 1],
-        a23 = a[1 * l + 2],
-        a31 = a[2 * l + 0],
-        a32 = a[2 * l + 1],
-        a33 = a[2 * l + 2];
-
-    var del = a11 * (a22 * a33 - a23 * a32) - a12 * (a21 * a33 - a23 * a31) + a13 * (a21 * a32 - a22 * a31);
-
-    return [(a22 * a33 - a23 * a32) / del, (a13 * a32 - a12 * a33) / del, (a12 * a23 - a13 * a22) / del, (a23 * a31 - a21 * a33) / del, (a11 * a33 - a13 * a31) / del, (a13 * a21 - a11 * a23) / del, (a21 * a32 - a22 * a31) / del, (a12 * a31 - a11 * a32) / del, (a11 * a22 - a12 * a21) / del];
-};
-
-mat3.multiply = function (a, b) {
-    var l = 3,
-        a00 = a[0 * l + 0],
-        a01 = a[0 * l + 1],
-        a02 = a[0 * l + 2],
-        a10 = a[1 * l + 0],
-        a11 = a[1 * l + 1],
-        a12 = a[1 * l + 2],
-        a20 = a[2 * l + 0],
-        a21 = a[2 * l + 1],
-        a22 = a[2 * l + 2],
-        b00 = b[0 * l + 0],
-        b01 = b[0 * l + 1],
-        b02 = b[0 * l + 2],
-        b10 = b[1 * l + 0],
-        b11 = b[1 * l + 1],
-        b12 = b[1 * l + 2],
-        b20 = b[2 * l + 0],
-        b21 = b[2 * l + 1],
-        b22 = b[2 * l + 2];
-
-    return [a00 * b00 + a01 * b10 + a02 * b20, a00 * b01 + a01 * b11 + a02 * b21, a00 * b02 + a01 * b12 + a02 * b22, a10 * b00 + a11 * b10 + a12 * b20, a10 * b01 + a11 * b11 + a12 * b21, a10 * b02 + a11 * b12 + a12 * b22, a20 * b00 + a21 * b10 + a22 * b20, a20 * b01 + a21 * b11 + a22 * b21, a20 * b02 + a21 * b12 + a22 * b22];
-};
-
-mat3.transformPoint = function (p, a) {
-    var x = p[0],
-        y = p[1];
-    var l = 3,
-        a00 = a[0 * l + 0],
-        a01 = a[0 * l + 1],
-        a02 = a[0 * l + 2],
-        a10 = a[1 * l + 0],
-        a11 = a[1 * l + 1],
-        a12 = a[1 * l + 2],
-        a20 = a[2 * l + 0],
-        a21 = a[2 * l + 1],
-        a22 = a[2 * l + 2];
-
-    return [x * a00 + y * a10 + a20, x * a01 + y * a11 + a21];
-};
-
-mat3.rotateVector = function (v, a) {
-    var x = v[0],
-        y = v[1];
-    var l = 3,
-        a00 = a[0 * l + 0],
-        a01 = a[0 * l + 1],
-        a02 = a[0 * l + 2],
-        a10 = a[1 * l + 0],
-        a11 = a[1 * l + 1],
-        a12 = a[1 * l + 2],
-        a20 = a[2 * l + 0],
-        a21 = a[2 * l + 1],
-        a22 = a[2 * l + 2];
-
-    return [x * a00 + y * a10, x * a01 + y * a11];
-};
-
-mat3.multiMatrix = function (matrixs) {
-    return matrixs.reduce(function (pre, cur) {
-        return mat3.multiply(pre, cur);
-    });
-};
-
-exports.default = mat3;
-
-/***/ }),
-/* 3 */
-/***/ (function(module, exports) {
-
-module.exports = " precision mediump float;\n\nvec4 color = vec4(77, 72, 91,255);\n\nvarying vec2 v_texCoord;\nuniform sampler2D u_image;\n\n\nvoid main() {\n    color = color / 255.0;\n   float dist = texture2D(u_image, v_texCoord).r;\n//   float alpha = smoothstep(0.55, 0.85, dist);\n   gl_FragColor = color *dist;\n}"
-
-/***/ }),
-/* 4 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-/**
  * Created by chengang on 17-2-16.
  */
 
@@ -700,10 +576,135 @@ Tween.list = [];
 exports.default = Tween;
 
 /***/ }),
+/* 3 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+/**
+ * Created by chengang on 17-3-28.
+ */
+
+
+
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+var mat3 = {};
+
+mat3.normalize = function () {
+    return [1, 0, 0, 0, 1, 0, 0, 0, 1];
+};
+
+mat3.matrixFromTranslate = function (dx, dy) {
+    return [1, 0, 0, 0, 1, 0, dx, dy, 1];
+};
+
+mat3.matrixFromRotation = function (angle) {
+    var cos = Math.cos(angle),
+        sin = Math.sin(angle);
+
+    return [cos, sin, 0, -sin, cos, 0, 0, 0, 1];
+};
+
+mat3.matrixFromScale = function (x, y) {
+    return [x, 0, 0, 0, y, 0, 0, 0, 1];
+};
+
+mat3.invert = function (a) {
+    var l = 3,
+        a11 = a[0 * l + 0],
+        a12 = a[0 * l + 1],
+        a13 = a[0 * l + 2],
+        a21 = a[1 * l + 0],
+        a22 = a[1 * l + 1],
+        a23 = a[1 * l + 2],
+        a31 = a[2 * l + 0],
+        a32 = a[2 * l + 1],
+        a33 = a[2 * l + 2];
+
+    var del = a11 * (a22 * a33 - a23 * a32) - a12 * (a21 * a33 - a23 * a31) + a13 * (a21 * a32 - a22 * a31);
+
+    return [(a22 * a33 - a23 * a32) / del, (a13 * a32 - a12 * a33) / del, (a12 * a23 - a13 * a22) / del, (a23 * a31 - a21 * a33) / del, (a11 * a33 - a13 * a31) / del, (a13 * a21 - a11 * a23) / del, (a21 * a32 - a22 * a31) / del, (a12 * a31 - a11 * a32) / del, (a11 * a22 - a12 * a21) / del];
+};
+
+mat3.multiply = function (a, b) {
+    var l = 3,
+        a00 = a[0 * l + 0],
+        a01 = a[0 * l + 1],
+        a02 = a[0 * l + 2],
+        a10 = a[1 * l + 0],
+        a11 = a[1 * l + 1],
+        a12 = a[1 * l + 2],
+        a20 = a[2 * l + 0],
+        a21 = a[2 * l + 1],
+        a22 = a[2 * l + 2],
+        b00 = b[0 * l + 0],
+        b01 = b[0 * l + 1],
+        b02 = b[0 * l + 2],
+        b10 = b[1 * l + 0],
+        b11 = b[1 * l + 1],
+        b12 = b[1 * l + 2],
+        b20 = b[2 * l + 0],
+        b21 = b[2 * l + 1],
+        b22 = b[2 * l + 2];
+
+    return [a00 * b00 + a01 * b10 + a02 * b20, a00 * b01 + a01 * b11 + a02 * b21, a00 * b02 + a01 * b12 + a02 * b22, a10 * b00 + a11 * b10 + a12 * b20, a10 * b01 + a11 * b11 + a12 * b21, a10 * b02 + a11 * b12 + a12 * b22, a20 * b00 + a21 * b10 + a22 * b20, a20 * b01 + a21 * b11 + a22 * b21, a20 * b02 + a21 * b12 + a22 * b22];
+};
+
+mat3.transformPoint = function (p, a) {
+    var x = p[0],
+        y = p[1];
+    var l = 3,
+        a00 = a[0 * l + 0],
+        a01 = a[0 * l + 1],
+        a02 = a[0 * l + 2],
+        a10 = a[1 * l + 0],
+        a11 = a[1 * l + 1],
+        a12 = a[1 * l + 2],
+        a20 = a[2 * l + 0],
+        a21 = a[2 * l + 1],
+        a22 = a[2 * l + 2];
+
+    return [x * a00 + y * a10 + a20, x * a01 + y * a11 + a21];
+};
+
+mat3.rotateVector = function (v, a) {
+    var x = v[0],
+        y = v[1];
+    var l = 3,
+        a00 = a[0 * l + 0],
+        a01 = a[0 * l + 1],
+        a02 = a[0 * l + 2],
+        a10 = a[1 * l + 0],
+        a11 = a[1 * l + 1],
+        a12 = a[1 * l + 2],
+        a20 = a[2 * l + 0],
+        a21 = a[2 * l + 1],
+        a22 = a[2 * l + 2];
+
+    return [x * a00 + y * a10, x * a01 + y * a11];
+};
+
+mat3.multiMatrix = function (matrixs) {
+    return matrixs.reduce(function (pre, cur) {
+        return mat3.multiply(pre, cur);
+    });
+};
+
+exports.default = mat3;
+
+/***/ }),
+/* 4 */
+/***/ (function(module, exports) {
+
+module.exports = " precision mediump float;\n\nvec4 color = vec4(77, 72, 91,255);\n\nvarying vec2 v_texCoord;\nuniform sampler2D u_image;\n\n\nvoid main() {\n    color = color / 255.0;\n   float dist = texture2D(u_image, v_texCoord).r;\n//   float alpha = smoothstep(0.55, 0.85, dist);\n   gl_FragColor = color *dist;\n}"
+
+/***/ }),
 /* 5 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
+
 
 
 Object.defineProperty(exports, "__esModule", {
@@ -716,7 +717,7 @@ var _util = __webpack_require__(0);
 
 var _util2 = _interopRequireDefault(_util);
 
-var _Matrix = __webpack_require__(2);
+var _Matrix = __webpack_require__(3);
 
 var _Matrix2 = _interopRequireDefault(_Matrix);
 
@@ -740,15 +741,17 @@ var _Event = __webpack_require__(10);
 
 var _Event2 = _interopRequireDefault(_Event);
 
+var _tween = __webpack_require__(2);
+
+var _tween2 = _interopRequireDefault(_tween);
+
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
 function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
 
-function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; } /**
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                * Created by chengang on 17-3-28.
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                */
+function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
 
 var WebGLRender = function (_EventEmitter) {
     _inherits(WebGLRender, _EventEmitter);
@@ -1236,9 +1239,10 @@ var WebGLRender = function (_EventEmitter) {
         }
     }, {
         key: 'zoomTo',
-        value: function zoomTo(ratio, x, y) {
+        value: function zoomTo(ratio, x, y, animation) {
 
             var scale = this.camera.scale;
+            var positionX, positionY;
 
             var newscale = ratio * scale;
             if (newscale < this.config.zoomMin) newscale = this.config.zoomMin;
@@ -1246,11 +1250,32 @@ var WebGLRender = function (_EventEmitter) {
 
             if (x != null && y != null) {
                 var offset = _Matrix2.default.rotateVector([x * (newscale - scale) / scale, y * (newscale - scale) / scale], this.getCameraMatrix());
-                this.camera.positionX -= offset[0];
-                this.camera.positionY -= offset[1];
+                positionX = this.camera.positionX - offset[0];
+                positionY = this.camera.positionY - offset[1];
             }
 
-            this.camera.scale = newscale;
+            if (animation) {
+                this.zoomToAnimation({
+                    positionX: positionX,
+                    positionY: positionY,
+                    scale: newscale
+                });
+            } else {
+                this.camera.positionX = positionX;
+                this.camera.positionY = positionY;
+                this.camera.scale = newscale;
+            }
+        }
+    }, {
+        key: 'zoomToAnimation',
+        value: function zoomToAnimation(option, time) {
+            _tween2.default.removeByType('camera');
+            time = time || 100;
+
+            var _this = this;
+            new _tween2.default(this.camera, 'camera').to(option).duration(time).on('change', function () {
+                _this.forceRender();
+            });
         }
 
         //cache update
@@ -1395,7 +1420,7 @@ var _util = __webpack_require__(0);
 
 var _util2 = _interopRequireDefault(_util);
 
-var _tween = __webpack_require__(4);
+var _tween = __webpack_require__(2);
 
 var _tween2 = _interopRequireDefault(_tween);
 
@@ -1986,12 +2011,15 @@ function initEvent() {
                     _this.camera.positionX -= offsetx;
                     _this.camera.positionY -= offsety;
                 } else {
+
                     if (_this.context.selection.isSelected(node)) {
                         _this.context.selection.data.forEach(function (node) {
                             _this.graph.setNodeData(node.id, { x: node.x + offsetx, y: node.y + offsety });
                         });
                     } else _this.graph.setNodeData(node.id, { x: node.x + offsetx, y: node.y + offsety });
                     // _this.emit('drag',['node',offsetx,offsety]);
+
+                    // fit(e);
                 }
 
                 if (isCamera) {
@@ -2061,6 +2089,46 @@ function initEvent() {
     }
 
     //drag
+
+
+    function fit(e) {
+        var x = e.offsetX,
+            y = e.offsetY;
+
+        var camearaX = _this.camera.positionX;
+        var camearaY = _this.camera.positionY;
+        var scale = _this.camera.scale;
+
+        var offset = 20 / scale;
+        var update = false;
+
+        if (x < 100) {
+            update = true;
+            camearaX -= offset;
+        }
+        if (x > _this.container.clientWidth - 100) {
+            update = true;
+            camearaX += offset;
+        }
+
+        if (y < 100) {
+            update = true;
+            camearaY += offset;
+        }
+
+        if (y > _this.container.clientHeight - 100) {
+            update = true;
+            camearaY -= offset;
+        }
+
+        // if(update) _this.zoomToAnimation({
+        //     positionX:camearaX,
+        //     positionY:camearaY,
+        //     scale:scale
+        // });
+
+        if (update) _this.zoomTo(1.01, e.cameraX, e.cameraY, true);
+    }
 }
 
 /***/ }),
@@ -2068,9 +2136,6 @@ function initEvent() {
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
-/**
- * Created by chengang on 17-3-17.
- */
 
 
 
@@ -4805,7 +4870,7 @@ var Edge = function () {
             var dy = target.y - source.y;
 
             data = [];
-            var size = 0.6,
+            var size = 0.8,
                 arrowSize = 6;
             var crossVector = _util2.default.normalize([-dy, dx]);
 
@@ -4917,7 +4982,7 @@ var _util = __webpack_require__(0);
 
 var _util2 = _interopRequireDefault(_util);
 
-var _Matrix = __webpack_require__(2);
+var _Matrix = __webpack_require__(3);
 
 var _Matrix2 = _interopRequireDefault(_Matrix);
 
@@ -4925,7 +4990,7 @@ var _edgeLabelVert = __webpack_require__(6);
 
 var _edgeLabelVert2 = _interopRequireDefault(_edgeLabelVert);
 
-var _labelFrag = __webpack_require__(3);
+var _labelFrag = __webpack_require__(4);
 
 var _labelFrag2 = _interopRequireDefault(_labelFrag);
 
@@ -5107,7 +5172,7 @@ var _nodeLabelVert = __webpack_require__(35);
 
 var _nodeLabelVert2 = _interopRequireDefault(_nodeLabelVert);
 
-var _labelFrag = __webpack_require__(3);
+var _labelFrag = __webpack_require__(4);
 
 var _labelFrag2 = _interopRequireDefault(_labelFrag);
 
@@ -5278,7 +5343,7 @@ var _util = __webpack_require__(0);
 
 var _util2 = _interopRequireDefault(_util);
 
-var _Matrix = __webpack_require__(2);
+var _Matrix = __webpack_require__(3);
 
 var _Matrix2 = _interopRequireDefault(_Matrix);
 
@@ -5286,7 +5351,7 @@ var _edgeLabelVert = __webpack_require__(6);
 
 var _edgeLabelVert2 = _interopRequireDefault(_edgeLabelVert);
 
-var _labelFrag = __webpack_require__(3);
+var _labelFrag = __webpack_require__(4);
 
 var _labelFrag2 = _interopRequireDefault(_labelFrag);
 
@@ -5947,7 +6012,7 @@ Object.defineProperty(exports, 'util', {
   }
 });
 
-var _tween = __webpack_require__(4);
+var _tween = __webpack_require__(2);
 
 Object.defineProperty(exports, 'Tween', {
   enumerable: true,
