@@ -32,7 +32,7 @@ export  default class Edge{
         var dy = target.y - source.y;
 
         data = [];
-        var size = 0.6,arrowSize =6;
+        var size = 0.8,arrowSize =6;
         var crossVector = util.normalize([-dy,dx]);
 
         //arrow

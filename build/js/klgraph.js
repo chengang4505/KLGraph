@@ -697,7 +697,7 @@ exports.default = mat3;
 /* 4 */
 /***/ (function(module, exports) {
 
-module.exports = " precision mediump float;\n\nvec4 color = vec4(77, 72, 91,255);\n\nvarying vec2 v_texCoord;\nvarying float size;\n\n\nuniform sampler2D u_image;\nuniform float u_camera_scale;\n\n\nvoid main() {\n    color = color / 255.0;\n\n    float offset = size * u_camera_scale * 0.12;\n\n    offset = min(1.0-0.72,offset);\n\n   float dist = texture2D(u_image, v_texCoord).r;\n   float alpha = smoothstep(0.72 - offset, 0.72 + offset, dist);\n   gl_FragColor = color *alpha;\n}"
+module.exports = " precision mediump float;\n\nvec4 color = vec4(77, 72, 91,255);\n\nvarying vec2 v_texCoord;\nvarying float size;\n\n\nuniform sampler2D u_image;\nuniform float u_camera_scale;\n\n\nvoid main() {\n    color = color / 255.0;\n\n    float offset = size * u_camera_scale * 0.12;\n\n    offset = pow(offset,1.5);\n\n    offset = min((1.0-0.72),offset);\n\n   float dist = texture2D(u_image, v_texCoord).r;\n   float alpha = smoothstep(0.72 - offset, 0.72 + offset, dist);\n   gl_FragColor = color *alpha;\n}"
 
 /***/ }),
 /* 5 */
@@ -1389,7 +1389,7 @@ exports.default = WebGLRender;
 /* 6 */
 /***/ (function(module, exports) {
 
-module.exports = "attribute vec2 a_position;\nattribute vec2 a_uv;\n\nuniform mat3 u_matrix;\nuniform sampler2D u_image;\n\n\nvarying vec2 v_texCoord;\n\nvoid main() {\ngl_Position = vec4((u_matrix*vec3(a_position,1)).xy,0,1);\nv_texCoord = a_uv;\n}\n"
+module.exports = "attribute vec2 a_position;\nattribute vec2 a_uv;\nattribute float a_size;\n\nuniform mat3 u_matrix;\nuniform sampler2D u_image;\n\n\nvarying vec2 v_texCoord;\nvarying float size;\n\nvoid main() {\ngl_Position = vec4((u_matrix*vec3(a_position,1)).xy,0,1);\nv_texCoord = a_uv;\nsize = a_size;\n}\n"
 
 /***/ }),
 /* 7 */
@@ -2728,8 +2728,8 @@ exports.default = {
 
     renderNode: true,
     renderNodeLabel: true,
-    renderEdge: false,
-    renderEdgeLabel: true,
+    renderEdge: true,
+    renderEdgeLabel: false,
 
     textureIconWidth: 1024,
     textureIconHeight: 1024
@@ -4871,7 +4871,7 @@ var Edge = function () {
             var dy = target.y - source.y;
 
             data = [];
-            var size = 0.6,
+            var size = 0.8,
                 arrowSize = 6;
             var crossVector = _util2.default.normalize([-dy, dx]);
 
@@ -4987,9 +4987,9 @@ var _Matrix = __webpack_require__(3);
 
 var _Matrix2 = _interopRequireDefault(_Matrix);
 
-var _edgeLabelVert = __webpack_require__(6);
+var _nodeLabelVert = __webpack_require__(6);
 
-var _edgeLabelVert2 = _interopRequireDefault(_edgeLabelVert);
+var _nodeLabelVert2 = _interopRequireDefault(_nodeLabelVert);
 
 var _labelFrag = __webpack_require__(4);
 
@@ -5014,14 +5014,14 @@ var NodeLabel = function () {
         _classCallCheck(this, NodeLabel);
 
         // this.POINTS = 1;
-        this.ATTRIBUTES = 4;
+        this.ATTRIBUTES = 5;
 
-        this.shaderVert = _edgeLabelVert2.default;
+        this.shaderVert = _nodeLabelVert2.default;
         this.shaderFrag = _labelFrag2.default;
 
         this.arrayBuffer = null;
         this.dataBuffer = null;
-        this.strip = 4 * 4;
+        this.strip = 4 * 5;
     }
 
     _createClass(NodeLabel, [{
@@ -5083,12 +5083,12 @@ var NodeLabel = function () {
                 uv = infos[char].uvs;
                 x1 = uv[0], y1 = uv[1], x2 = uv[2], y2 = uv[3];
 
-                addData(data, this.ATTRIBUTES, [startx, starty, x1, y1], centerX, centerY, angle);
-                addData(data, this.ATTRIBUTES, [startx, starty - charHeight, x1, y2], centerX, centerY, angle);
-                addData(data, this.ATTRIBUTES, [startx + width, starty, x2, y1], centerX, centerY, angle);
-                addData(data, this.ATTRIBUTES, [startx, starty - charHeight, x1, y2], centerX, centerY, angle);
-                addData(data, this.ATTRIBUTES, [startx + width, starty, x2, y1], centerX, centerY, angle);
-                addData(data, this.ATTRIBUTES, [startx + width, starty - charHeight, x2, y2], centerX, centerY, angle);
+                addData(data, this.ATTRIBUTES, [startx, starty, x1, y1, width], centerX, centerY, angle);
+                addData(data, this.ATTRIBUTES, [startx, starty - charHeight, x1, y2, width], centerX, centerY, angle);
+                addData(data, this.ATTRIBUTES, [startx + width, starty, x2, y1, width], centerX, centerY, angle);
+                addData(data, this.ATTRIBUTES, [startx, starty - charHeight, x1, y2, width], centerX, centerY, angle);
+                addData(data, this.ATTRIBUTES, [startx + width, starty, x2, y1, width], centerX, centerY, angle);
+                addData(data, this.ATTRIBUTES, [startx + width, starty - charHeight, x2, y2, width], centerX, centerY, angle);
 
                 startx += width;
             }
@@ -5109,9 +5109,11 @@ var NodeLabel = function () {
 
             var positionLocation = gl.getAttribLocation(program, "a_position");
             var uvLocation = gl.getAttribLocation(program, "a_uv");
+            var sizeLocation = gl.getAttribLocation(program, "a_size");
 
             var matrixLocation = gl.getUniformLocation(program, "u_matrix");
             var imageLocation = gl.getUniformLocation(program, "u_image");
+            var cameaScaleLocation = gl.getUniformLocation(program, "u_camera_scale");
 
             var len = data.length / this.ATTRIBUTES | 0;
 
@@ -5129,6 +5131,7 @@ var NodeLabel = function () {
                 float32View[i * offset32 + 1] = data[i * this.ATTRIBUTES + 1];
                 float32View[i * offset32 + 2] = data[i * this.ATTRIBUTES + 2];
                 float32View[i * offset32 + 3] = data[i * this.ATTRIBUTES + 3];
+                float32View[i * offset32 + 4] = data[i * this.ATTRIBUTES + 4];
             }
 
             gl.bindBuffer(gl.ARRAY_BUFFER, this.dataBuffer);
@@ -5136,6 +5139,7 @@ var NodeLabel = function () {
 
             gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, this.strip, 0);
             gl.vertexAttribPointer(uvLocation, 2, gl.FLOAT, false, this.strip, 2 * 4);
+            gl.vertexAttribPointer(sizeLocation, 1, gl.FLOAT, false, this.strip, 4 * 4);
 
             gl.bindBuffer(gl.ARRAY_BUFFER, null);
             gl.enableVertexAttribArray(positionLocation);
@@ -5143,6 +5147,7 @@ var NodeLabel = function () {
 
             gl.uniformMatrix3fv(matrixLocation, false, new Float32Array(matrix));
             gl.uniform1i(imageLocation, 10);
+            gl.uniform1f(cameaScaleLocation, camera.scale);
 
             gl.drawArrays(gl.TRIANGLES, 0, len);
         }
@@ -5169,7 +5174,7 @@ var _createClass = function () { function defineProperties(target, props) { for 
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       */
 
 
-var _nodeLabelVert = __webpack_require__(35);
+var _nodeLabelVert = __webpack_require__(6);
 
 var _nodeLabelVert2 = _interopRequireDefault(_nodeLabelVert);
 
@@ -5353,7 +5358,7 @@ var _Matrix = __webpack_require__(3);
 
 var _Matrix2 = _interopRequireDefault(_Matrix);
 
-var _edgeLabelVert = __webpack_require__(6);
+var _edgeLabelVert = __webpack_require__(35);
 
 var _edgeLabelVert2 = _interopRequireDefault(_edgeLabelVert);
 
