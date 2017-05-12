@@ -24,14 +24,14 @@ function addData(arr,attributes,attrData,centerX,centerY,angle) {
 export default class CurveLabel{
     constructor(){
         // this.POINTS = 1;
-        this.ATTRIBUTES = 4;
+        this.ATTRIBUTES = 5;
 
         this.shaderVert = vert;
         this.shaderFrag = frag;
 
         this.arrayBuffer = null;
         this.dataBuffer = null;
-        this.strip = 4 * 4 ;
+        this.strip = 4 * 5 ;
     }
 
     getRenderData({data,source,target,textureText}){
@@ -102,14 +102,14 @@ export default class CurveLabel{
             uv = infos[char].uvs;
             x1 = uv[0],y1 = uv[1],x2 = uv[2],y2 = uv[3];
 
-            addData(data,this.ATTRIBUTES,[startx,starty,x1,y1],centerX,centerY,angle);
-            addData(data,this.ATTRIBUTES,[startx,starty-charHeight,x1,y2],centerX,centerY,angle);
-            addData(data,this.ATTRIBUTES,[startx+width,starty,x2,y1],centerX,centerY,angle);
-            addData(data,this.ATTRIBUTES,[startx,starty-charHeight,x1,y2],centerX,centerY,angle);
-            addData(data,this.ATTRIBUTES,[startx+width,starty,x2,y1],centerX,centerY,angle);
-            addData(data,this.ATTRIBUTES,[startx+width,starty-charHeight,x2,y2],centerX,centerY,angle);
+            addData(data,this.ATTRIBUTES,[startx,starty,x1,y1,width],centerX,centerY,angle);
+            addData(data,this.ATTRIBUTES,[startx,starty-charHeight,x1,y2,width],centerX,centerY,angle);
+            addData(data,this.ATTRIBUTES,[startx+width,starty,x2,y1,width],centerX,centerY,angle);
+            addData(data,this.ATTRIBUTES,[startx,starty-charHeight,x1,y2,width],centerX,centerY,angle);
+            addData(data,this.ATTRIBUTES,[startx+width,starty,x2,y1,width],centerX,centerY,angle);
+            addData(data,this.ATTRIBUTES,[startx+width,starty-charHeight,x2,y2,width],centerX,centerY,angle);
 
-            startx += width;
+            startx += width*7/8;
         }
 
         return data;
@@ -120,10 +120,11 @@ export default class CurveLabel{
 
         var positionLocation = gl.getAttribLocation(program, "a_position");
         var uvLocation = gl.getAttribLocation(program, "a_uv");
+        var sizeLocation = gl.getAttribLocation(program, "a_size");
 
         var matrixLocation = gl.getUniformLocation(program, "u_matrix");
         var imageLocation = gl.getUniformLocation(program, "u_image");
-
+        var cameaScaleLocation = gl.getUniformLocation(program, "u_camera_scale");
 
         var len = (data.length / this.ATTRIBUTES) | 0;
 
@@ -140,6 +141,7 @@ export default class CurveLabel{
             float32View[i*offset32+1] = data[i*this.ATTRIBUTES+1];
             float32View[i*offset32+2] = data[i*this.ATTRIBUTES+2];
             float32View[i*offset32+3] = data[i*this.ATTRIBUTES+3];
+            float32View[i*offset32+4] = data[i*this.ATTRIBUTES+4];
         }
 
         gl.bindBuffer(gl.ARRAY_BUFFER, this.dataBuffer);
@@ -147,15 +149,17 @@ export default class CurveLabel{
 
         gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, this.strip, 0);
         gl.vertexAttribPointer(uvLocation, 2, gl.FLOAT, false, this.strip, 2*4);
-
+        gl.vertexAttribPointer(sizeLocation, 1, gl.FLOAT, false, this.strip, 4*4);
 
 
         gl.bindBuffer(gl.ARRAY_BUFFER, null);
         gl.enableVertexAttribArray(positionLocation);
         gl.enableVertexAttribArray(uvLocation);
+        gl.enableVertexAttribArray(sizeLocation);
 
         gl.uniformMatrix3fv(matrixLocation, false,new Float32Array(matrix));
         gl.uniform1i(imageLocation, 10);
+        gl.uniform1f(cameaScaleLocation, camera.scale);
 
 
         gl.drawArrays(gl.TRIANGLES, 0, len);

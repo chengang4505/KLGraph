@@ -68,7 +68,7 @@
             label:e[1],
             x: (Math.random() * 2-1)*500,
             y: (Math.random() * 2-1)*400,
-            size:15,
+            size:16,
             width:12,
             height:6,
             color:colors[(Math.random()*colors.length)|0],
@@ -78,7 +78,8 @@
 
     testData.data.relationships.forEach(function (e) {
         g.edges.push({
-            type:/*Math.random() > 0.5 ?'default':*/'curve',
+//            type:/*Math.random() > 0.5 ?'default':*/'curve',
+            type:'curve',
             dashed: Math.random() > 0.5 ,
             label:e[2],
             source:e[0],

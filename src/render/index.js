@@ -15,14 +15,14 @@ WebGLRender.node.default = node;
 WebGLRender.node.rect = rect;
 
 
+import NodeLabel from './webgl/label/NodeLabel'
+WebGLRender.nodeLabel.default = NodeLabel;
+WebGLRender.nodeLabel.rect = NodeLabel;
+
 import edge from './webgl/edge/default'
 import curve from './webgl/edge/curve/curve'
 WebGLRender.edge.default = edge;
 WebGLRender.edge.curve = curve;
-
-import NodeLabel from './webgl/label/NodeLabel'
-WebGLRender.nodeLabel.default = NodeLabel;
-WebGLRender.nodeLabel.rect = NodeLabel;
 
 
 import EdgeLabel from './webgl/label/EdgeLabel'

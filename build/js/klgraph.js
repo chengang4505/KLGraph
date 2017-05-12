@@ -697,7 +697,7 @@ exports.default = mat3;
 /* 4 */
 /***/ (function(module, exports) {
 
-module.exports = " precision mediump float;\n\nvec4 color = vec4(77, 72, 91,255);\n\nvarying vec2 v_texCoord;\nuniform sampler2D u_image;\n\n\nvoid main() {\n    color = color / 255.0;\n   float dist = texture2D(u_image, v_texCoord).r;\n//   float alpha = smoothstep(0.55, 0.85, dist);\n   gl_FragColor = color *dist;\n}"
+module.exports = " precision mediump float;\n\nvec4 color = vec4(77, 72, 91,255);\n\nvarying vec2 v_texCoord;\nvarying float size;\n\n\nuniform sampler2D u_image;\nuniform float u_camera_scale;\n\n\nvoid main() {\n    color = color / 255.0;\n\n    float offset = size * u_camera_scale * 0.12;\n\n    offset = pow(offset,1.2);\n\n    offset = min((1.0-0.72),offset);\n\n   float dist = texture2D(u_image, v_texCoord).r;\n   float alpha = smoothstep(0.72 - offset, 0.72 + offset, dist);\n   gl_FragColor = color *alpha;\n}"
 
 /***/ }),
 /* 5 */
@@ -1389,7 +1389,7 @@ exports.default = WebGLRender;
 /* 6 */
 /***/ (function(module, exports) {
 
-module.exports = "attribute vec2 a_position;\nattribute vec2 a_uv;\n\nuniform mat3 u_matrix;\nuniform sampler2D u_image;\n\n\nvarying vec2 v_texCoord;\n\nvoid main() {\ngl_Position = vec4((u_matrix*vec3(a_position,1)).xy,0,1);\nv_texCoord = a_uv;\n}\n"
+module.exports = "attribute vec2 a_position;\nattribute vec2 a_uv;\nattribute float a_size;\n\nuniform mat3 u_matrix;\nuniform sampler2D u_image;\n\n\nvarying vec2 v_texCoord;\nvarying float size;\n\nvoid main() {\ngl_Position = vec4((u_matrix*vec3(a_position,1)).xy,0,1);\nv_texCoord = a_uv;\nsize = a_size;\n}\n"
 
 /***/ }),
 /* 7 */
@@ -1699,6 +1699,10 @@ var _Rect = __webpack_require__(30);
 
 var _Rect2 = _interopRequireDefault(_Rect);
 
+var _NodeLabel = __webpack_require__(27);
+
+var _NodeLabel2 = _interopRequireDefault(_NodeLabel);
+
 var _default = __webpack_require__(25);
 
 var _default2 = _interopRequireDefault(_default);
@@ -1706,10 +1710,6 @@ var _default2 = _interopRequireDefault(_default);
 var _curve = __webpack_require__(24);
 
 var _curve2 = _interopRequireDefault(_curve);
-
-var _NodeLabel = __webpack_require__(27);
-
-var _NodeLabel2 = _interopRequireDefault(_NodeLabel);
 
 var _EdgeLabel = __webpack_require__(26);
 
@@ -1732,11 +1732,11 @@ _render2.default.edgeLabel = {};
 _render2.default.node.default = _Node2.default;
 _render2.default.node.rect = _Rect2.default;
 
-_render2.default.edge.default = _default2.default;
-_render2.default.edge.curve = _curve2.default;
-
 _render2.default.nodeLabel.default = _NodeLabel2.default;
 _render2.default.nodeLabel.rect = _NodeLabel2.default;
+
+_render2.default.edge.default = _default2.default;
+_render2.default.edge.curve = _curve2.default;
 
 _render2.default.edgeLabel.default = _EdgeLabel2.default;
 _render2.default.edgeLabel.curve = _curveLabel2.default;
@@ -4395,7 +4395,7 @@ var TextureText = function (_EventEmitter) {
 
         _this.border = 2;
 
-        _this.fontSize = 24;
+        _this.fontSize = 48;
         _this.fontFamily = 'Arial';
 
         _this.canvas = null;
@@ -4449,19 +4449,20 @@ var TextureText = function (_EventEmitter) {
 
                 if (this.textinfo && this.textinfo.infos[texts[i]]) continue;
 
-                // data = this.sdf.draw(texts[i]);
-                // charWidth = data.charWidth
+                data = this.sdf.draw(texts[i]);
+                charWidth = data.charWidth;
 
-                charWidth = ctx.measureText(texts[i]).width;
+                // charWidth = ctx.measureText(texts[i]).width;
 
                 if (startx + charWidth > c.width) {
                     startx = this.border;
                     starty += height;
                 }
 
-                // ctx.putImageData(data.data, startx, starty,0,0,data.charWidth,data.data.height);
+                ctx.putImageData(data.data, startx, starty, 0, 0, charWidth, data.data.height);
 
-                ctx.fillText(texts[i], startx, starty);
+                // ctx.fillText(texts[i], startx, starty);
+
 
                 infos[texts[i]] = {
                     uvs: [startx / c.width, starty / c.height, (startx + charWidth) / c.width, (starty + height) / c.height],
@@ -4480,7 +4481,7 @@ var TextureText = function (_EventEmitter) {
                 height: c.height,
                 infos: infos
             };
-
+            //
             // document.body.appendChild(c);
             // c.style.position = 'absolute';
             // c.style.top = '100px';
@@ -5013,14 +5014,14 @@ var NodeLabel = function () {
         _classCallCheck(this, NodeLabel);
 
         // this.POINTS = 1;
-        this.ATTRIBUTES = 4;
+        this.ATTRIBUTES = 5;
 
         this.shaderVert = _edgeLabelVert2.default;
         this.shaderFrag = _labelFrag2.default;
 
         this.arrayBuffer = null;
         this.dataBuffer = null;
-        this.strip = 4 * 4;
+        this.strip = 4 * 5;
     }
 
     _createClass(NodeLabel, [{
@@ -5082,14 +5083,14 @@ var NodeLabel = function () {
                 uv = infos[char].uvs;
                 x1 = uv[0], y1 = uv[1], x2 = uv[2], y2 = uv[3];
 
-                addData(data, this.ATTRIBUTES, [startx, starty, x1, y1], centerX, centerY, angle);
-                addData(data, this.ATTRIBUTES, [startx, starty - charHeight, x1, y2], centerX, centerY, angle);
-                addData(data, this.ATTRIBUTES, [startx + width, starty, x2, y1], centerX, centerY, angle);
-                addData(data, this.ATTRIBUTES, [startx, starty - charHeight, x1, y2], centerX, centerY, angle);
-                addData(data, this.ATTRIBUTES, [startx + width, starty, x2, y1], centerX, centerY, angle);
-                addData(data, this.ATTRIBUTES, [startx + width, starty - charHeight, x2, y2], centerX, centerY, angle);
+                addData(data, this.ATTRIBUTES, [startx, starty, x1, y1, width], centerX, centerY, angle);
+                addData(data, this.ATTRIBUTES, [startx, starty - charHeight, x1, y2, width], centerX, centerY, angle);
+                addData(data, this.ATTRIBUTES, [startx + width, starty, x2, y1, width], centerX, centerY, angle);
+                addData(data, this.ATTRIBUTES, [startx, starty - charHeight, x1, y2, width], centerX, centerY, angle);
+                addData(data, this.ATTRIBUTES, [startx + width, starty, x2, y1, width], centerX, centerY, angle);
+                addData(data, this.ATTRIBUTES, [startx + width, starty - charHeight, x2, y2, width], centerX, centerY, angle);
 
-                startx += width;
+                startx += width * 7 / 8;
             }
 
             return data;
@@ -5108,9 +5109,11 @@ var NodeLabel = function () {
 
             var positionLocation = gl.getAttribLocation(program, "a_position");
             var uvLocation = gl.getAttribLocation(program, "a_uv");
+            var sizeLocation = gl.getAttribLocation(program, "a_size");
 
             var matrixLocation = gl.getUniformLocation(program, "u_matrix");
             var imageLocation = gl.getUniformLocation(program, "u_image");
+            var cameaScaleLocation = gl.getUniformLocation(program, "u_camera_scale");
 
             var len = data.length / this.ATTRIBUTES | 0;
 
@@ -5128,6 +5131,7 @@ var NodeLabel = function () {
                 float32View[i * offset32 + 1] = data[i * this.ATTRIBUTES + 1];
                 float32View[i * offset32 + 2] = data[i * this.ATTRIBUTES + 2];
                 float32View[i * offset32 + 3] = data[i * this.ATTRIBUTES + 3];
+                float32View[i * offset32 + 4] = data[i * this.ATTRIBUTES + 4];
             }
 
             gl.bindBuffer(gl.ARRAY_BUFFER, this.dataBuffer);
@@ -5135,13 +5139,16 @@ var NodeLabel = function () {
 
             gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, this.strip, 0);
             gl.vertexAttribPointer(uvLocation, 2, gl.FLOAT, false, this.strip, 2 * 4);
+            gl.vertexAttribPointer(sizeLocation, 1, gl.FLOAT, false, this.strip, 4 * 4);
 
             gl.bindBuffer(gl.ARRAY_BUFFER, null);
             gl.enableVertexAttribArray(positionLocation);
             gl.enableVertexAttribArray(uvLocation);
+            gl.enableVertexAttribArray(sizeLocation);
 
             gl.uniformMatrix3fv(matrixLocation, false, new Float32Array(matrix));
             gl.uniform1i(imageLocation, 10);
+            gl.uniform1f(cameaScaleLocation, camera.scale);
 
             gl.drawArrays(gl.TRIANGLES, 0, len);
         }
@@ -5195,14 +5202,14 @@ var NodeLabel = function () {
         _classCallCheck(this, NodeLabel);
 
         // this.POINTS = 1;
-        this.ATTRIBUTES = 4;
+        this.ATTRIBUTES = 5;
 
         this.shaderVert = _nodeLabelVert2.default;
         this.shaderFrag = _labelFrag2.default;
 
         this.arrayBuffer = null;
         this.dataBuffer = null;
-        this.strip = 4 * 4;
+        this.strip = 4 * 5;
     }
 
     _createClass(NodeLabel, [{
@@ -5254,14 +5261,14 @@ var NodeLabel = function () {
                 uv = infos[char].uvs;
                 x1 = uv[0], y1 = uv[1], x2 = uv[2], y2 = uv[3];
 
-                addData(data, this.ATTRIBUTES, [startx, starty, x1, y1]);
-                addData(data, this.ATTRIBUTES, [startx, starty - charHeight, x1, y2]);
-                addData(data, this.ATTRIBUTES, [startx + width, starty, x2, y1]);
-                addData(data, this.ATTRIBUTES, [startx, starty - charHeight, x1, y2]);
-                addData(data, this.ATTRIBUTES, [startx + width, starty, x2, y1]);
-                addData(data, this.ATTRIBUTES, [startx + width, starty - charHeight, x2, y2]);
+                addData(data, this.ATTRIBUTES, [startx, starty, x1, y1, width]);
+                addData(data, this.ATTRIBUTES, [startx, starty - charHeight, x1, y2, width]);
+                addData(data, this.ATTRIBUTES, [startx + width, starty, x2, y1, width]);
+                addData(data, this.ATTRIBUTES, [startx, starty - charHeight, x1, y2, width]);
+                addData(data, this.ATTRIBUTES, [startx + width, starty, x2, y1, width]);
+                addData(data, this.ATTRIBUTES, [startx + width, starty - charHeight, x2, y2, width]);
 
-                startx += width;
+                startx += width * 7 / 8;
             }
 
             return data;
@@ -5280,9 +5287,11 @@ var NodeLabel = function () {
 
             var positionLocation = gl.getAttribLocation(program, "a_position");
             var uvLocation = gl.getAttribLocation(program, "a_uv");
+            var sizeLocation = gl.getAttribLocation(program, "a_size");
 
             var matrixLocation = gl.getUniformLocation(program, "u_matrix");
             var imageLocation = gl.getUniformLocation(program, "u_image");
+            var cameaScaleLocation = gl.getUniformLocation(program, "u_camera_scale");
 
             var len = data.length / this.ATTRIBUTES | 0;
 
@@ -5300,6 +5309,7 @@ var NodeLabel = function () {
                 float32View[i * offset32 + 1] = data[i * this.ATTRIBUTES + 1];
                 float32View[i * offset32 + 2] = data[i * this.ATTRIBUTES + 2];
                 float32View[i * offset32 + 3] = data[i * this.ATTRIBUTES + 3];
+                float32View[i * offset32 + 4] = data[i * this.ATTRIBUTES + 4];
             }
 
             gl.bindBuffer(gl.ARRAY_BUFFER, this.dataBuffer);
@@ -5307,13 +5317,16 @@ var NodeLabel = function () {
 
             gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, this.strip, 0);
             gl.vertexAttribPointer(uvLocation, 2, gl.FLOAT, false, this.strip, 2 * 4);
+            gl.vertexAttribPointer(sizeLocation, 1, gl.FLOAT, false, this.strip, 4 * 4);
 
             gl.bindBuffer(gl.ARRAY_BUFFER, null);
             gl.enableVertexAttribArray(positionLocation);
             gl.enableVertexAttribArray(uvLocation);
+            gl.enableVertexAttribArray(sizeLocation);
 
             gl.uniformMatrix3fv(matrixLocation, false, new Float32Array(matrix));
             gl.uniform1i(imageLocation, 10);
+            gl.uniform1f(cameaScaleLocation, camera.scale);
 
             gl.drawArrays(gl.TRIANGLES, 0, len);
         }
@@ -5374,14 +5387,14 @@ var CurveLabel = function () {
         _classCallCheck(this, CurveLabel);
 
         // this.POINTS = 1;
-        this.ATTRIBUTES = 4;
+        this.ATTRIBUTES = 5;
 
         this.shaderVert = _edgeLabelVert2.default;
         this.shaderFrag = _labelFrag2.default;
 
         this.arrayBuffer = null;
         this.dataBuffer = null;
-        this.strip = 4 * 4;
+        this.strip = 4 * 5;
     }
 
     _createClass(CurveLabel, [{
@@ -5458,14 +5471,14 @@ var CurveLabel = function () {
                 uv = infos[char].uvs;
                 x1 = uv[0], y1 = uv[1], x2 = uv[2], y2 = uv[3];
 
-                addData(data, this.ATTRIBUTES, [startx, starty, x1, y1], centerX, centerY, angle);
-                addData(data, this.ATTRIBUTES, [startx, starty - charHeight, x1, y2], centerX, centerY, angle);
-                addData(data, this.ATTRIBUTES, [startx + width, starty, x2, y1], centerX, centerY, angle);
-                addData(data, this.ATTRIBUTES, [startx, starty - charHeight, x1, y2], centerX, centerY, angle);
-                addData(data, this.ATTRIBUTES, [startx + width, starty, x2, y1], centerX, centerY, angle);
-                addData(data, this.ATTRIBUTES, [startx + width, starty - charHeight, x2, y2], centerX, centerY, angle);
+                addData(data, this.ATTRIBUTES, [startx, starty, x1, y1, width], centerX, centerY, angle);
+                addData(data, this.ATTRIBUTES, [startx, starty - charHeight, x1, y2, width], centerX, centerY, angle);
+                addData(data, this.ATTRIBUTES, [startx + width, starty, x2, y1, width], centerX, centerY, angle);
+                addData(data, this.ATTRIBUTES, [startx, starty - charHeight, x1, y2, width], centerX, centerY, angle);
+                addData(data, this.ATTRIBUTES, [startx + width, starty, x2, y1, width], centerX, centerY, angle);
+                addData(data, this.ATTRIBUTES, [startx + width, starty - charHeight, x2, y2, width], centerX, centerY, angle);
 
-                startx += width;
+                startx += width * 7 / 8;
             }
 
             return data;
@@ -5484,9 +5497,11 @@ var CurveLabel = function () {
 
             var positionLocation = gl.getAttribLocation(program, "a_position");
             var uvLocation = gl.getAttribLocation(program, "a_uv");
+            var sizeLocation = gl.getAttribLocation(program, "a_size");
 
             var matrixLocation = gl.getUniformLocation(program, "u_matrix");
             var imageLocation = gl.getUniformLocation(program, "u_image");
+            var cameaScaleLocation = gl.getUniformLocation(program, "u_camera_scale");
 
             var len = data.length / this.ATTRIBUTES | 0;
 
@@ -5504,6 +5519,7 @@ var CurveLabel = function () {
                 float32View[i * offset32 + 1] = data[i * this.ATTRIBUTES + 1];
                 float32View[i * offset32 + 2] = data[i * this.ATTRIBUTES + 2];
                 float32View[i * offset32 + 3] = data[i * this.ATTRIBUTES + 3];
+                float32View[i * offset32 + 4] = data[i * this.ATTRIBUTES + 4];
             }
 
             gl.bindBuffer(gl.ARRAY_BUFFER, this.dataBuffer);
@@ -5511,13 +5527,16 @@ var CurveLabel = function () {
 
             gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, this.strip, 0);
             gl.vertexAttribPointer(uvLocation, 2, gl.FLOAT, false, this.strip, 2 * 4);
+            gl.vertexAttribPointer(sizeLocation, 1, gl.FLOAT, false, this.strip, 4 * 4);
 
             gl.bindBuffer(gl.ARRAY_BUFFER, null);
             gl.enableVertexAttribArray(positionLocation);
             gl.enableVertexAttribArray(uvLocation);
+            gl.enableVertexAttribArray(sizeLocation);
 
             gl.uniformMatrix3fv(matrixLocation, false, new Float32Array(matrix));
             gl.uniform1i(imageLocation, 10);
+            gl.uniform1f(cameaScaleLocation, camera.scale);
 
             gl.drawArrays(gl.TRIANGLES, 0, len);
         }
@@ -5948,7 +5967,7 @@ module.exports = "attribute vec2 a_position;\nattribute vec2 a_normal;\nattribut
 /* 35 */
 /***/ (function(module, exports) {
 
-module.exports = "attribute vec2 a_position;\nattribute vec2 a_uv;\n\nuniform mat3 u_matrix;\nuniform sampler2D u_image;\n\n\nvarying vec2 v_texCoord;\n\nvoid main() {\ngl_Position = vec4((u_matrix*vec3(a_position,1)).xy,0,1);\nv_texCoord = a_uv;\n}\n"
+module.exports = "attribute vec2 a_position;\nattribute vec2 a_uv;\nattribute float a_size;\n\nuniform mat3 u_matrix;\nuniform sampler2D u_image;\n\n\nvarying vec2 v_texCoord;\nvarying float size;\n\nvoid main() {\ngl_Position = vec4((u_matrix*vec3(a_position,1)).xy,0,1);\nv_texCoord = a_uv;\nsize = a_size;\n}\n"
 
 /***/ }),
 /* 36 */
