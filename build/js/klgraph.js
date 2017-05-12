@@ -4986,7 +4986,7 @@ var _Matrix = __webpack_require__(3);
 
 var _Matrix2 = _interopRequireDefault(_Matrix);
 
-var _edgeLabelVert = __webpack_require__(35);
+var _edgeLabelVert = __webpack_require__(6);
 
 var _edgeLabelVert2 = _interopRequireDefault(_edgeLabelVert);
 
@@ -5168,7 +5168,7 @@ var _createClass = function () { function defineProperties(target, props) { for 
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       */
 
 
-var _nodeLabelVert = __webpack_require__(6);
+var _nodeLabelVert = __webpack_require__(35);
 
 var _nodeLabelVert2 = _interopRequireDefault(_nodeLabelVert);
 
@@ -5347,7 +5347,7 @@ var _Matrix = __webpack_require__(3);
 
 var _Matrix2 = _interopRequireDefault(_Matrix);
 
-var _edgeLabelVert = __webpack_require__(35);
+var _edgeLabelVert = __webpack_require__(6);
 
 var _edgeLabelVert2 = _interopRequireDefault(_edgeLabelVert);
 
