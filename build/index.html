@@ -79,6 +79,7 @@
     testData.data.relationships.forEach(function (e) {
         g.edges.push({
 //            type:/*Math.random() > 0.5 ?'default':*/'curve',
+            type:'curve',
             dashed: Math.random() > 0.5 ,
             label:e[2],
             source:e[0],

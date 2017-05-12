@@ -90,7 +90,7 @@ export default class NodeLabel{
             addData(data,this.ATTRIBUTES,[startx+width,starty,x2,y1,width],centerX,centerY,angle);
             addData(data,this.ATTRIBUTES,[startx+width,starty-charHeight,x2,y2,width],centerX,centerY,angle);
 
-            startx += width;
+            startx += width*7/8;
         }
 
         return data;
