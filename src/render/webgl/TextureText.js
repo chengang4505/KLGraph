@@ -99,7 +99,7 @@ export default class TextureText extends EventEmitter{
             height:c.height,
             infos:infos
         };
-        //
+
         // document.body.appendChild(c);
         // c.style.position = 'absolute';
         // c.style.top = '100px';

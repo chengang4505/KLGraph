@@ -5,13 +5,88 @@ import vert from './glsl/node-label-vert.glsl'
 import frag from './glsl/label-frag.glsl'
 import util from '../../../util'
 
+
+export default {
+    shaderVert: vert,
+    shaderFrag: frag,
+    getUniforms({matrix, camera, sampleRatio, textureLoader}){
+        return {
+            u_matrix:matrix,
+            u_camera_scale:camera.scale,
+            u_image:10,
+        }
+    },
+    getRenderData({data, textureLoader, textureIcon,textureText,graph}){
+
+        if(!data.label) return [];
+
+        // debugger
+        var str = data.label.split('');
+
+        var renderData = [];
+
+        var sizeX = util.getNodeSizeX(data),sizeY = util.getNodeSizeY(data);
+        var size = Math.max(sizeX,sizeY);
+        var infos = textureText.textinfo.infos,
+            charWidth = size/2,
+            charHeight = size/2,
+            char,uv,width;
+
+        var totalWidht = 0;
+        for(var i = 0;i< str.length;i++) {
+            char = str[i];
+            if (!infos[char]) {
+                // console.log(1);
+                continue;
+            }
+            totalWidht +=infos[char].width * charWidth
+        }
+
+
+        var startx = totalWidht/2 * -1 + data.x;
+        var starty =  data.y - sizeY;
+        var x1,y1,x2,y2;
+
+        for(var i = 0;i< str.length;i++){
+            char = str[i];
+            if(!infos[char]){
+                // console.log(1);
+                continue;
+            }
+
+            width = infos[char].width * charWidth;
+            uv = infos[char].uvs;
+            x1 = uv[0],y1 = uv[1],x2 = uv[2],y2 = uv[3];
+
+            renderData.push(getData([startx,starty,x1,y1,width]));
+            renderData.push(getData([startx,starty-charHeight,x1,y2,width]));
+            renderData.push(getData([startx+width,starty,x2,y1,width]));
+            renderData.push(getData([startx,starty-charHeight,x1,y2,width]));
+            renderData.push(getData([startx+width,starty,x2,y1,width]));
+            renderData.push(getData([startx+width,starty-charHeight,x2,y2,width]));
+
+            startx += width*7/8;
+        }
+        return renderData;
+    }
+
+}
+
+function getData(data) {
+    return {
+        a_position: [data[0], data[1]],
+        a_uv:[data[2],data[3]],
+        a_size: data[4],
+    }
+}
+
 function addData(arr,attributes,attrData) {
     for(var i = 0;i< attributes;i++){
         arr.push(attrData[i]);
     }
 }
 
-export default class NodeLabel{
+ class NodeLabel{
     constructor(){
         // this.POINTS = 1;
         this.ATTRIBUTES = 5;

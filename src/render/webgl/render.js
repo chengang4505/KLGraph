@@ -9,6 +9,29 @@ import TextureText from './TextureText'
 import TextureIcon from './TextureIcon'
 import initEvent from '../../core/Event'
 import Tween from '../../animation/tween'
+import {
+    getActiveUniforms,
+    getActiveAttributes,
+    calTypeOffset,
+    vertexAttribPointer,
+    setUniforms,
+    checkAttrValid,
+    GlType,GLComType
+} from '../../base/GLUtil'
+
+
+function layerCheckDefault() {
+    return function (data) {
+        return !data.type || data.type == 'default';
+    }
+}
+
+function layerCheck(type) {
+    return function (data) {
+        return data.type == type;
+    }
+}
+
 
 
 class WebGLRender extends EventEmitter{
@@ -44,216 +67,358 @@ class WebGLRender extends EventEmitter{
             rotation:0
         };
 
-        //cache
-        this.renderType = {
-            node: {index:{},type:{},cache:false},
-            nodeLabel: {index:{},type:{},cache:false},
-            edge: {index:{},type:{},cache:false},
-            edgeLabel: {index:{},type:{},cache:false}
+
+        this.renderCache = {
+            graph:{layers:[],index:{},flag:false},
+            node:{layers:[],index:{},flag:false},
+            edge:{layers:[],index:{},flag:false}
         };
+        this.renderLayerMap = {};
+        this.renderLayersConfig = [
+            {
+                name:'base',
+                subLayers:[
+                    {name:'edge',context:'edge',render:WebGLRender.edge.default,check:layerCheckDefault()},
+                    {name:'node',context:'node',render:WebGLRender.node.default,check:layerCheckDefault()},
+                    {name:'rectNode',context:'node',render:WebGLRender.node.rect,check:layerCheck('rect')},
+                    {name:'edgeLabel',context:'edge',render:WebGLRender.edgeLabel.default,check:layerCheckDefault()},
+                    {name:'nodeLabel',context:'node',render:WebGLRender.nodeLabel.default,check:function () {return true}},
+                ]
+            }
+        ];
+        this.initRenderLayerMap();
+
         initEvent.call(this);
 
+
+
     }
+
+    initRenderLayerMap(){
+        var  renderLayerMap = this.renderLayerMap;
+        var gl = this.gl;
+        var program;
+
+        var _this = this;
+        this.renderLayersConfig.forEach(function (layer) {
+            layer.subLayers.forEach(function (subLayer) {
+
+                program = util.loadProgram(gl, [
+                    util.loadShader(gl, subLayer.render.shaderVert, gl.VERTEX_SHADER),
+                    util.loadShader(gl, subLayer.render.shaderFrag, gl.FRAGMENT_SHADER)
+                ]);
+
+                program.activeAttributes = getActiveAttributes(gl,program);
+                program.activeUniforms = getActiveUniforms(gl,program);
+                program.offsetConfig = calTypeOffset(program.activeAttributes);
+                program.buffer = gl.createBuffer();
+
+                subLayer.program = program;
+
+                subLayer.renderData = {
+                    uniforms:null,
+                    data:null,
+                    bytes:0
+                };
+
+                _this.renderCache[subLayer.context].layers.push(subLayer.name);
+
+                renderLayerMap[subLayer.name] = subLayer
+            })
+        }.bind(this));
+    }
+    putData(buffer,datas,offsetConfig){
+        // debugger
+        var arrView = new Float32Array(buffer);
+        var offset = 0;
+        var config = offsetConfig.config;
+        datas.forEach(function (data) {
+            for(var attr in config){
+                if(util.isArray(data[attr])){
+                    data[attr].forEach(function (e,i) {
+                        arrView[offset+config[attr].start+i] = data[attr][i];
+                    });
+                }else {
+                    arrView[offset+config[attr].start] = data[attr];
+                }
+            }
+            offset += offsetConfig.strip;
+        }.bind(this));
+    }
+    updateCacheByData(context,data){
+
+        var cacheIndex,temp,err,totalLen;
+        var contextRelativeLayers = this.renderCache[context].layers;
+        var renderLayerMap = this.renderLayerMap;
+
+        cacheIndex = this.renderCache[context].index[data.id] =  this.renderCache[context].index[data.id]  || {};
+
+        contextRelativeLayers.forEach(function(layer) {
+            if(!renderLayerMap[layer].check(data)) return;
+
+            temp = renderLayerMap[layer].render.getRenderData({
+                data: data,
+                graph: this.graph,
+                textureText: this.textureText,
+                textureLoader: this.textureLoader,
+                textureIcon: this.textureIcon
+            });
+
+            if (!util.isArray(temp)) temp = [temp];
+
+            temp.forEach(function (data) {
+                if (err = checkAttrValid(renderLayerMap[layer].program.activeAttributes, data)) {
+                    throw err.join('\n');
+                }
+            }.bind(this));
+
+            totalLen = temp.length * renderLayerMap[layer].program.offsetConfig.strip * 4;
+            if (!cacheIndex[layer] || cacheIndex[layer].byteLength != totalLen) {
+                cacheIndex[layer] = new ArrayBuffer(totalLen);
+            }
+
+            this.putData(cacheIndex[layer], temp, renderLayerMap[layer].program.offsetConfig);
+
+        }.bind(this))
+    }
+    updateContextCache(context){
+        if(context != 'node' &&  context != 'edge' && context != 'graph') return;
+
+        if(this.renderCache[context].flag)  return;
+
+        var datas;
+        var  renderLayerMap = this.renderLayerMap;
+
+        if(context === 'graph'){
+
+        }else {
+            datas = context == 'node' ? this.graph.nodes : this.graph.edges;
+            for(var i = 0,len = datas.length;i < len ; i++){
+                this.updateCacheByData(context,datas[i]);
+            }
+        }
+
+        this.renderCache[context].flag = true;
+    }
+    updateLayerData(){
+        console.time('updateContextCacheNode');
+        this.updateContextCache('node');
+        console.timeEnd('updateContextCacheNode');
+
+        console.time('updateContextCacheEdge');
+        this.updateContextCache('edge');
+        console.timeEnd('updateContextCacheEdge');
+
+        console.time('updateLayerRenderData');
+        this.updateLayerRenderData();
+        console.timeEnd('updateLayerRenderData');
+
+        console.time('updateLayerUniformData');
+        this.updateLayerUniformData();
+        console.timeEnd('updateLayerUniformData');
+
+
+        for(var layer in this.renderLayerMap){
+            this.renderLayerMap[layer].cache = true;
+        }
+    }
+    updateLayerRenderData(){
+        var datas;
+        var data,cacheIndex,renderLayerMap,int8ViewS,int8ViewT,start,uniforms,err;
+
+        //clear bytes 0
+        renderLayerMap = this.renderLayerMap;
+        for(var layer in renderLayerMap){
+            if(renderLayerMap[layer].cache) continue;
+            renderLayerMap[layer].renderData.bytes = 0;
+        }
+
+        //calculate total byte per layer
+        datas = this.graph.nodes;
+        for(var i = 0;i< datas.length;i++){
+            data = datas[i];
+            cacheIndex = this.renderCache.node.index[data.id];
+            for(var layer in cacheIndex){
+                if(renderLayerMap[layer].cache) continue;
+                
+                renderLayerMap[layer].renderData.bytes += cacheIndex[layer].byteLength;
+            }
+        }
+
+        datas = this.graph.edges;
+        for(var i = 0;i< datas.length;i++){
+            data = datas[i];
+            cacheIndex = this.renderCache.edge.index[data.id];
+            for(var layer in cacheIndex){
+                if(renderLayerMap[layer].cache) continue;
+
+                renderLayerMap[layer].renderData.bytes += cacheIndex[layer].byteLength;
+            }
+        }
+
+        //gather render data per layer
+        for(var layer in renderLayerMap){
+            if(renderLayerMap[layer].cache) continue;
+
+            if(!renderLayerMap[layer].renderData.data
+                || renderLayerMap[layer].renderData.data.byteLength != renderLayerMap[layer].renderData.bytes
+            )
+                renderLayerMap[layer].renderData.data = new ArrayBuffer(renderLayerMap[layer].renderData.bytes);
+
+            renderLayerMap[layer].renderData.bytes = 0;
+
+        }
+
+        datas = this.graph.nodes;
+        for(var i = 0;i< datas.length;i++){
+            data = datas[i];
+            cacheIndex = this.renderCache.node.index[data.id];
+            for(var layer in cacheIndex){
+
+                if(renderLayerMap[layer].cache) continue;
+
+                int8ViewS = new Int8Array(cacheIndex[layer]);
+                int8ViewT = new Int8Array(renderLayerMap[layer].renderData.data);
+                start = renderLayerMap[layer].renderData.bytes;
+                for(var m = 0; m < int8ViewS.length;m++){
+                    int8ViewT[start+m] = int8ViewS[m];
+                    renderLayerMap[layer].renderData.bytes++;
+                }
+            }
+        }
+
+        datas = this.graph.edges;
+        for(var i = 0;i< datas.length;i++){
+            data = datas[i];
+            cacheIndex = this.renderCache.edge.index[data.id];
+            for(var layer in cacheIndex){
+
+                if(renderLayerMap[layer].cache) continue;
+
+                int8ViewS = new Int8Array(cacheIndex[layer]);
+                int8ViewT = new Int8Array(renderLayerMap[layer].renderData.data);
+                start = renderLayerMap[layer].renderData.bytes;
+                for(var m = 0; m < int8ViewS.length;m++){
+                    int8ViewT[start+m] = int8ViewS[m];
+                    renderLayerMap[layer].renderData.bytes++;
+                }
+            }
+        }
+
+    }
+    draw(){
+        var gl = this.gl,
+            renderLayerMap,program;
+        renderLayerMap = this.renderLayerMap;
+
+        gl.clear(gl.COLOR_BUFFER_BIT);
+
+        // debugger
+        for(var layer in renderLayerMap){
+            program = renderLayerMap[layer].program;
+            gl.useProgram(program);
+
+            gl.bindBuffer(gl.ARRAY_BUFFER, program.buffer);
+            gl.bufferData(gl.ARRAY_BUFFER,renderLayerMap[layer].renderData.data , gl.STATIC_DRAW);
+
+            vertexAttribPointer(gl,program.activeAttributes,program.offsetConfig);
+
+            setUniforms(gl,program.activeUniforms,renderLayerMap[layer].renderData.uniforms);
+
+            gl.bindBuffer(gl.ARRAY_BUFFER, null);
+
+            gl.drawArrays(
+                gl.TRIANGLES, 0,
+                renderLayerMap[layer].renderData.data.byteLength/(program.offsetConfig.strip*4)
+            );
+        }
+    }
+    updateLayerUniformData(){
+        var uniforms,err;
+        var renderLayerMap = this.renderLayerMap;
+
+        for(var layer in renderLayerMap){
+            uniforms = renderLayerMap[layer].render.getUniforms({
+                matrix: mat3.multiMatrix([this.getCameraMatrix(true), this.projectMatrix]),
+                camera: this.camera,
+                sampleRatio: this.sampleRatio,
+                textureLoader: this.textureLoader,
+            });
+
+            if (err = checkAttrValid(renderLayerMap[layer].program.activeUniforms, uniforms)) {
+                throw err.join('\n');
+            }
+
+            renderLayerMap[layer].renderData.uniforms = uniforms;
+        }
+    }
+    render2(){
+
+        // if(this.renderflag) return;
+
+        this.renderflag = true;
+        console.time('render')
+
+        this.updateLayerData();
+
+        // this.updateLayerData('edge');
+        // this.draw();
+        console.timeEnd('render')
+
+        // debugger
+    }
+
+    updateNodeRenderData(ids){
+        this.forceRender();
+        if(!Array.isArray(ids)) ids = [ids];
+        var cacheIndex;
+        ids.forEach(function (id) {
+            this.updateCacheByData('node',this.graph.nodesIndex[id]);
+            cacheIndex = this.renderCache.node.index[id];
+            for(var layer in cacheIndex){
+                this.renderLayerMap[layer].cache = false;
+            }
+        }.bind(this));
+
+    }
+
+    updateEdgeRenderData(ids){
+        this.forceRender();
+        if(!Array.isArray(ids)) ids = [ids];
+        var cacheIndex;
+        ids.forEach(function (id) {
+            this.updateCacheByData('edge',this.graph.edgesIndex[id]);
+            cacheIndex = this.renderCache.edge.index[id];
+            for(var layer in cacheIndex){
+                this.renderLayerMap[layer].cache = false;
+            }
+        }.bind(this));
+    }
+
     //render
     render() {
         // debugger
-
         this.resizeCanvas();
-
-        var gl = this.gl;
-        gl.clear(gl.COLOR_BUFFER_BIT);
-
-        if(!this.initTexture){
-            var imgs = {};
-            var nodes = this.graph.nodes;
-            nodes.forEach(function (node) {
-                node.img && (imgs[node.img] = true);
-            });
-
-            this.textureLoader.loadImgs(Object.keys(imgs));
-            this.initTexture = true;
-        }
-
-        // console.time('render')
-
-        // console.time('renderEdge');
-        this.config.renderEdge && this.renderEdge();
-        // console.timeEnd('renderEdge');
-
-        // console.time('renderEdgeLabel');
-        this.config.renderEdge && this.config.renderEdgeLabel && this.renderEdgeLabel();
-        // console.timeEnd('renderEdgeLabel');
-
-        // console.time('renderNode');
-        this.config.renderNode && this.renderNode();
-        // console.timeEnd('renderNode');
-
-        // console.time('renderNodeLabel');
-        this.config.renderNode && this.config.renderNodeLabel && this.renderNodeLabel();
-        // console.timeEnd('renderNodeLabel');
-
-
-        // console.timeEnd('render')
-
+        // setTimeout(this.render2.bind(this),500);
+        this.render2();
 
         this.needUpdate = false;
-    }
-    renderNode(){
+
         // debugger
-
-        this.createRenderCache('node',this.graph.nodes,function (data) {
-            return {
-                data:data,
-                textureLoader:this.textureLoader,
-                textureIcon:this.textureIcon
-            }
-        }.bind(this));
-
-        this.renderCacheData('node',this.graph.nodes);
-    }
-    renderNodeLabel(){
-
-        this.createRenderCache('nodeLabel',this.graph.nodes,function (data) {
-            return {
-                data:data,
-                textureText:this.textureText
-            }
-        }.bind(this));
-
-        this.renderCacheData('nodeLabel',this.graph.nodes);
+        // return;
+        //
+        // if(!this.initTexture){
+        //     var imgs = {};
+        //     var nodes = this.graph.nodes;
+        //     nodes.forEach(function (node) {
+        //         node.img && (imgs[node.img] = true);
+        //     });
+        //
+        //     this.textureLoader.loadImgs(Object.keys(imgs));
+        //     this.initTexture = true;
+        // }
 
     }
-    renderEdge(){
-        this.createRenderCache('edge',this.graph.edges,function (data) {
-            return {
-                data:data,
-                source:this.graph.nodesIndex[data.source],
-                target:this.graph.nodesIndex[data.target]
-            }
-        }.bind(this));
-
-        this.renderCacheData('edge',this.graph.edges);
-    }
-    renderEdgeLabel(){
-
-        this.createRenderCache('edgeLabel',this.graph.edges,function (data) {
-            return {
-                data:data,
-                source:this.graph.nodesIndex[data.source],
-                target:this.graph.nodesIndex[data.target],
-                textureText:this.textureText
-            }
-        }.bind(this));
-
-        this.renderCacheData('edgeLabel',this.graph.edges);
-
-    }
-
-    clearClusterCacheCounter(type) {
-        var renderType = this.renderType[type].type;
-        var layers;
-        for (var e in renderType){
-            layers  = renderType[e].layers;
-            for(var name in layers){
-                layers[name].counter = 0;
-            }
-        }
-    }
-    fixClusterCacheLength(type){
-        var renderType = this.renderType[type].type;
-        var layers;
-        for (var e in renderType){
-            layers  = renderType[e].layers;
-            for(var name in layers){
-                layers[name].data.length = layers[name].counter;
-            }
-        }
-    }
-
-    createRenderCache(rootType,data,argFn){
-        var nodeData, cacheIndex;
-        var start, offset, layers, type;
-
-        var rootType1 = this.renderType[rootType].type;
-
-        if (!this.renderType[rootType].cache) {
-            this.clearClusterCacheCounter(rootType);
-
-            data.forEach(function (e) {
-
-                type = e.type || 'default';
-                if (!rootType1[type]) this.initRenderLayers(rootType, type);
-
-                //cache info
-                cacheIndex = this.renderType[rootType].index[e.id] = this.renderType[rootType].index[e.id] || {};
-                cacheIndex.type = type;
-                cacheIndex.start = {};//layer start
-
-                layers = rootType1[type].layers;
-                for (var name in layers) {
-
-                    start = layers[name].counter;
-                    offset = 0;
-
-                    nodeData = layers[name].render.getRenderData(argFn(e));
-
-                    // no data
-                    if (!nodeData || nodeData.length == 0) {
-                        // cacheIndex.start[name] = null;
-                        continue;
-                    }
-
-                    nodeData.forEach(function (data) {
-                        layers[name].data[start + offset] = data;
-                        offset++;
-                    }.bind(this));
-
-                    //cache info
-                    cacheIndex.start[name] = start;
-
-                    layers[name].counter += offset;
-                }
-            }.bind(this));
-
-            this.fixClusterCacheLength(rootType);
-
-            this.renderType[rootType].cache = true;
-        }
-    }
-    renderCacheData(rootType,data){
-        var renderType, type, layers, camMatrixInvert, orders, cacheIndex;
-
-        camMatrixInvert = this.getCameraMatrix(true);
-
-        renderType = this.renderType[rootType].type;
-
-        for (type in renderType) {
-
-            layers = renderType[type].layers;
-
-            renderType[type].order.forEach(function (name) {
-
-                if (layers[name].data.length > 0) {
-
-                    this.gl.useProgram(layers[name].program);
-
-                    layers[name].render.render({
-                        gl: this.gl,
-                        program: layers[name].program,
-                        data: layers[name].data,
-                        matrix: mat3.multiMatrix([camMatrixInvert, this.projectMatrix]),
-                        camera: this.camera,
-                        sampleRatio: this.sampleRatio,
-                        textureLoader: this.textureLoader,
-                    });
-
-                }
-
-            }.bind(this));
-        }
-
-    }
-
     initRender() {
         var option = {
             preserveDrawingBuffer:true
@@ -277,19 +442,9 @@ class WebGLRender extends EventEmitter{
         var _this = this;
         this.graph.on('change',function (type,ids) {
             if(type =='node'){
-                // console.time('updateNode');
-                _this.config.renderNode && _this.updateNodeRenderData(ids);
-                // console.timeEnd('updateNode');
-                // console.time('updateNodeLabel');
-                _this.config.renderNode && _this.config.renderNodeLabel && _this.updateNodeLabelRenderData(ids);
-                // console.timeEnd('updateNodeLabel');
+                 _this.updateNodeRenderData(ids);
             }else if(type == 'edge'){
-                // console.time('updateEdge');
-                _this.config.renderEdge && _this.updateEdgeRenderData(ids);
-                // console.timeEnd('updateEdge');
-                // console.time('updateEdgeLabel');
-                _this.config.renderEdge && _this.config.renderEdgeLabel && _this.updateEdgeLabelRenderData(ids);
-                // console.timeEnd('updateEdgeLabel');
+                 _this.updateEdgeRenderData(ids);
             }
 
         });
@@ -316,7 +471,7 @@ class WebGLRender extends EventEmitter{
 
 
         this.textureIcon.on('load',function () {
-            this.clearRenderCache('node');
+            this.clearRenderCache();
         }.bind(this));
 
 
@@ -521,100 +676,21 @@ class WebGLRender extends EventEmitter{
     }
 
     //cache update
-    clearRenderCache(rootType){
-        if(rootType　&& this.renderType[rootType]){
-            this.forceRender();
-            this.renderType[rootType].cache = false;
-        }else if(!rootType){
-            this.forceRender();
-            this.renderType.node.cache = false;
-            this.renderType.nodeLabel.cache = false;
-            this.renderType.edge.cache = false;
-            this.renderType.edgeLabel.cache = false;
-        }
-    }
-    updateRenderData(rootType,id,argFn){
-        if(!this.renderType[rootType].cache) return;
-
-        var cache = this.renderType[rootType].index[id];//
-        var type = cache.type;
-        var start = cache.start;
-
-        var renderType = this.renderType[rootType].type[type];
-
-        for(var layer in renderType.layers){
-            var renderData = renderType.layers[layer].render.getRenderData(argFn());
-
-
-            if (
-                (!renderData || renderData.length == 0)
-                ||
-                (renderData && renderData.length > 0 && start[layer] === null)
-            ) continue;
-
-            renderData.forEach(function (e,i) {
-                renderType.layers[layer].data[start[layer]+i] = e;
+    clearRenderCache(layers){
+        this.forceRender();
+        var _this = this;
+        if(layers){
+            layers.forEach(function (layer) {
+                _this.renderLayerMap[layer].cache = false;
             });
+        }else {
+            for(var layer in _this.renderLayerMap){
+                _this.renderLayerMap[layer].cache = false;
+            }
+            _this.renderCache.graph.flag = false;
+            _this.renderCache.node.flag = false;
+            _this.renderCache.edge.flag = false;
         }
-    }
-    updateNodeRenderData(ids){
-        // debugger
-        this.forceRender();
-        if(!Array.isArray(ids)) ids = [ids];
-        ids.forEach(function (id) {
-            this.updateRenderData('node',id,function () {
-                return {
-                    data:this.graph.nodesIndex[id],
-                    textureLoader:this.textureLoader,
-                    textureIcon:this.textureIcon
-                }
-            }.bind(this));
-
-        }.bind(this));
-
-    }
-    updateNodeLabelRenderData(ids){
-        // debugger
-        this.forceRender();
-        if(!Array.isArray(ids)) ids = [ids];
-        ids.forEach(function (id) {
-            this.updateRenderData('nodeLabel',id,function () {
-                return {
-                    data:this.graph.nodesIndex[id],
-                    textureText:this.textureText
-                }
-            }.bind(this));
-        }.bind(this));
-
-    }
-    updateEdgeRenderData(ids){
-        this.forceRender();
-        if(!Array.isArray(ids)) ids = [ids];
-        ids.forEach(function (id) {
-            this.updateRenderData('edge',id,function () {
-                return {
-                    data:this.graph.edgesIndex[id],
-                    source:this.graph.nodesIndex[this.graph.edgesIndex[id].source],
-                    target:this.graph.nodesIndex[this.graph.edgesIndex[id].target]
-                }
-            }.bind(this));
-        }.bind(this));
-    }
-    updateEdgeLabelRenderData(ids){
-        // debugger
-        this.forceRender();
-        if(!Array.isArray(ids)) ids = [ids];
-        ids.forEach(function (id) {
-            this.updateRenderData('edgeLabel',id,function () {
-                return {
-                    data:this.graph.edgesIndex[id],
-                    source:this.graph.nodesIndex[this.graph.edgesIndex[id].source],
-                    target:this.graph.nodesIndex[this.graph.edgesIndex[id].target],
-                    textureText:this.textureText
-                }
-            }.bind(this));
-        }.bind(this));
-
     }
 
 
