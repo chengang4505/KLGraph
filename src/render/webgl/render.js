@@ -97,7 +97,7 @@ class WebGLRender extends EventEmitter{
     initRenderLayerMap(){
         var  renderLayerMap = this.renderLayerMap;
         var gl = this.gl;
-        var program;
+        var program,strip = 0;
 
         var _this = this;
         this.renderLayersConfig.forEach(function (layer) {
@@ -110,14 +110,19 @@ class WebGLRender extends EventEmitter{
 
                 program.activeAttributes = getActiveAttributes(gl,program);
                 program.activeUniforms = getActiveUniforms(gl,program);
-                program.offsetConfig = calTypeOffset(program.activeAttributes);
+                // program.offsetConfig = calTypeOffset(program.activeAttributes);
+                strip = 0;
+                for(var attr in subLayer.render.attributes){
+                    strip += subLayer.render.attributes[attr].components;
+                }
+                program.offsetConfig = {config:subLayer.render.attributes,strip:strip};
                 program.buffer = gl.createBuffer();
 
                 subLayer.program = program;
 
                 subLayer.renderData = {
                     uniforms:null,
-                    data:null,
+                    data:[],
                     bytes:0
                 };
 
@@ -164,20 +169,24 @@ class WebGLRender extends EventEmitter{
                 textureIcon: this.textureIcon
             });
 
-            if (!util.isArray(temp)) temp = [temp];
+            cacheIndex[layer] = temp;
 
-            temp.forEach(function (data) {
-                if (err = checkAttrValid(renderLayerMap[layer].program.activeAttributes, data)) {
-                    throw err.join('\n');
-                }
-            }.bind(this));
+            // if (!util.isArray(temp)) temp = [temp];
+            //
+            // temp.forEach(function (data) {
+            //     if (err = checkAttrValid(renderLayerMap[layer].program.activeAttributes, data)) {
+            //         throw err.join('\n');
+            //     }
+            // }.bind(this));
+            //
+            // totalLen = temp.length * renderLayerMap[layer].program.offsetConfig.strip * 4;
+            // if (!cacheIndex[layer] || cacheIndex[layer].byteLength != totalLen) {
+            //     cacheIndex[layer] = new ArrayBuffer(totalLen);
+            // }
 
-            totalLen = temp.length * renderLayerMap[layer].program.offsetConfig.strip * 4;
-            if (!cacheIndex[layer] || cacheIndex[layer].byteLength != totalLen) {
-                cacheIndex[layer] = new ArrayBuffer(totalLen);
-            }
+            // cacheIndex[layer] = [];
 
-            this.putData(cacheIndex[layer], temp, renderLayerMap[layer].program.offsetConfig);
+            // this.putData(cacheIndex[layer], temp, renderLayerMap[layer].program.offsetConfig);
 
         }.bind(this))
     }
@@ -224,50 +233,15 @@ class WebGLRender extends EventEmitter{
     }
     updateLayerRenderData(){
         var datas;
-        var data,cacheIndex,renderLayerMap,int8ViewS,int8ViewT,start,uniforms,err;
+        var data,cacheIndex,renderLayerMap,int8ViewS,int8ViewT,start,temp,err;
 
-        //clear bytes 0
+        // //clear bytes 0
         renderLayerMap = this.renderLayerMap;
-        for(var layer in renderLayerMap){
-            if(renderLayerMap[layer].cache) continue;
-            renderLayerMap[layer].renderData.bytes = 0;
-        }
+        // for(var layer in renderLayerMap){
+        //     if(renderLayerMap[layer].cache) continue;
+        //     renderLayerMap[layer].renderData.bytes = 0;
+        // }
 
-        //calculate total byte per layer
-        datas = this.graph.nodes;
-        for(var i = 0;i< datas.length;i++){
-            data = datas[i];
-            cacheIndex = this.renderCache.node.index[data.id];
-            for(var layer in cacheIndex){
-                if(renderLayerMap[layer].cache) continue;
-                
-                renderLayerMap[layer].renderData.bytes += cacheIndex[layer].byteLength;
-            }
-        }
-
-        datas = this.graph.edges;
-        for(var i = 0;i< datas.length;i++){
-            data = datas[i];
-            cacheIndex = this.renderCache.edge.index[data.id];
-            for(var layer in cacheIndex){
-                if(renderLayerMap[layer].cache) continue;
-
-                renderLayerMap[layer].renderData.bytes += cacheIndex[layer].byteLength;
-            }
-        }
-
-        //gather render data per layer
-        for(var layer in renderLayerMap){
-            if(renderLayerMap[layer].cache) continue;
-
-            if(!renderLayerMap[layer].renderData.data
-                || renderLayerMap[layer].renderData.data.byteLength != renderLayerMap[layer].renderData.bytes
-            )
-                renderLayerMap[layer].renderData.data = new ArrayBuffer(renderLayerMap[layer].renderData.bytes);
-
-            renderLayerMap[layer].renderData.bytes = 0;
-
-        }
 
         datas = this.graph.nodes;
         for(var i = 0;i< datas.length;i++){
@@ -277,13 +251,11 @@ class WebGLRender extends EventEmitter{
 
                 if(renderLayerMap[layer].cache) continue;
 
-                int8ViewS = new Int8Array(cacheIndex[layer]);
-                int8ViewT = new Int8Array(renderLayerMap[layer].renderData.data);
-                start = renderLayerMap[layer].renderData.bytes;
-                for(var m = 0; m < int8ViewS.length;m++){
-                    int8ViewT[start+m] = int8ViewS[m];
+                temp = cacheIndex[layer];
+                temp.forEach(function (e,i) {
+                    start = renderLayerMap[layer].renderData.data[renderLayerMap[layer].renderData.bytes] = e;
                     renderLayerMap[layer].renderData.bytes++;
-                }
+                });
             }
         }
 
@@ -295,18 +267,23 @@ class WebGLRender extends EventEmitter{
 
                 if(renderLayerMap[layer].cache) continue;
 
-                int8ViewS = new Int8Array(cacheIndex[layer]);
-                int8ViewT = new Int8Array(renderLayerMap[layer].renderData.data);
-                start = renderLayerMap[layer].renderData.bytes;
-                for(var m = 0; m < int8ViewS.length;m++){
-                    int8ViewT[start+m] = int8ViewS[m];
+                temp = cacheIndex[layer];
+                temp.forEach(function (e,i) {
+                    start = renderLayerMap[layer].renderData.data[renderLayerMap[layer].renderData.bytes] = e;
                     renderLayerMap[layer].renderData.bytes++;
-                }
+                });
             }
+        }
+
+        for(var layer in renderLayerMap){
+            if(renderLayerMap[layer].cache) continue;
+            renderLayerMap[layer].renderData.data.length = renderLayerMap[layer].renderData.bytes;
+            renderLayerMap[layer].renderData.bytes = 0;
         }
 
     }
     draw(){
+        // debugger
         var gl = this.gl,
             renderLayerMap,program;
         renderLayerMap = this.renderLayerMap;
@@ -319,7 +296,7 @@ class WebGLRender extends EventEmitter{
             gl.useProgram(program);
 
             gl.bindBuffer(gl.ARRAY_BUFFER, program.buffer);
-            gl.bufferData(gl.ARRAY_BUFFER,renderLayerMap[layer].renderData.data , gl.STATIC_DRAW);
+            gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(renderLayerMap[layer].renderData.data) , gl.STATIC_DRAW);
 
             vertexAttribPointer(gl,program.activeAttributes,program.offsetConfig);
 
@@ -329,7 +306,7 @@ class WebGLRender extends EventEmitter{
 
             gl.drawArrays(
                 gl.TRIANGLES, 0,
-                renderLayerMap[layer].renderData.data.byteLength/(program.offsetConfig.strip*4)
+                renderLayerMap[layer].renderData.data.length/(program.offsetConfig.strip)
             );
         }
     }
@@ -361,8 +338,9 @@ class WebGLRender extends EventEmitter{
 
         this.updateLayerData();
 
-        // this.updateLayerData('edge');
-        // this.draw();
+        console.time('draw');
+        this.draw();
+        console.timeEnd('draw');
         console.timeEnd('render')
 
         // debugger

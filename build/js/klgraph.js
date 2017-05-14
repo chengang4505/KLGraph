@@ -64,7 +64,7 @@ window["KLGraph"] =
 /******/ 	__webpack_require__.p = "";
 /******/
 /******/ 	// Load entry module and return exports
-/******/ 	return __webpack_require__(__webpack_require__.s = 40);
+/******/ 	return __webpack_require__(__webpack_require__.s = 41);
 /******/ })
 /************************************************************************/
 /******/ ([
@@ -410,7 +410,7 @@ var _EventEmitter2 = __webpack_require__(1);
 
 var _EventEmitter3 = _interopRequireDefault(_EventEmitter2);
 
-var _timer = __webpack_require__(9);
+var _timer = __webpack_require__(10);
 
 var _timer2 = _interopRequireDefault(_timer);
 
@@ -704,6 +704,193 @@ module.exports = " precision mediump float;\n\nvec4 color = vec4(77, 72, 91,255)
 "use strict";
 
 
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+exports.GlType = exports.GLComType = undefined;
+exports.getActiveAttributes = getActiveAttributes;
+exports.getActiveUniforms = getActiveUniforms;
+exports.calTypeOffset = calTypeOffset;
+exports.vertexAttribPointer = vertexAttribPointer;
+exports.checkAttrValid = checkAttrValid;
+exports.setUniforms = setUniforms;
+
+var _util = __webpack_require__(0);
+
+var _util2 = _interopRequireDefault(_util);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+var GLComType = exports.GLComType = {
+    FLOAT: { glType: 'FLOAT', bytes: 4 },
+    BYTE: { glType: 'BYTE', bytes: 1 },
+    SHORT: { glType: 'SHORT', bytes: 2 },
+    UNSIGNED_BYTE: { glType: 'UNSIGNED_BYTE', bytes: 1 },
+    UNSIGNED_SHORT: { glType: 'UNSIGNED_SHORT', bytes: 2 }
+};
+
+var GlType = exports.GlType = {
+    FLOAT: { components: 1, glType: 'FLOAT' },
+    FLOAT_VEC2: { components: 2, glType: 'FLOAT_VEC2' },
+    FLOAT_VEC3: { components: 3, glType: 'FLOAT_VEC3' },
+    FLOAT_VEC4: { components: 4, glType: 'FLOAT_VEC4' },
+    INT: { components: 1, glType: 'INT' },
+    INT_VEC2: { components: 2, glType: 'INT_VEC2' },
+    INT_VEC3: { components: 3, glType: 'INT_VEC3' },
+    INT_VEC4: { components: 4, glType: 'INT_VEC4' },
+    BOOL: { components: 1, glType: 'BOOL' },
+    BOOL_VEC2: { components: 2, glType: 'BOOL_VEC2' },
+    BOOL_VEC3: { components: 3, glType: 'BOOL_VEC3' },
+    BOOL_VEC4: { components: 4, glType: 'BOOL_VEC4' },
+    FLOAT_MAT2: { components: 4, glType: 'FLOAT_MAT2' },
+    FLOAT_MAT3: { components: 9, glType: 'FLOAT_MAT3' },
+    FLOAT_MAT4: { components: 16, glType: 'FLOAT_MAT4' },
+    SAMPLER_2D: { components: 1, glType: 'SAMPLER_2D' },
+    SAMPLER_CUBE: { components: 1, glType: 'SAMPLER_CUBE' }
+};
+
+function getType(gl, typeNum) {
+    var type = 'FLOAT';
+    for (var name in GlType) {
+        if (gl[name] == typeNum) return name;
+    }
+    console.error('gl type not found');
+    return type;
+}
+
+function getActiveAttributes(gl, program) {
+    var shaderAttrInfos = {};
+    var numAttribs = gl.getProgramParameter(program, gl.ACTIVE_ATTRIBUTES);
+    for (var i = 0; i < numAttribs; ++i) {
+        var attribInfo = gl.getActiveAttrib(program, i);
+        if (!attribInfo) {
+            continue;
+        }
+
+        shaderAttrInfos[attribInfo.name] = {};
+        shaderAttrInfos[attribInfo.name].type = getType(gl, attribInfo.type);
+        shaderAttrInfos[attribInfo.name].size = attribInfo.size;
+        shaderAttrInfos[attribInfo.name].location = gl.getAttribLocation(program, attribInfo.name);
+    }
+    return shaderAttrInfos;
+}
+function getActiveUniforms(gl, program) {
+    var shaderUniformInfos = {};
+    var numUniforms = gl.getProgramParameter(program, gl.ACTIVE_UNIFORMS);
+    for (var i = 0; i < numUniforms; ++i) {
+        var uniformInfo = gl.getActiveUniform(program, i);
+        if (!uniformInfo) {
+            continue;
+        }
+
+        var name = uniformInfo.name;
+        // remove the array suffix.
+        if (name.substr(-3) === "[0]") {
+            name = name.substr(0, name.length - 3);
+        }
+
+        shaderUniformInfos[name] = {};
+        shaderUniformInfos[name].type = getType(gl, uniformInfo.type);
+        shaderUniformInfos[name].size = uniformInfo.size;
+        shaderUniformInfos[name].location = gl.getUniformLocation(program, name);
+    }
+    return shaderUniformInfos;
+}
+
+function calTypeOffset(activeAttributes, config) {
+    config = config || {};
+    var offsetConfig = {
+        config: {},
+        strip: 0
+    };
+    var type,
+        num = 0;
+    for (var attr in activeAttributes) {
+        type = activeAttributes[attr].type;
+        offsetConfig.config[attr] = {};
+        offsetConfig.config[attr].start = num;
+        offsetConfig.config[attr].components = GlType[type].components;
+        num += GlType[type].components;
+    }
+    offsetConfig.strip = num;
+    return offsetConfig;
+}
+
+function vertexAttribPointer(gl, activeAttributes, offsetConfig) {
+    var config = offsetConfig.config;
+    var strip = offsetConfig.strip;
+    for (var attr in activeAttributes) {
+        gl.vertexAttribPointer(activeAttributes[attr].location, config[attr].components, gl.FLOAT, false, strip * 4, config[attr].start * 4);
+        gl.enableVertexAttribArray(activeAttributes[attr].location);
+    }
+}
+
+function checkAttrValid(config, data) {
+
+    var type;
+    var err = [];
+    for (var attr in config) {
+        if (!config.hasOwnProperty(attr)) {
+            err.push('shader need attribute: ' + attr);
+            continue;
+        }
+
+        if (data[attr] == undefined) {
+            err.push('attribute [' + attr + ']: is undefined');
+            continue;
+        }
+
+        type = config[attr].type;
+        if (_util2.default.isArray(data[attr]) && data[attr].length != GlType[type].components * config[attr].size) {
+            err.push('attribute [' + attr + ']: size need ' + GlType[type].components);
+        }
+    }
+
+    return err.length ? err : null;
+}
+
+var uniformSetter = {
+    FLOAT: function FLOAT(gl, location, v) {
+        gl.uniform1f(location, v);
+    },
+    FLOAT_VEC2: function FLOAT_VEC2(gl, location, v) {
+        gl.uniform2fv(location, v);
+    },
+    FLOAT_VEC3: function FLOAT_VEC3(gl, location, v) {
+        gl.uniform3fv(location, v);
+    },
+    FLOAT_VEC4: function FLOAT_VEC4(gl, location, v) {
+        gl.uniform4fv(location, v);
+    },
+    FLOAT_MAT2: function FLOAT_MAT2(gl, location, v) {
+        gl.uniformMatrix2fv(location, false, v);
+    },
+    FLOAT_MAT3: function FLOAT_MAT3(gl, location, v) {
+        gl.uniformMatrix3fv(location, false, v);
+    },
+    FLOAT_MAT4: function FLOAT_MAT4(gl, location, v) {
+        gl.uniformMatrix4fv(location, false, v);
+    },
+    SAMPLER_2D: function SAMPLER_2D(gl, location, v) {
+        if (v.length) gl.uniform1iv(location, v);else gl.uniform1i(location, v);
+    }
+};
+
+function setUniforms(gl, activeUniforms, uniforms) {
+    var type;
+    for (var attr in activeUniforms) {
+        type = activeUniforms[attr].type;
+        uniformSetter[type](gl, activeUniforms[attr].location, uniforms[attr]);
+    }
+}
+
+/***/ }),
+/* 6 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
 
 Object.defineProperty(exports, "__esModule", {
     value: true
@@ -723,19 +910,19 @@ var _EventEmitter2 = __webpack_require__(1);
 
 var _EventEmitter3 = _interopRequireDefault(_EventEmitter2);
 
-var _TextureLoader = __webpack_require__(22);
+var _TextureLoader = __webpack_require__(23);
 
 var _TextureLoader2 = _interopRequireDefault(_TextureLoader);
 
-var _TextureText = __webpack_require__(23);
+var _TextureText = __webpack_require__(24);
 
 var _TextureText2 = _interopRequireDefault(_TextureText);
 
-var _TextureIcon = __webpack_require__(21);
+var _TextureIcon = __webpack_require__(22);
 
 var _TextureIcon2 = _interopRequireDefault(_TextureIcon);
 
-var _Event = __webpack_require__(10);
+var _Event = __webpack_require__(11);
 
 var _Event2 = _interopRequireDefault(_Event);
 
@@ -743,7 +930,7 @@ var _tween = __webpack_require__(2);
 
 var _tween2 = _interopRequireDefault(_tween);
 
-var _GLUtil = __webpack_require__(45);
+var _GLUtil = __webpack_require__(5);
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
@@ -826,7 +1013,8 @@ var WebGLRender = function (_EventEmitter) {
         value: function initRenderLayerMap() {
             var renderLayerMap = this.renderLayerMap;
             var gl = this.gl;
-            var program;
+            var program,
+                strip = 0;
 
             var _this = this;
             this.renderLayersConfig.forEach(function (layer) {
@@ -836,14 +1024,19 @@ var WebGLRender = function (_EventEmitter) {
 
                     program.activeAttributes = (0, _GLUtil.getActiveAttributes)(gl, program);
                     program.activeUniforms = (0, _GLUtil.getActiveUniforms)(gl, program);
-                    program.offsetConfig = (0, _GLUtil.calTypeOffset)(program.activeAttributes);
+                    // program.offsetConfig = calTypeOffset(program.activeAttributes);
+                    strip = 0;
+                    for (var attr in subLayer.render.attributes) {
+                        strip += subLayer.render.attributes[attr].components;
+                    }
+                    program.offsetConfig = { config: subLayer.render.attributes, strip: strip };
                     program.buffer = gl.createBuffer();
 
                     subLayer.program = program;
 
                     subLayer.renderData = {
                         uniforms: null,
-                        data: null,
+                        data: [],
                         bytes: 0
                     };
 
@@ -894,20 +1087,24 @@ var WebGLRender = function (_EventEmitter) {
                     textureIcon: this.textureIcon
                 });
 
-                if (!_util2.default.isArray(temp)) temp = [temp];
+                cacheIndex[layer] = temp;
 
-                temp.forEach(function (data) {
-                    if (err = (0, _GLUtil.checkAttrValid)(renderLayerMap[layer].program.activeAttributes, data)) {
-                        throw err.join('\n');
-                    }
-                }.bind(this));
+                // if (!util.isArray(temp)) temp = [temp];
+                //
+                // temp.forEach(function (data) {
+                //     if (err = checkAttrValid(renderLayerMap[layer].program.activeAttributes, data)) {
+                //         throw err.join('\n');
+                //     }
+                // }.bind(this));
+                //
+                // totalLen = temp.length * renderLayerMap[layer].program.offsetConfig.strip * 4;
+                // if (!cacheIndex[layer] || cacheIndex[layer].byteLength != totalLen) {
+                //     cacheIndex[layer] = new ArrayBuffer(totalLen);
+                // }
 
-                totalLen = temp.length * renderLayerMap[layer].program.offsetConfig.strip * 4;
-                if (!cacheIndex[layer] || cacheIndex[layer].byteLength != totalLen) {
-                    cacheIndex[layer] = new ArrayBuffer(totalLen);
-                }
+                // cacheIndex[layer] = [];
 
-                this.putData(cacheIndex[layer], temp, renderLayerMap[layer].program.offsetConfig);
+                // this.putData(cacheIndex[layer], temp, renderLayerMap[layer].program.offsetConfig);
             }.bind(this));
         }
     }, {
@@ -956,46 +1153,15 @@ var WebGLRender = function (_EventEmitter) {
         key: 'updateLayerRenderData',
         value: function updateLayerRenderData() {
             var datas;
-            var data, cacheIndex, renderLayerMap, int8ViewS, int8ViewT, start, uniforms, err;
+            var data, cacheIndex, renderLayerMap, int8ViewS, int8ViewT, start, temp, err;
 
-            //clear bytes 0
+            // //clear bytes 0
             renderLayerMap = this.renderLayerMap;
-            for (var layer in renderLayerMap) {
-                if (renderLayerMap[layer].cache) continue;
-                renderLayerMap[layer].renderData.bytes = 0;
-            }
+            // for(var layer in renderLayerMap){
+            //     if(renderLayerMap[layer].cache) continue;
+            //     renderLayerMap[layer].renderData.bytes = 0;
+            // }
 
-            //calculate total byte per layer
-            datas = this.graph.nodes;
-            for (var i = 0; i < datas.length; i++) {
-                data = datas[i];
-                cacheIndex = this.renderCache.node.index[data.id];
-                for (var layer in cacheIndex) {
-                    if (renderLayerMap[layer].cache) continue;
-
-                    renderLayerMap[layer].renderData.bytes += cacheIndex[layer].byteLength;
-                }
-            }
-
-            datas = this.graph.edges;
-            for (var i = 0; i < datas.length; i++) {
-                data = datas[i];
-                cacheIndex = this.renderCache.edge.index[data.id];
-                for (var layer in cacheIndex) {
-                    if (renderLayerMap[layer].cache) continue;
-
-                    renderLayerMap[layer].renderData.bytes += cacheIndex[layer].byteLength;
-                }
-            }
-
-            //gather render data per layer
-            for (var layer in renderLayerMap) {
-                if (renderLayerMap[layer].cache) continue;
-
-                if (!renderLayerMap[layer].renderData.data || renderLayerMap[layer].renderData.data.byteLength != renderLayerMap[layer].renderData.bytes) renderLayerMap[layer].renderData.data = new ArrayBuffer(renderLayerMap[layer].renderData.bytes);
-
-                renderLayerMap[layer].renderData.bytes = 0;
-            }
 
             datas = this.graph.nodes;
             for (var i = 0; i < datas.length; i++) {
@@ -1005,13 +1171,11 @@ var WebGLRender = function (_EventEmitter) {
 
                     if (renderLayerMap[layer].cache) continue;
 
-                    int8ViewS = new Int8Array(cacheIndex[layer]);
-                    int8ViewT = new Int8Array(renderLayerMap[layer].renderData.data);
-                    start = renderLayerMap[layer].renderData.bytes;
-                    for (var m = 0; m < int8ViewS.length; m++) {
-                        int8ViewT[start + m] = int8ViewS[m];
+                    temp = cacheIndex[layer];
+                    temp.forEach(function (e, i) {
+                        start = renderLayerMap[layer].renderData.data[renderLayerMap[layer].renderData.bytes] = e;
                         renderLayerMap[layer].renderData.bytes++;
-                    }
+                    });
                 }
             }
 
@@ -1023,19 +1187,24 @@ var WebGLRender = function (_EventEmitter) {
 
                     if (renderLayerMap[layer].cache) continue;
 
-                    int8ViewS = new Int8Array(cacheIndex[layer]);
-                    int8ViewT = new Int8Array(renderLayerMap[layer].renderData.data);
-                    start = renderLayerMap[layer].renderData.bytes;
-                    for (var m = 0; m < int8ViewS.length; m++) {
-                        int8ViewT[start + m] = int8ViewS[m];
+                    temp = cacheIndex[layer];
+                    temp.forEach(function (e, i) {
+                        start = renderLayerMap[layer].renderData.data[renderLayerMap[layer].renderData.bytes] = e;
                         renderLayerMap[layer].renderData.bytes++;
-                    }
+                    });
                 }
+            }
+
+            for (var layer in renderLayerMap) {
+                if (renderLayerMap[layer].cache) continue;
+                renderLayerMap[layer].renderData.data.length = renderLayerMap[layer].renderData.bytes;
+                renderLayerMap[layer].renderData.bytes = 0;
             }
         }
     }, {
         key: 'draw',
         value: function draw() {
+            // debugger
             var gl = this.gl,
                 renderLayerMap,
                 program;
@@ -1049,7 +1218,7 @@ var WebGLRender = function (_EventEmitter) {
                 gl.useProgram(program);
 
                 gl.bindBuffer(gl.ARRAY_BUFFER, program.buffer);
-                gl.bufferData(gl.ARRAY_BUFFER, renderLayerMap[layer].renderData.data, gl.STATIC_DRAW);
+                gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(renderLayerMap[layer].renderData.data), gl.STATIC_DRAW);
 
                 (0, _GLUtil.vertexAttribPointer)(gl, program.activeAttributes, program.offsetConfig);
 
@@ -1057,7 +1226,7 @@ var WebGLRender = function (_EventEmitter) {
 
                 gl.bindBuffer(gl.ARRAY_BUFFER, null);
 
-                gl.drawArrays(gl.TRIANGLES, 0, renderLayerMap[layer].renderData.data.byteLength / (program.offsetConfig.strip * 4));
+                gl.drawArrays(gl.TRIANGLES, 0, renderLayerMap[layer].renderData.data.length / program.offsetConfig.strip);
             }
         }
     }, {
@@ -1092,8 +1261,9 @@ var WebGLRender = function (_EventEmitter) {
 
             this.updateLayerData();
 
-            // this.updateLayerData('edge');
-            // this.draw();
+            console.time('draw');
+            this.draw();
+            console.timeEnd('draw');
             console.timeEnd('render');
 
             // debugger
@@ -1436,13 +1606,13 @@ var WebGLRender = function (_EventEmitter) {
 exports.default = WebGLRender;
 
 /***/ }),
-/* 6 */
+/* 7 */
 /***/ (function(module, exports) {
 
 module.exports = "attribute vec2 a_position;\nattribute vec2 a_uv;\nattribute float a_size;\n\nuniform mat3 u_matrix;\nuniform sampler2D u_image;\n\n\nvarying vec2 v_texCoord;\nvarying float size;\n\nvoid main() {\ngl_Position = vec4((u_matrix*vec3(a_position,1)).xy,0,1);\nv_texCoord = a_uv;\nsize = a_size;\n}\n"
 
 /***/ }),
-/* 7 */
+/* 8 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -1458,11 +1628,11 @@ Object.defineProperty(exports, "__esModule", {
 
 var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
 
-var _Graph = __webpack_require__(11);
+var _Graph = __webpack_require__(12);
 
 var _Graph2 = _interopRequireDefault(_Graph);
 
-var _render2 = __webpack_require__(5);
+var _render2 = __webpack_require__(6);
 
 var _render3 = _interopRequireDefault(_render2);
 
@@ -1474,15 +1644,15 @@ var _tween = __webpack_require__(2);
 
 var _tween2 = _interopRequireDefault(_tween);
 
-var _Selection = __webpack_require__(12);
+var _Selection = __webpack_require__(13);
 
 var _Selection2 = _interopRequireDefault(_Selection);
 
-var _index = __webpack_require__(19);
+var _index = __webpack_require__(20);
 
 var _index2 = _interopRequireDefault(_index);
 
-var _config = __webpack_require__(13);
+var _config = __webpack_require__(14);
 
 var _config2 = _interopRequireDefault(_config);
 
@@ -1726,7 +1896,7 @@ Core.layout = _index2.default;
 exports.default = Core;
 
 /***/ }),
-/* 8 */
+/* 9 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -1737,35 +1907,35 @@ Object.defineProperty(exports, "__esModule", {
 });
 exports.WebGLRender = undefined;
 
-var _render = __webpack_require__(5);
+var _render = __webpack_require__(6);
 
 var _render2 = _interopRequireDefault(_render);
 
-var _render3 = __webpack_require__(48);
+var _render3 = __webpack_require__(30);
 
 var _render4 = _interopRequireDefault(_render3);
 
-var _render5 = __webpack_require__(49);
+var _render5 = __webpack_require__(31);
 
 var _render6 = _interopRequireDefault(_render5);
 
-var _NodeLabel = __webpack_require__(27);
+var _NodeLabel = __webpack_require__(28);
 
 var _NodeLabel2 = _interopRequireDefault(_NodeLabel);
 
-var _render7 = __webpack_require__(47);
+var _render7 = __webpack_require__(26);
 
 var _render8 = _interopRequireDefault(_render7);
 
-var _curve = __webpack_require__(24);
+var _curve = __webpack_require__(25);
 
 var _curve2 = _interopRequireDefault(_curve);
 
-var _EdgeLabel = __webpack_require__(26);
+var _EdgeLabel = __webpack_require__(27);
 
 var _EdgeLabel2 = _interopRequireDefault(_EdgeLabel);
 
-var _curveLabel = __webpack_require__(28);
+var _curveLabel = __webpack_require__(29);
 
 var _curveLabel2 = _interopRequireDefault(_curveLabel);
 
@@ -1794,7 +1964,7 @@ _render2.default.edgeLabel.curve = _curveLabel2.default;
 exports.WebGLRender = _render2.default;
 
 /***/ }),
-/* 9 */
+/* 10 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -1935,7 +2105,7 @@ function sleep(time) {
 }
 
 /***/ }),
-/* 10 */
+/* 11 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -2182,7 +2352,7 @@ function initEvent() {
 }
 
 /***/ }),
-/* 11 */
+/* 12 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -2526,7 +2696,7 @@ var Graph = function (_EventEmitter) {
 exports.default = Graph;
 
 /***/ }),
-/* 12 */
+/* 13 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -2758,7 +2928,7 @@ var Selection = function (_EventEmitter) {
 exports.default = Selection;
 
 /***/ }),
-/* 13 */
+/* 14 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -2786,7 +2956,7 @@ exports.default = {
 };
 
 /***/ }),
-/* 14 */
+/* 15 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -3582,7 +3752,7 @@ function setOffset(node, x, y) {
 exports.default = CircularLayout;
 
 /***/ }),
-/* 15 */
+/* 16 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -3653,7 +3823,7 @@ var ColaLayout = function () {
 exports.default = ColaLayout;
 
 /***/ }),
-/* 16 */
+/* 17 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -3719,7 +3889,7 @@ var DargeLayout = function () {
 exports.default = DargeLayout;
 
 /***/ }),
-/* 17 */
+/* 18 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -3839,7 +4009,7 @@ var FlowLayout = function () {
 exports.default = FlowLayout;
 
 /***/ }),
-/* 18 */
+/* 19 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -3894,7 +4064,7 @@ var Grid = function () {
 exports.default = Grid;
 
 /***/ }),
-/* 19 */
+/* 20 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -3904,23 +4074,23 @@ Object.defineProperty(exports, "__esModule", {
     value: true
 });
 
-var _CircularLayout = __webpack_require__(14);
+var _CircularLayout = __webpack_require__(15);
 
 var _CircularLayout2 = _interopRequireDefault(_CircularLayout);
 
-var _ColaLayout = __webpack_require__(15);
+var _ColaLayout = __webpack_require__(16);
 
 var _ColaLayout2 = _interopRequireDefault(_ColaLayout);
 
-var _FlowLayout = __webpack_require__(17);
+var _FlowLayout = __webpack_require__(18);
 
 var _FlowLayout2 = _interopRequireDefault(_FlowLayout);
 
-var _DargeLayout = __webpack_require__(16);
+var _DargeLayout = __webpack_require__(17);
 
 var _DargeLayout2 = _interopRequireDefault(_DargeLayout);
 
-var _Grid = __webpack_require__(18);
+var _Grid = __webpack_require__(19);
 
 var _Grid2 = _interopRequireDefault(_Grid);
 
@@ -3937,7 +4107,7 @@ exports.default = {
     */
 
 /***/ }),
-/* 20 */
+/* 21 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -4057,7 +4227,7 @@ function edt1d(f, d, v, z, n) {
 }
 
 /***/ }),
-/* 21 */
+/* 22 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -4294,7 +4464,7 @@ var TextureIcon = function (_EventEmitter) {
 exports.default = TextureIcon;
 
 /***/ }),
-/* 22 */
+/* 23 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -4403,7 +4573,7 @@ var TextureLoader = function (_EventEmitter) {
 exports.default = TextureLoader;
 
 /***/ }),
-/* 23 */
+/* 24 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -4419,7 +4589,7 @@ var _EventEmitter2 = __webpack_require__(1);
 
 var _EventEmitter3 = _interopRequireDefault(_EventEmitter2);
 
-var _TextSdf = __webpack_require__(20);
+var _TextSdf = __webpack_require__(21);
 
 var _TextSdf2 = _interopRequireDefault(_TextSdf);
 
@@ -4650,7 +4820,7 @@ function test() {
 }
 
 /***/ }),
-/* 24 */
+/* 25 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -4667,11 +4837,11 @@ var _util = __webpack_require__(0);
 
 var _util2 = _interopRequireDefault(_util);
 
-var _vert = __webpack_require__(32);
+var _vert = __webpack_require__(33);
 
 var _vert2 = _interopRequireDefault(_vert);
 
-var _frag = __webpack_require__(31);
+var _frag = __webpack_require__(32);
 
 var _frag2 = _interopRequireDefault(_frag);
 
@@ -4858,8 +5028,111 @@ var Curve = function () {
 exports.default = Curve;
 
 /***/ }),
-/* 25 */,
 /* 26 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+
+var _util = __webpack_require__(0);
+
+var _util2 = _interopRequireDefault(_util);
+
+var _defaultVert = __webpack_require__(35);
+
+var _defaultVert2 = _interopRequireDefault(_defaultVert);
+
+var _defaultFrag = __webpack_require__(34);
+
+var _defaultFrag2 = _interopRequireDefault(_defaultFrag);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+exports.default = {
+    shaderVert: _defaultVert2.default,
+    shaderFrag: _defaultFrag2.default,
+    attributes: {
+        a_position: { components: 2, start: 0 },
+        a_normal: { components: 2, start: 2 },
+        a_size: { components: 1, start: 4 },
+        a_color: { components: 4, start: 5 }
+    },
+    getUniforms: function getUniforms(_ref) {
+        var matrix = _ref.matrix,
+            camera = _ref.camera,
+            sampleRatio = _ref.sampleRatio,
+            textureLoader = _ref.textureLoader;
+
+        return {
+            u_matrix: matrix
+        };
+    },
+    getRenderData: function getRenderData(_ref2) {
+        var data = _ref2.data,
+            textureLoader = _ref2.textureLoader,
+            textureIcon = _ref2.textureIcon,
+            graph = _ref2.graph;
+
+        var target = graph.nodesIndex[data.target];
+        var source = graph.nodesIndex[data.source];
+        var edge = data;
+        var dx = target.x - source.x;
+        var dy = target.y - source.y;
+
+        data = [];
+        var size = 0.8,
+            arrowSize = 6;
+        var crossVector = _util2.default.normalize([-dy, dx]);
+
+        //arrow
+        var targetSize = Math.max(_util2.default.getNodeSizeX(target), _util2.default.getNodeSizeY(target));
+        var dis = _util2.default.getDistance(source.x, source.y, target.x, target.y);
+        var arrowX = target.x - (targetSize + arrowSize) / dis * dx;
+        var arrowY = target.y - (targetSize + arrowSize) / dis * dy;
+
+        var color = _util2.default.parseColor(edge.color || source.color || '#b3d2ff');
+
+        var renderData = [];
+
+        addData(renderData, [source.x, source.y, crossVector[0], crossVector[1], size, color.r, color.g, color.b, color.a]);
+        addData(renderData, [arrowX, arrowY, crossVector[0], crossVector[1], size, color.r, color.g, color.b, color.a]);
+        addData(renderData, [source.x, source.y, -crossVector[0], -crossVector[1], size, color.r, color.g, color.b, color.a]);
+        addData(renderData, [arrowX, arrowY, crossVector[0], crossVector[1], size, color.r, color.g, color.b, color.a]);
+        addData(renderData, [source.x, source.y, -crossVector[0], -crossVector[1], size, color.r, color.g, color.b, color.a]);
+        addData(renderData, [arrowX, arrowY, -crossVector[0], -crossVector[1], size, color.r, color.g, color.b, color.a]);
+
+        //arrow
+        addData(renderData, [arrowX, arrowY, crossVector[0], crossVector[1], arrowSize / 2, color.r, color.g, color.b, color.a]);
+        addData(renderData, [arrowX, arrowY, -crossVector[0], -crossVector[1], arrowSize / 2, color.r, color.g, color.b, color.a]);
+        addData(renderData, [arrowX, arrowY, arrowSize / dis * dx, arrowSize / dis * dy, 1, color.r, color.g, color.b, color.a]);
+
+        return renderData;
+    }
+}; /**
+    * Created by chengang on 17-3-31.
+    */
+
+function addData(arr, attrData) {
+    for (var i = 0; i < attrData.length; i++) {
+        arr.push(attrData[i]);
+    }
+}
+
+function getData(data) {
+    return {
+        a_position: [data[0], data[1]],
+        a_normal: [data[2], data[3]],
+        a_size: data[4],
+        a_color: [data[5], data[6], data[7], data[8]]
+    };
+}
+
+/***/ }),
+/* 27 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -4877,7 +5150,7 @@ var _Matrix = __webpack_require__(3);
 
 var _Matrix2 = _interopRequireDefault(_Matrix);
 
-var _edgeLabelVert = __webpack_require__(6);
+var _edgeLabelVert = __webpack_require__(7);
 
 var _edgeLabelVert2 = _interopRequireDefault(_edgeLabelVert);
 
@@ -4894,6 +5167,11 @@ function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { de
 exports.default = {
     shaderVert: _edgeLabelVert2.default,
     shaderFrag: _labelFrag2.default,
+    attributes: {
+        a_position: { components: 2, start: 0 },
+        a_uv: { components: 2, start: 2 },
+        a_size: { components: 1, start: 4 }
+    },
     getUniforms: function getUniforms(_ref) {
         var matrix = _ref.matrix,
             camera = _ref.camera,
@@ -4966,12 +5244,12 @@ exports.default = {
             uv = infos[char].uvs;
             x1 = uv[0], y1 = uv[1], x2 = uv[2], y2 = uv[3];
 
-            renderData.push(getData([startx, starty, x1, y1, width], centerX, centerY, angle));
-            renderData.push(getData([startx, starty - charHeight, x1, y2, width], centerX, centerY, angle));
-            renderData.push(getData([startx + width, starty, x2, y1, width], centerX, centerY, angle));
-            renderData.push(getData([startx, starty - charHeight, x1, y2, width], centerX, centerY, angle));
-            renderData.push(getData([startx + width, starty, x2, y1, width], centerX, centerY, angle));
-            renderData.push(getData([startx + width, starty - charHeight, x2, y2, width], centerX, centerY, angle));
+            addData(renderData, [startx, starty, x1, y1, width], centerX, centerY, angle);
+            addData(renderData, [startx, starty - charHeight, x1, y2, width], centerX, centerY, angle);
+            addData(renderData, [startx + width, starty, x2, y1, width], centerX, centerY, angle);
+            addData(renderData, [startx, starty - charHeight, x1, y2, width], centerX, centerY, angle);
+            addData(renderData, [startx + width, starty, x2, y1, width], centerX, centerY, angle);
+            addData(renderData, [startx + width, starty - charHeight, x2, y2, width], centerX, centerY, angle);
 
             startx += width * 7 / 8;
         }
@@ -4981,19 +5259,17 @@ exports.default = {
 };
 
 
-function getData(data, centerX, centerY, angle) {
-    var rotate = _Matrix2.default.transformPoint([data[0], data[1]], _Matrix2.default.matrixFromRotation(angle));
-    data[0] = rotate[0] + centerX;
-    data[1] = rotate[1] + centerY;
-    return {
-        a_position: [data[0], data[1]],
-        a_uv: [data[2], data[3]],
-        a_size: data[4]
-    };
+function addData(arr, attrData, centerX, centerY, angle) {
+    var rotate = _Matrix2.default.transformPoint([attrData[0], attrData[1]], _Matrix2.default.matrixFromRotation(angle));
+    attrData[0] = rotate[0] + centerX;
+    attrData[1] = rotate[1] + centerY;
+    for (var i = 0; i < attrData.length; i++) {
+        arr.push(attrData[i]);
+    }
 }
 
 /***/ }),
-/* 27 */
+/* 28 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -5008,7 +5284,7 @@ var _createClass = function () { function defineProperties(target, props) { for 
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       */
 
 
-var _nodeLabelVert = __webpack_require__(35);
+var _nodeLabelVert = __webpack_require__(36);
 
 var _nodeLabelVert2 = _interopRequireDefault(_nodeLabelVert);
 
@@ -5027,6 +5303,11 @@ function _classCallCheck(instance, Constructor) { if (!(instance instanceof Cons
 exports.default = {
     shaderVert: _nodeLabelVert2.default,
     shaderFrag: _labelFrag2.default,
+    attributes: {
+        a_position: { components: 2, start: 0 },
+        a_uv: { components: 2, start: 2 },
+        a_size: { components: 1, start: 4 }
+    },
     getUniforms: function getUniforms(_ref) {
         var matrix = _ref.matrix,
             camera = _ref.camera,
@@ -5089,12 +5370,12 @@ exports.default = {
             uv = infos[char].uvs;
             x1 = uv[0], y1 = uv[1], x2 = uv[2], y2 = uv[3];
 
-            renderData.push(getData([startx, starty, x1, y1, width]));
-            renderData.push(getData([startx, starty - charHeight, x1, y2, width]));
-            renderData.push(getData([startx + width, starty, x2, y1, width]));
-            renderData.push(getData([startx, starty - charHeight, x1, y2, width]));
-            renderData.push(getData([startx + width, starty, x2, y1, width]));
-            renderData.push(getData([startx + width, starty - charHeight, x2, y2, width]));
+            addData(renderData, [startx, starty, x1, y1, width]);
+            addData(renderData, [startx, starty - charHeight, x1, y2, width]);
+            addData(renderData, [startx + width, starty, x2, y1, width]);
+            addData(renderData, [startx, starty - charHeight, x1, y2, width]);
+            addData(renderData, [startx + width, starty, x2, y1, width]);
+            addData(renderData, [startx + width, starty - charHeight, x2, y2, width]);
 
             startx += width * 7 / 8;
         }
@@ -5103,16 +5384,8 @@ exports.default = {
 };
 
 
-function getData(data) {
-    return {
-        a_position: [data[0], data[1]],
-        a_uv: [data[2], data[3]],
-        a_size: data[4]
-    };
-}
-
-function addData(arr, attributes, attrData) {
-    for (var i = 0; i < attributes; i++) {
+function addData(arr, attrData) {
+    for (var i = 0; i < attrData.length; i++) {
         arr.push(attrData[i]);
     }
 }
@@ -5256,7 +5529,7 @@ var NodeLabel = function () {
 }();
 
 /***/ }),
-/* 28 */
+/* 29 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -5278,7 +5551,7 @@ var _Matrix = __webpack_require__(3);
 
 var _Matrix2 = _interopRequireDefault(_Matrix);
 
-var _edgeLabelVert = __webpack_require__(6);
+var _edgeLabelVert = __webpack_require__(7);
 
 var _edgeLabelVert2 = _interopRequireDefault(_edgeLabelVert);
 
@@ -5466,304 +5739,7 @@ var CurveLabel = function () {
 exports.default = CurveLabel;
 
 /***/ }),
-/* 29 */,
-/* 30 */,
-/* 31 */
-/***/ (function(module, exports) {
-
-module.exports = "#ifdef GL_OES_standard_derivatives\n#extension GL_OES_standard_derivatives : enable\n#endif\n\nprecision mediump float;\nvarying vec4 color;\nvarying vec2 uv;\nvarying float dis;\nvarying float flag;\nvarying float dashed;\n\nuniform float u_camera_scale;\n\n\n\nvoid main(){\n        float a = 0.6;\n        float width = a / u_camera_scale;\n        float scale = 1.0;\n        float base = 0.6;\n        float smooth_factor = 0.4;\n\n        if(flag > -0.5 && flag < 0.5){//curve\n                vec2 px = dFdx(uv);\n                vec2 py = dFdy(uv);\n\n                float fx = 2.0 * uv.x * px.x - px.y;\n                float fy = 2.0 * uv.y * py.x - py.y;\n\n                float sd = (uv.x * uv.x - uv.y) / sqrt(fx * fx + fy * fy);\n\n                float alpha = 1.0 - abs(sd) / width;\n                if (alpha < 0.0 || uv.x < 0.0 || uv.x > 1.0) discard;\n\n                float n = 800.0/dis;\n                float dot = mod(uv.x*100.0,n);\n                if(dashed > 0.5 && dot > n*0.5 && dot < n) discard;\n\n                if(alpha < 0.2) scale = smoothstep(0.0,smooth_factor,alpha);\n\n                gl_FragColor = color*scale;\n\n        }else if(flag > 0.5 && flag < 1.5){//arrow\n                gl_FragColor = color;\n        }\n\n\n}"
-
-/***/ }),
-/* 32 */
-/***/ (function(module, exports) {
-
-module.exports = "attribute vec2 a_position;\n//attribute vec2 a_normal;\nattribute vec4 a_color;\n//attribute float a_size;\nattribute vec2 a_uv;\nattribute float a_dis;\nattribute float a_flag;\nattribute float a_dashed;\n\nuniform mat3 u_matrix;\n\nvarying vec4 color;\nvarying vec2 uv;\nvarying float dis;\nvarying float flag;\nvarying float dashed;\n\nvoid main() {\n\n//vec2 pos  = a_position + a_normal * a_size;\ngl_Position = vec4((u_matrix*vec3(a_position,1)).xy,0,1);\nuv = a_uv;\ndis = a_dis;\nflag = a_flag;\ncolor = a_color/255.0;\ndashed = a_dashed;\n}\n"
-
-/***/ }),
-/* 33 */
-/***/ (function(module, exports) {
-
-module.exports = "precision mediump float;\nvarying vec4 color;\nvoid main(){\ngl_FragColor = color;\n}"
-
-/***/ }),
-/* 34 */
-/***/ (function(module, exports) {
-
-module.exports = "attribute vec2 a_position;\nattribute vec2 a_normal;\nattribute vec4 a_color;\nattribute float a_size;\n\nuniform mat3 u_matrix;\n\nvarying vec4 color;\n\nvoid main() {\n\nvec2 pos  = a_position + a_normal * a_size;\ngl_Position = vec4((u_matrix*vec3(pos,1)).xy,0,1);\n\ncolor = a_color/255.0;\n}\n"
-
-/***/ }),
-/* 35 */
-/***/ (function(module, exports) {
-
-module.exports = "attribute vec2 a_position;\nattribute vec2 a_uv;\nattribute float a_size;\n\nuniform mat3 u_matrix;\nuniform sampler2D u_image;\n\n\nvarying vec2 v_texCoord;\nvarying float size;\n\nvoid main() {\ngl_Position = vec4((u_matrix*vec3(a_position,1)).xy,0,1);\nv_texCoord = a_uv;\nsize = a_size;\n}\n"
-
-/***/ }),
-/* 36 */
-/***/ (function(module, exports) {
-
-module.exports = "//#ifdef GL_OES_standard_derivatives\n//#extension GL_OES_standard_derivatives : enable\n//#endif\n\n precision mediump float;\n\nvarying vec4 color;\nvarying float img;\nvarying float selected;\nvarying vec2 uv;\nvarying float flag;\nvarying float size;\n\n\nuniform sampler2D u_textures[10];\nuniform sampler2D u_icons_texture;\nuniform vec4 u_borderColor;\nuniform float u_sample_ratio;\n\n\n\n\n\n\n\n//todo\nvec4 getSampleColore(int index,vec2 uv){\n    vec4 c;\n    if(index == 0){\n        c = texture2D(u_textures[0],uv);\n    }else if(index == 1){\n        c = texture2D(u_textures[1],uv);\n    }else if(index == 2){\n        c = texture2D(u_textures[2],uv);\n    }else if(index == 3){\n        c = texture2D(u_textures[3],uv);\n    }else if(index == 4){\n        c = texture2D(u_textures[4],uv);\n    }else if(index == 5){\n        c = texture2D(u_textures[5],uv);\n    }\n    return c;\n}\n\nvec4 borderColor = u_borderColor/255.0;\n\nvoid main()\n{\n   float r = 0.0, alpha = 1.0,\n   blur = min(0.05,4.0/size) ,\n   border = min(0.75,0.04*size) ;\n\nif(flag > 0.5 && flag < 1.5) //flag =1 base\n{\n    vec4 nodecolor = color;\n    vec2 cxy = 2.0 * uv - 1.0;\n    r = length(cxy);\n\n    if(r > 1.0 ){\n        discard;\n    }\n\n    if(img >= 0.0){\n        nodecolor = getSampleColore(int(img),uv);\n    }\n\n    if(r > 1.0-blur && r <=1.0){\n        alpha = 1.0 - smoothstep(1.0-blur, 1.0, r);\n     }\n\n\n     if( selected > 0.5  && r > border && r < border + blur){\n        nodecolor = mix(nodecolor,borderColor,smoothstep(border, border + blur, r));\n    }\n\n     if( selected > 0.5  &&  r >= border + blur){\n        nodecolor = borderColor;\n     }\n\n      gl_FragColor = nodecolor * alpha;\n\n}else if(flag > 1.5 && flag < 2.5) {//flag =2 icon\n    gl_FragColor = texture2D(u_icons_texture,uv).w * vec4(1,1,1,1);\n}\n\n\n}\n"
-
-/***/ }),
-/* 37 */
-/***/ (function(module, exports) {
-
-module.exports = "\n precision mediump float;\nattribute vec2 a_position;\nattribute vec4 a_color;\nattribute float a_img;\nattribute vec2 a_uv;\nattribute float a_selected;\nattribute float a_flag;\nattribute float a_size;\n\nuniform mat3 u_matrix;\nuniform float u_camera_scale;\nuniform float u_sample_ratio;\n\nvarying vec4 color;\nvarying float img;\nvarying float selected;\nvarying vec2 uv;\nvarying float flag;\nvarying float size;\n\n\nvoid main() {\n\ngl_Position = vec4((u_matrix*vec3(a_position,1)).xy,0,1);\ncolor = a_color/255.0;\nimg = a_img;\nselected = a_selected;\nuv = a_uv;\nflag = a_flag;\n\nsize = a_size / u_camera_scale ;\n}\n"
-
-/***/ }),
-/* 38 */
-/***/ (function(module, exports) {
-
-module.exports = "//#ifdef GL_OES_standard_derivatives\n//#extension GL_OES_standard_derivatives : enable\n//#endif\n\n precision mediump float;\n\nvarying vec4 color;\nvarying float img;\nvarying float selected;\nvarying vec2 uv;\nvarying float flag;\n\n\nuniform sampler2D u_textures[10];\nuniform sampler2D u_icons_texture;\nuniform vec4 u_borderColor;\nuniform float u_sample_ratio;\n\n//todo\nvec4 getSampleColore(int index,vec2 uv){\n    vec4 c;\n    if(index == 0){\n        c = texture2D(u_textures[0],uv);\n    }else if(index == 1){\n        c = texture2D(u_textures[1],uv);\n    }else if(index == 2){\n        c = texture2D(u_textures[2],uv);\n    }else if(index == 3){\n        c = texture2D(u_textures[3],uv);\n    }else if(index == 4){\n        c = texture2D(u_textures[4],uv);\n    }else if(index == 5){\n        c = texture2D(u_textures[5],uv);\n    }\n    return c;\n}\n\nvec4 borderColor = u_borderColor/255.0;\n\nvoid main()\n{\n   float r = 0.0, alpha = 1.0,\n   blur = 0.05 ,\n   border = 0.75 ;\n\n\nif(flag > 0.5 && flag < 1.5) //flag =1\n{\n    vec4 nodecolor = color;\n    vec2 cxy = 2.0 * uv - 1.0;\n    r = length(cxy);\n\n    if(img >= 0.0){\n        nodecolor = getSampleColore(int(img),uv);\n    }\n\n     if( selected > 0.5  && r > border && r < border + blur){\n        nodecolor = mix(nodecolor,borderColor,smoothstep(border, border + blur, r));\n    }\n\n     if( selected > 0.5  &&  r >= border + blur){\n        nodecolor = borderColor;\n     }\n\n      gl_FragColor = nodecolor * alpha;\n\n}else if(flag > 1.5 && flag < 2.5) {//flag =2\n    gl_FragColor = texture2D(u_icons_texture,uv).w * vec4(1,1,1,1);\n}\n\n\n}\n"
-
-/***/ }),
-/* 39 */
-/***/ (function(module, exports) {
-
-module.exports = "\n precision mediump float;\nattribute vec2 a_position;\nattribute vec4 a_color;\nattribute float a_img;\nattribute vec2 a_uv;\nattribute float a_selected;\nattribute float a_flag;\n\nuniform mat3 u_matrix;\nuniform float u_camera_scale;\nuniform float u_sample_ratio;\n\nvarying vec4 color;\nvarying float img;\nvarying float selected;\nvarying vec2 uv;\nvarying float flag;\n\n\nvoid main() {\n\ngl_Position = vec4((u_matrix*vec3(a_position,1)).xy,0,1);\ncolor = a_color/255.0;\nimg = a_img;\nselected = a_selected;\nuv = a_uv;\nflag = a_flag;\n}\n"
-
-/***/ }),
-/* 40 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-
-var _index = __webpack_require__(8);
-
-Object.defineProperty(exports, 'WebGLRender', {
-  enumerable: true,
-  get: function get() {
-    return _index.WebGLRender;
-  }
-});
-
-var _index2 = __webpack_require__(7);
-
-Object.defineProperty(exports, 'GraphView', {
-  enumerable: true,
-  get: function get() {
-    return _interopRequireDefault(_index2).default;
-  }
-});
-
-var _util = __webpack_require__(0);
-
-Object.defineProperty(exports, 'util', {
-  enumerable: true,
-  get: function get() {
-    return _interopRequireDefault(_util).default;
-  }
-});
-
-var _tween = __webpack_require__(2);
-
-Object.defineProperty(exports, 'Tween', {
-  enumerable: true,
-  get: function get() {
-    return _interopRequireDefault(_tween).default;
-  }
-});
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/***/ }),
-/* 41 */,
-/* 42 */,
-/* 43 */,
-/* 44 */,
-/* 45 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", {
-    value: true
-});
-exports.GlType = exports.GLComType = undefined;
-exports.getActiveAttributes = getActiveAttributes;
-exports.getActiveUniforms = getActiveUniforms;
-exports.calTypeOffset = calTypeOffset;
-exports.vertexAttribPointer = vertexAttribPointer;
-exports.checkAttrValid = checkAttrValid;
-exports.setUniforms = setUniforms;
-
-var _util = __webpack_require__(0);
-
-var _util2 = _interopRequireDefault(_util);
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-var GLComType = exports.GLComType = {
-    FLOAT: { glType: 'FLOAT', bytes: 4 },
-    BYTE: { glType: 'BYTE', bytes: 1 },
-    SHORT: { glType: 'SHORT', bytes: 2 },
-    UNSIGNED_BYTE: { glType: 'UNSIGNED_BYTE', bytes: 1 },
-    UNSIGNED_SHORT: { glType: 'UNSIGNED_SHORT', bytes: 2 }
-};
-
-var GlType = exports.GlType = {
-    FLOAT: { components: 1, glType: 'FLOAT' },
-    FLOAT_VEC2: { components: 2, glType: 'FLOAT_VEC2' },
-    FLOAT_VEC3: { components: 3, glType: 'FLOAT_VEC3' },
-    FLOAT_VEC4: { components: 4, glType: 'FLOAT_VEC4' },
-    INT: { components: 1, glType: 'INT' },
-    INT_VEC2: { components: 2, glType: 'INT_VEC2' },
-    INT_VEC3: { components: 3, glType: 'INT_VEC3' },
-    INT_VEC4: { components: 4, glType: 'INT_VEC4' },
-    BOOL: { components: 1, glType: 'BOOL' },
-    BOOL_VEC2: { components: 2, glType: 'BOOL_VEC2' },
-    BOOL_VEC3: { components: 3, glType: 'BOOL_VEC3' },
-    BOOL_VEC4: { components: 4, glType: 'BOOL_VEC4' },
-    FLOAT_MAT2: { components: 4, glType: 'FLOAT_MAT2' },
-    FLOAT_MAT3: { components: 9, glType: 'FLOAT_MAT3' },
-    FLOAT_MAT4: { components: 16, glType: 'FLOAT_MAT4' },
-    SAMPLER_2D: { components: 1, glType: 'SAMPLER_2D' },
-    SAMPLER_CUBE: { components: 1, glType: 'SAMPLER_CUBE' }
-};
-
-function getType(gl, typeNum) {
-    var type = 'FLOAT';
-    for (var name in GlType) {
-        if (gl[name] == typeNum) return name;
-    }
-    console.error('gl type not found');
-    return type;
-}
-
-function getActiveAttributes(gl, program) {
-    var shaderAttrInfos = {};
-    var numAttribs = gl.getProgramParameter(program, gl.ACTIVE_ATTRIBUTES);
-    for (var i = 0; i < numAttribs; ++i) {
-        var attribInfo = gl.getActiveAttrib(program, i);
-        if (!attribInfo) {
-            continue;
-        }
-
-        shaderAttrInfos[attribInfo.name] = {};
-        shaderAttrInfos[attribInfo.name].type = getType(gl, attribInfo.type);
-        shaderAttrInfos[attribInfo.name].size = attribInfo.size;
-        shaderAttrInfos[attribInfo.name].location = gl.getAttribLocation(program, attribInfo.name);
-    }
-    return shaderAttrInfos;
-}
-function getActiveUniforms(gl, program) {
-    var shaderUniformInfos = {};
-    var numUniforms = gl.getProgramParameter(program, gl.ACTIVE_UNIFORMS);
-    for (var i = 0; i < numUniforms; ++i) {
-        var uniformInfo = gl.getActiveUniform(program, i);
-        if (!uniformInfo) {
-            continue;
-        }
-
-        var name = uniformInfo.name;
-        // remove the array suffix.
-        if (name.substr(-3) === "[0]") {
-            name = name.substr(0, name.length - 3);
-        }
-
-        shaderUniformInfos[name] = {};
-        shaderUniformInfos[name].type = getType(gl, uniformInfo.type);
-        shaderUniformInfos[name].size = uniformInfo.size;
-        shaderUniformInfos[name].location = gl.getUniformLocation(program, name);
-    }
-    return shaderUniformInfos;
-}
-
-function calTypeOffset(activeAttributes, config) {
-    config = config || {};
-    var offsetConfig = {
-        config: {},
-        strip: 0
-    };
-    var type,
-        num = 0;
-    for (var attr in activeAttributes) {
-        type = activeAttributes[attr].type;
-        offsetConfig.config[attr] = {};
-        offsetConfig.config[attr].start = num;
-        offsetConfig.config[attr].components = GlType[type].components;
-        num += GlType[type].components;
-    }
-    offsetConfig.strip = num;
-    return offsetConfig;
-}
-
-function vertexAttribPointer(gl, activeAttributes, offsetConfig) {
-    var config = offsetConfig.config;
-    var strip = offsetConfig.strip;
-    for (var attr in activeAttributes) {
-        gl.vertexAttribPointer(activeAttributes[attr].location, config[attr].components, gl.FLOAT, false, strip * 4, config[attr].start * 4);
-        gl.enableVertexAttribArray(activeAttributes[attr].location);
-    }
-}
-
-function checkAttrValid(config, data) {
-
-    var type;
-    var err = [];
-    for (var attr in config) {
-        if (!config.hasOwnProperty(attr)) {
-            err.push('shader need attribute: ' + attr);
-            continue;
-        }
-
-        if (data[attr] == undefined) {
-            err.push('attribute [' + attr + ']: is undefined');
-            continue;
-        }
-
-        type = config[attr].type;
-        if (_util2.default.isArray(data[attr]) && data[attr].length != GlType[type].components * config[attr].size) {
-            err.push('attribute [' + attr + ']: size need ' + GlType[type].components);
-        }
-    }
-
-    return err.length ? err : null;
-}
-
-var uniformSetter = {
-    FLOAT: function FLOAT(gl, location, v) {
-        gl.uniform1f(location, v);
-    },
-    FLOAT_VEC2: function FLOAT_VEC2(gl, location, v) {
-        gl.uniform2fv(location, v);
-    },
-    FLOAT_VEC3: function FLOAT_VEC3(gl, location, v) {
-        gl.uniform3fv(location, v);
-    },
-    FLOAT_VEC4: function FLOAT_VEC4(gl, location, v) {
-        gl.uniform4fv(location, v);
-    },
-    FLOAT_MAT2: function FLOAT_MAT2(gl, location, v) {
-        gl.uniformMatrix2fv(location, false, v);
-    },
-    FLOAT_MAT3: function FLOAT_MAT3(gl, location, v) {
-        gl.uniformMatrix3fv(location, false, v);
-    },
-    FLOAT_MAT4: function FLOAT_MAT4(gl, location, v) {
-        gl.uniformMatrix4fv(location, false, v);
-    },
-    SAMPLER_2D: function SAMPLER_2D(gl, location, v) {
-        if (v.length) gl.uniform1iv(location, v);else gl.uniform1i(location, v);
-    }
-};
-
-function setUniforms(gl, activeUniforms, uniforms) {
-    var type;
-    for (var attr in activeUniforms) {
-        type = activeUniforms[attr].type;
-        uniformSetter[type](gl, activeUniforms[attr].location, uniforms[attr]);
-    }
-}
-
-/***/ }),
-/* 46 */,
-/* 47 */
+/* 30 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -5777,107 +5753,15 @@ var _util = __webpack_require__(0);
 
 var _util2 = _interopRequireDefault(_util);
 
-var _defaultVert = __webpack_require__(34);
+var _defaultVert = __webpack_require__(38);
 
 var _defaultVert2 = _interopRequireDefault(_defaultVert);
 
-var _defaultFrag = __webpack_require__(33);
+var _defaultFrag = __webpack_require__(37);
 
 var _defaultFrag2 = _interopRequireDefault(_defaultFrag);
 
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-exports.default = {
-    shaderVert: _defaultVert2.default,
-    shaderFrag: _defaultFrag2.default,
-    getUniforms: function getUniforms(_ref) {
-        var matrix = _ref.matrix,
-            camera = _ref.camera,
-            sampleRatio = _ref.sampleRatio,
-            textureLoader = _ref.textureLoader;
-
-        return {
-            u_matrix: matrix
-        };
-    },
-    getRenderData: function getRenderData(_ref2) {
-        var data = _ref2.data,
-            textureLoader = _ref2.textureLoader,
-            textureIcon = _ref2.textureIcon,
-            graph = _ref2.graph;
-
-        var target = graph.nodesIndex[data.target];
-        var source = graph.nodesIndex[data.source];
-        var edge = data;
-        var dx = target.x - source.x;
-        var dy = target.y - source.y;
-
-        data = [];
-        var size = 0.8,
-            arrowSize = 6;
-        var crossVector = _util2.default.normalize([-dy, dx]);
-
-        //arrow
-        var targetSize = Math.max(_util2.default.getNodeSizeX(target), _util2.default.getNodeSizeY(target));
-        var dis = _util2.default.getDistance(source.x, source.y, target.x, target.y);
-        var arrowX = target.x - (targetSize + arrowSize) / dis * dx;
-        var arrowY = target.y - (targetSize + arrowSize) / dis * dy;
-
-        var color = _util2.default.parseColor(edge.color || source.color || '#b3d2ff');
-
-        var renderData = [];
-
-        renderData.push(getData([source.x, source.y, crossVector[0], crossVector[1], size, color.r, color.g, color.b, color.a]));
-        renderData.push(getData([arrowX, arrowY, crossVector[0], crossVector[1], size, color.r, color.g, color.b, color.a]));
-        renderData.push(getData([source.x, source.y, -crossVector[0], -crossVector[1], size, color.r, color.g, color.b, color.a]));
-        renderData.push(getData([arrowX, arrowY, crossVector[0], crossVector[1], size, color.r, color.g, color.b, color.a]));
-        renderData.push(getData([source.x, source.y, -crossVector[0], -crossVector[1], size, color.r, color.g, color.b, color.a]));
-        renderData.push(getData([arrowX, arrowY, -crossVector[0], -crossVector[1], size, color.r, color.g, color.b, color.a]));
-
-        //arrow
-        renderData.push(getData([arrowX, arrowY, crossVector[0], crossVector[1], arrowSize / 2, color.r, color.g, color.b, color.a]));
-        renderData.push(getData([arrowX, arrowY, -crossVector[0], -crossVector[1], arrowSize / 2, color.r, color.g, color.b, color.a]));
-        renderData.push(getData([arrowX, arrowY, arrowSize / dis * dx, arrowSize / dis * dy, 1, color.r, color.g, color.b, color.a]));
-
-        return renderData;
-    }
-}; /**
-    * Created by chengang on 17-3-31.
-    */
-
-function getData(data) {
-    return {
-        a_position: [data[0], data[1]],
-        a_normal: [data[2], data[3]],
-        a_size: data[4],
-        a_color: [data[5], data[6], data[7], data[8]]
-    };
-}
-
-/***/ }),
-/* 48 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", {
-    value: true
-});
-
-var _util = __webpack_require__(0);
-
-var _util2 = _interopRequireDefault(_util);
-
-var _defaultVert = __webpack_require__(37);
-
-var _defaultVert2 = _interopRequireDefault(_defaultVert);
-
-var _defaultFrag = __webpack_require__(36);
-
-var _defaultFrag2 = _interopRequireDefault(_defaultFrag);
-
-var _GLUtil = __webpack_require__(45);
+var _GLUtil = __webpack_require__(5);
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
@@ -5889,13 +5773,13 @@ exports.default = {
     shaderVert: _defaultVert2.default,
     shaderFrag: _defaultFrag2.default,
     attributes: {
-        a_size: { type: _GLUtil.GlType.FLOAT, comType: _GLUtil.GLComType.FLOAT },
-        a_position: { type: _GLUtil.GlType.FLOAT_VEC2, comType: _GLUtil.GLComType.FLOAT },
-        a_color: { type: _GLUtil.GlType.FLOAT_VEC4, comType: _GLUtil.GLComType.FLOAT },
-        a_img: { type: _GLUtil.GlType.FLOAT, comType: _GLUtil.GLComType.FLOAT },
-        a_selected: { type: _GLUtil.GlType.FLOAT, comType: _GLUtil.GLComType.FLOAT },
-        a_uv: { type: _GLUtil.GlType.FLOAT_VEC2, comType: _GLUtil.GLComType.FLOAT },
-        a_flag: { type: _GLUtil.GlType.FLOAT, comType: _GLUtil.GLComType.FLOAT }
+        a_position: { components: 2, start: 0 },
+        a_color: { components: 4, start: 2 },
+        a_uv: { components: 2, start: 6 },
+        a_img: { components: 1, start: 8 },
+        a_selected: { components: 1, start: 9 },
+        a_flag: { components: 1, start: 10 },
+        a_size: { components: 1, start: 11 }
     },
     getUniforms: function getUniforms(_ref) {
         var matrix = _ref.matrix,
@@ -5926,12 +5810,12 @@ exports.default = {
 
         var renderData = [];
 
-        renderData.push(getData([data.x - data.size, data.y + data.size, color.r, color.g, color.b, color.a, 0, 0, img, isSelected, 1, data.size]));
-        renderData.push(getData([data.x + data.size, data.y + data.size, color.r, color.g, color.b, color.a, 1, 0, img, isSelected, 1, data.size]));
-        renderData.push(getData([data.x - data.size, data.y - data.size, color.r, color.g, color.b, color.a, 0, 1, img, isSelected, 1, data.size]));
-        renderData.push(getData([data.x + data.size, data.y + data.size, color.r, color.g, color.b, color.a, 1, 0, img, isSelected, 1, data.size]));
-        renderData.push(getData([data.x - data.size, data.y - data.size, color.r, color.g, color.b, color.a, 0, 1, img, isSelected, 1, data.size]));
-        renderData.push(getData([data.x + data.size, data.y - data.size, color.r, color.g, color.b, color.a, 1, 1, img, isSelected, 1, data.size]));
+        addData(renderData, [data.x - data.size, data.y + data.size, color.r, color.g, color.b, color.a, 0, 0, img, isSelected, 1, data.size]);
+        addData(renderData, [data.x + data.size, data.y + data.size, color.r, color.g, color.b, color.a, 1, 0, img, isSelected, 1, data.size]);
+        addData(renderData, [data.x - data.size, data.y - data.size, color.r, color.g, color.b, color.a, 0, 1, img, isSelected, 1, data.size]);
+        addData(renderData, [data.x + data.size, data.y + data.size, color.r, color.g, color.b, color.a, 1, 0, img, isSelected, 1, data.size]);
+        addData(renderData, [data.x - data.size, data.y - data.size, color.r, color.g, color.b, color.a, 0, 1, img, isSelected, 1, data.size]);
+        addData(renderData, [data.x + data.size, data.y - data.size, color.r, color.g, color.b, color.a, 1, 1, img, isSelected, 1, data.size]);
 
         var hasIcon = data.icon && textureIcon.iconinfo.infos[data.icon],
             uvs;
@@ -5940,18 +5824,24 @@ exports.default = {
         if (hasIcon) {
 
             uvs = textureIcon.iconinfo.infos[data.icon].uvs;
-            renderData.push(getData([data.x - data.size * scale, data.y + data.size * scale, color.r, color.g, color.b, color.a, uvs[0], uvs[1], -2, isSelected, 2, data.size]));
-            renderData.push(getData([data.x + data.size * scale, data.y + data.size * scale, color.r, color.g, color.b, color.a, uvs[2], uvs[1], -2, isSelected, 2, data.size]));
-            renderData.push(getData([data.x - data.size * scale, data.y - data.size * scale, color.r, color.g, color.b, color.a, uvs[0], uvs[3], -2, isSelected, 2, data.size]));
-            renderData.push(getData([data.x + data.size * scale, data.y + data.size * scale, color.r, color.g, color.b, color.a, uvs[2], uvs[1], -2, isSelected, 2, data.size]));
-            renderData.push(getData([data.x - data.size * scale, data.y - data.size * scale, color.r, color.g, color.b, color.a, uvs[0], uvs[3], -2, isSelected, 2, data.size]));
-            renderData.push(getData([data.x + data.size * scale, data.y - data.size * scale, color.r, color.g, color.b, color.a, uvs[2], uvs[3], -2, isSelected, 2, data.size]));
+            addData(renderData, [data.x - data.size * scale, data.y + data.size * scale, color.r, color.g, color.b, color.a, uvs[0], uvs[1], -2, isSelected, 2, data.size]);
+            addData(renderData, [data.x + data.size * scale, data.y + data.size * scale, color.r, color.g, color.b, color.a, uvs[2], uvs[1], -2, isSelected, 2, data.size]);
+            addData(renderData, [data.x - data.size * scale, data.y - data.size * scale, color.r, color.g, color.b, color.a, uvs[0], uvs[3], -2, isSelected, 2, data.size]);
+            addData(renderData, [data.x + data.size * scale, data.y + data.size * scale, color.r, color.g, color.b, color.a, uvs[2], uvs[1], -2, isSelected, 2, data.size]);
+            addData(renderData, [data.x - data.size * scale, data.y - data.size * scale, color.r, color.g, color.b, color.a, uvs[0], uvs[3], -2, isSelected, 2, data.size]);
+            addData(renderData, [data.x + data.size * scale, data.y - data.size * scale, color.r, color.g, color.b, color.a, uvs[2], uvs[3], -2, isSelected, 2, data.size]);
         }
 
         return renderData;
     }
 };
 
+
+function addData(arr, attrData) {
+    for (var i = 0; i < attrData.length; i++) {
+        arr.push(attrData[i]);
+    }
+}
 
 function getData(data) {
     return {
@@ -5966,7 +5856,7 @@ function getData(data) {
 }
 
 /***/ }),
-/* 49 */
+/* 31 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -5980,11 +5870,11 @@ var _util = __webpack_require__(0);
 
 var _util2 = _interopRequireDefault(_util);
 
-var _vert = __webpack_require__(39);
+var _vert = __webpack_require__(40);
 
 var _vert2 = _interopRequireDefault(_vert);
 
-var _frag = __webpack_require__(38);
+var _frag = __webpack_require__(39);
 
 var _frag2 = _interopRequireDefault(_frag);
 
@@ -5993,6 +5883,14 @@ function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { de
 exports.default = {
     shaderVert: _vert2.default,
     shaderFrag: _frag2.default,
+    attributes: {
+        a_position: { components: 2, start: 0 },
+        a_color: { components: 4, start: 2 },
+        a_uv: { components: 2, start: 6 },
+        a_img: { components: 1, start: 8 },
+        a_selected: { components: 1, start: 9 },
+        a_flag: { components: 1, start: 10 }
+    },
     getUniforms: function getUniforms(_ref) {
         var matrix = _ref.matrix,
             camera = _ref.camera,
@@ -6027,12 +5925,12 @@ exports.default = {
         var renderData = [];
 
         //base
-        renderData.push(getData([data.x - sizeX, data.y + sizeY, color.r, color.g, color.b, color.a, 0, 0, img, isSelected, 1]));
-        renderData.push(getData([data.x + sizeX, data.y + sizeY, color.r, color.g, color.b, color.a, 1, 0, img, isSelected, 1]));
-        renderData.push(getData([data.x - sizeX, data.y - sizeY, color.r, color.g, color.b, color.a, 0, 1, img, isSelected, 1]));
-        renderData.push(getData([data.x + sizeX, data.y + sizeY, color.r, color.g, color.b, color.a, 1, 0, img, isSelected, 1]));
-        renderData.push(getData([data.x - sizeX, data.y - sizeY, color.r, color.g, color.b, color.a, 0, 1, img, isSelected, 1]));
-        renderData.push(getData([data.x + sizeX, data.y - sizeY, color.r, color.g, color.b, color.a, 1, 1, img, isSelected, 1]));
+        addData(renderData, [data.x - sizeX, data.y + sizeY, color.r, color.g, color.b, color.a, 0, 0, img, isSelected, 1]);
+        addData(renderData, [data.x + sizeX, data.y + sizeY, color.r, color.g, color.b, color.a, 1, 0, img, isSelected, 1]);
+        addData(renderData, [data.x - sizeX, data.y - sizeY, color.r, color.g, color.b, color.a, 0, 1, img, isSelected, 1]);
+        addData(renderData, [data.x + sizeX, data.y + sizeY, color.r, color.g, color.b, color.a, 1, 0, img, isSelected, 1]);
+        addData(renderData, [data.x - sizeX, data.y - sizeY, color.r, color.g, color.b, color.a, 0, 1, img, isSelected, 1]);
+        addData(renderData, [data.x + sizeX, data.y - sizeY, color.r, color.g, color.b, color.a, 1, 1, img, isSelected, 1]);
 
         var hasIcon = data.icon && textureIcon.iconinfo.infos[data.icon],
             uvs;
@@ -6042,12 +5940,12 @@ exports.default = {
         if (hasIcon) {
             // debugger
             uvs = textureIcon.iconinfo.infos[data.icon].uvs;
-            renderData.push(getData([data.x - iconSize * scale, data.y + iconSize * scale, color.r, color.g, color.b, color.a, uvs[0], uvs[1], -2, isSelected, 2]));
-            renderData.push(getData([data.x + iconSize * scale, data.y + iconSize * scale, color.r, color.g, color.b, color.a, uvs[2], uvs[1], -2, isSelected, 2]));
-            renderData.push(getData([data.x - iconSize * scale, data.y - iconSize * scale, color.r, color.g, color.b, color.a, uvs[0], uvs[3], -2, isSelected, 2]));
-            renderData.push(getData([data.x + iconSize * scale, data.y + iconSize * scale, color.r, color.g, color.b, color.a, uvs[2], uvs[1], -2, isSelected, 2]));
-            renderData.push(getData([data.x - iconSize * scale, data.y - iconSize * scale, color.r, color.g, color.b, color.a, uvs[0], uvs[3], -2, isSelected, 2]));
-            renderData.push(getData([data.x + iconSize * scale, data.y - iconSize * scale, color.r, color.g, color.b, color.a, uvs[2], uvs[3], -2, isSelected, 2]));
+            addData(renderData, [data.x - iconSize * scale, data.y + iconSize * scale, color.r, color.g, color.b, color.a, uvs[0], uvs[1], -2, isSelected, 2]);
+            addData(renderData, [data.x + iconSize * scale, data.y + iconSize * scale, color.r, color.g, color.b, color.a, uvs[2], uvs[1], -2, isSelected, 2]);
+            addData(renderData, [data.x - iconSize * scale, data.y - iconSize * scale, color.r, color.g, color.b, color.a, uvs[0], uvs[3], -2, isSelected, 2]);
+            addData(renderData, [data.x + iconSize * scale, data.y + iconSize * scale, color.r, color.g, color.b, color.a, uvs[2], uvs[1], -2, isSelected, 2]);
+            addData(renderData, [data.x - iconSize * scale, data.y - iconSize * scale, color.r, color.g, color.b, color.a, uvs[0], uvs[3], -2, isSelected, 2]);
+            addData(renderData, [data.x + iconSize * scale, data.y - iconSize * scale, color.r, color.g, color.b, color.a, uvs[2], uvs[3], -2, isSelected, 2]);
         }
 
         return renderData;
@@ -6055,6 +5953,12 @@ exports.default = {
 }; /**
     * Created by chengang on 17-3-28.
     */
+
+function addData(arr, attrData) {
+    for (var i = 0; i < attrData.length; i++) {
+        arr.push(attrData[i]);
+    }
+}
 
 function getData(data) {
     return {
@@ -6066,6 +5970,109 @@ function getData(data) {
         a_flag: data[10]
     };
 }
+
+/***/ }),
+/* 32 */
+/***/ (function(module, exports) {
+
+module.exports = "#ifdef GL_OES_standard_derivatives\n#extension GL_OES_standard_derivatives : enable\n#endif\n\nprecision mediump float;\nvarying vec4 color;\nvarying vec2 uv;\nvarying float dis;\nvarying float flag;\nvarying float dashed;\n\nuniform float u_camera_scale;\n\n\n\nvoid main(){\n        float a = 0.6;\n        float width = a / u_camera_scale;\n        float scale = 1.0;\n        float base = 0.6;\n        float smooth_factor = 0.4;\n\n        if(flag > -0.5 && flag < 0.5){//curve\n                vec2 px = dFdx(uv);\n                vec2 py = dFdy(uv);\n\n                float fx = 2.0 * uv.x * px.x - px.y;\n                float fy = 2.0 * uv.y * py.x - py.y;\n\n                float sd = (uv.x * uv.x - uv.y) / sqrt(fx * fx + fy * fy);\n\n                float alpha = 1.0 - abs(sd) / width;\n                if (alpha < 0.0 || uv.x < 0.0 || uv.x > 1.0) discard;\n\n                float n = 800.0/dis;\n                float dot = mod(uv.x*100.0,n);\n                if(dashed > 0.5 && dot > n*0.5 && dot < n) discard;\n\n                if(alpha < 0.2) scale = smoothstep(0.0,smooth_factor,alpha);\n\n                gl_FragColor = color*scale;\n\n        }else if(flag > 0.5 && flag < 1.5){//arrow\n                gl_FragColor = color;\n        }\n\n\n}"
+
+/***/ }),
+/* 33 */
+/***/ (function(module, exports) {
+
+module.exports = "attribute vec2 a_position;\n//attribute vec2 a_normal;\nattribute vec4 a_color;\n//attribute float a_size;\nattribute vec2 a_uv;\nattribute float a_dis;\nattribute float a_flag;\nattribute float a_dashed;\n\nuniform mat3 u_matrix;\n\nvarying vec4 color;\nvarying vec2 uv;\nvarying float dis;\nvarying float flag;\nvarying float dashed;\n\nvoid main() {\n\n//vec2 pos  = a_position + a_normal * a_size;\ngl_Position = vec4((u_matrix*vec3(a_position,1)).xy,0,1);\nuv = a_uv;\ndis = a_dis;\nflag = a_flag;\ncolor = a_color/255.0;\ndashed = a_dashed;\n}\n"
+
+/***/ }),
+/* 34 */
+/***/ (function(module, exports) {
+
+module.exports = "precision mediump float;\nvarying vec4 color;\nvoid main(){\ngl_FragColor = color;\n}"
+
+/***/ }),
+/* 35 */
+/***/ (function(module, exports) {
+
+module.exports = "attribute vec2 a_position;\nattribute vec2 a_normal;\nattribute vec4 a_color;\nattribute float a_size;\n\nuniform mat3 u_matrix;\n\nvarying vec4 color;\n\nvoid main() {\n\nvec2 pos  = a_position + a_normal * a_size;\ngl_Position = vec4((u_matrix*vec3(pos,1)).xy,0,1);\n\ncolor = a_color/255.0;\n}\n"
+
+/***/ }),
+/* 36 */
+/***/ (function(module, exports) {
+
+module.exports = "attribute vec2 a_position;\nattribute vec2 a_uv;\nattribute float a_size;\n\nuniform mat3 u_matrix;\nuniform sampler2D u_image;\n\n\nvarying vec2 v_texCoord;\nvarying float size;\n\nvoid main() {\ngl_Position = vec4((u_matrix*vec3(a_position,1)).xy,0,1);\nv_texCoord = a_uv;\nsize = a_size;\n}\n"
+
+/***/ }),
+/* 37 */
+/***/ (function(module, exports) {
+
+module.exports = "//#ifdef GL_OES_standard_derivatives\n//#extension GL_OES_standard_derivatives : enable\n//#endif\n\n precision mediump float;\n\nvarying vec4 color;\nvarying float img;\nvarying float selected;\nvarying vec2 uv;\nvarying float flag;\nvarying float size;\n\n\nuniform sampler2D u_textures[10];\nuniform sampler2D u_icons_texture;\nuniform vec4 u_borderColor;\nuniform float u_sample_ratio;\n\n\n\n\n\n\n\n//todo\nvec4 getSampleColore(int index,vec2 uv){\n    vec4 c;\n    if(index == 0){\n        c = texture2D(u_textures[0],uv);\n    }else if(index == 1){\n        c = texture2D(u_textures[1],uv);\n    }else if(index == 2){\n        c = texture2D(u_textures[2],uv);\n    }else if(index == 3){\n        c = texture2D(u_textures[3],uv);\n    }else if(index == 4){\n        c = texture2D(u_textures[4],uv);\n    }else if(index == 5){\n        c = texture2D(u_textures[5],uv);\n    }\n    return c;\n}\n\nvec4 borderColor = u_borderColor/255.0;\n\nvoid main()\n{\n   float r = 0.0, alpha = 1.0,\n   blur = min(0.05,4.0/size) ,\n   border = min(0.75,0.04*size) ;\n\nif(flag > 0.5 && flag < 1.5) //flag =1 base\n{\n    vec4 nodecolor = color;\n    vec2 cxy = 2.0 * uv - 1.0;\n    r = length(cxy);\n\n    if(r > 1.0 ){\n        discard;\n    }\n\n    if(img >= 0.0){\n        nodecolor = getSampleColore(int(img),uv);\n    }\n\n    if(r > 1.0-blur && r <=1.0){\n        alpha = 1.0 - smoothstep(1.0-blur, 1.0, r);\n     }\n\n\n     if( selected > 0.5  && r > border && r < border + blur){\n        nodecolor = mix(nodecolor,borderColor,smoothstep(border, border + blur, r));\n    }\n\n     if( selected > 0.5  &&  r >= border + blur){\n        nodecolor = borderColor;\n     }\n\n      gl_FragColor = nodecolor * alpha;\n\n}else if(flag > 1.5 && flag < 2.5) {//flag =2 icon\n    gl_FragColor = texture2D(u_icons_texture,uv).w * vec4(1,1,1,1);\n}\n\n\n}\n"
+
+/***/ }),
+/* 38 */
+/***/ (function(module, exports) {
+
+module.exports = "\n precision mediump float;\nattribute vec2 a_position;\nattribute vec4 a_color;\nattribute float a_img;\nattribute vec2 a_uv;\nattribute float a_selected;\nattribute float a_flag;\nattribute float a_size;\n\nuniform mat3 u_matrix;\nuniform float u_camera_scale;\nuniform float u_sample_ratio;\n\nvarying vec4 color;\nvarying float img;\nvarying float selected;\nvarying vec2 uv;\nvarying float flag;\nvarying float size;\n\n\nvoid main() {\n\ngl_Position = vec4((u_matrix*vec3(a_position,1)).xy,0,1);\ncolor = a_color/255.0;\nimg = a_img;\nselected = a_selected;\nuv = a_uv;\nflag = a_flag;\n\nsize = a_size / u_camera_scale ;\n}\n"
+
+/***/ }),
+/* 39 */
+/***/ (function(module, exports) {
+
+module.exports = "//#ifdef GL_OES_standard_derivatives\n//#extension GL_OES_standard_derivatives : enable\n//#endif\n\n precision mediump float;\n\nvarying vec4 color;\nvarying float img;\nvarying float selected;\nvarying vec2 uv;\nvarying float flag;\n\n\nuniform sampler2D u_textures[10];\nuniform sampler2D u_icons_texture;\nuniform vec4 u_borderColor;\nuniform float u_sample_ratio;\n\n//todo\nvec4 getSampleColore(int index,vec2 uv){\n    vec4 c;\n    if(index == 0){\n        c = texture2D(u_textures[0],uv);\n    }else if(index == 1){\n        c = texture2D(u_textures[1],uv);\n    }else if(index == 2){\n        c = texture2D(u_textures[2],uv);\n    }else if(index == 3){\n        c = texture2D(u_textures[3],uv);\n    }else if(index == 4){\n        c = texture2D(u_textures[4],uv);\n    }else if(index == 5){\n        c = texture2D(u_textures[5],uv);\n    }\n    return c;\n}\n\nvec4 borderColor = u_borderColor/255.0;\n\nvoid main()\n{\n   float r = 0.0, alpha = 1.0,\n   blur = 0.05 ,\n   border = 0.75 ;\n\n\nif(flag > 0.5 && flag < 1.5) //flag =1\n{\n    vec4 nodecolor = color;\n    vec2 cxy = 2.0 * uv - 1.0;\n    r = length(cxy);\n\n    if(img >= 0.0){\n        nodecolor = getSampleColore(int(img),uv);\n    }\n\n     if( selected > 0.5  && r > border && r < border + blur){\n        nodecolor = mix(nodecolor,borderColor,smoothstep(border, border + blur, r));\n    }\n\n     if( selected > 0.5  &&  r >= border + blur){\n        nodecolor = borderColor;\n     }\n\n      gl_FragColor = nodecolor * alpha;\n\n}else if(flag > 1.5 && flag < 2.5) {//flag =2\n    gl_FragColor = texture2D(u_icons_texture,uv).w * vec4(1,1,1,1);\n}\n\n\n}\n"
+
+/***/ }),
+/* 40 */
+/***/ (function(module, exports) {
+
+module.exports = "\n precision mediump float;\nattribute vec2 a_position;\nattribute vec4 a_color;\nattribute float a_img;\nattribute vec2 a_uv;\nattribute float a_selected;\nattribute float a_flag;\n\nuniform mat3 u_matrix;\nuniform float u_camera_scale;\nuniform float u_sample_ratio;\n\nvarying vec4 color;\nvarying float img;\nvarying float selected;\nvarying vec2 uv;\nvarying float flag;\n\n\nvoid main() {\n\ngl_Position = vec4((u_matrix*vec3(a_position,1)).xy,0,1);\ncolor = a_color/255.0;\nimg = a_img;\nselected = a_selected;\nuv = a_uv;\nflag = a_flag;\n}\n"
+
+/***/ }),
+/* 41 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+
+var _index = __webpack_require__(9);
+
+Object.defineProperty(exports, 'WebGLRender', {
+  enumerable: true,
+  get: function get() {
+    return _index.WebGLRender;
+  }
+});
+
+var _index2 = __webpack_require__(8);
+
+Object.defineProperty(exports, 'GraphView', {
+  enumerable: true,
+  get: function get() {
+    return _interopRequireDefault(_index2).default;
+  }
+});
+
+var _util = __webpack_require__(0);
+
+Object.defineProperty(exports, 'util', {
+  enumerable: true,
+  get: function get() {
+    return _interopRequireDefault(_util).default;
+  }
+});
+
+var _tween = __webpack_require__(2);
+
+Object.defineProperty(exports, 'Tween', {
+  enumerable: true,
+  get: function get() {
+    return _interopRequireDefault(_tween).default;
+  }
+});
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 /***/ })
 /******/ ]);

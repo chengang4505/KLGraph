@@ -12,6 +12,11 @@ import frag from './glsl/label-frag.glsl'
 export default {
     shaderVert: vert,
     shaderFrag: frag,
+    attributes: {
+        a_position: {components:2,start:0},
+        a_uv:{components:2,start:2},
+        a_size: {components:1,start:4},
+    },
     getUniforms({matrix, camera, sampleRatio, textureLoader}){
         return {
             u_matrix:matrix,
@@ -72,12 +77,12 @@ export default {
             uv = infos[char].uvs;
             x1 = uv[0],y1 = uv[1],x2 = uv[2],y2 = uv[3];
 
-            renderData.push(getData([startx,starty,x1,y1,width],centerX,centerY,angle));
-            renderData.push(getData([startx,starty-charHeight,x1,y2,width],centerX,centerY,angle));
-            renderData.push(getData([startx+width,starty,x2,y1,width],centerX,centerY,angle));
-            renderData.push(getData([startx,starty-charHeight,x1,y2,width],centerX,centerY,angle));
-            renderData.push(getData([startx+width,starty,x2,y1,width],centerX,centerY,angle));
-            renderData.push(getData([startx+width,starty-charHeight,x2,y2,width],centerX,centerY,angle));
+            addData(renderData,[startx,starty,x1,y1,width],centerX,centerY,angle);
+            addData(renderData,[startx,starty-charHeight,x1,y2,width],centerX,centerY,angle);
+            addData(renderData,[startx+width,starty,x2,y1,width],centerX,centerY,angle);
+            addData(renderData,[startx,starty-charHeight,x1,y2,width],centerX,centerY,angle);
+            addData(renderData,[startx+width,starty,x2,y1,width],centerX,centerY,angle);
+            addData(renderData,[startx+width,starty-charHeight,x2,y2,width],centerX,centerY,angle);
 
             startx += width*7/8;
         }
@@ -87,13 +92,11 @@ export default {
 
 }
 
-function getData(data,centerX,centerY,angle) {
-    var rotate = mat3.transformPoint([data[0],data[1]],mat3.matrixFromRotation(angle));
-    data[0] = rotate[0] + centerX;
-    data[1] = rotate[1] + centerY;
-    return {
-        a_position: [data[0], data[1]],
-        a_uv:[data[2],data[3]],
-        a_size: data[4],
+function addData(arr,attrData,centerX,centerY,angle) {
+    var rotate = mat3.transformPoint([attrData[0],attrData[1]],mat3.matrixFromRotation(angle));
+    attrData[0] = rotate[0] + centerX;
+    attrData[1] = rotate[1] + centerY;
+    for(var i = 0;i< attrData.length;i++){
+        arr.push(attrData[i]);
     }
 }

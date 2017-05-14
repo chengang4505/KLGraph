@@ -11,6 +11,14 @@ import frag from './frag.glsl'
 export default {
     shaderVert: vert,
     shaderFrag: frag,
+    attributes: {
+        a_position: {components:2,start:0},
+        a_color: {components:4,start:2},
+        a_uv:{components:2,start:6},
+        a_img: {components:1,start:8},
+        a_selected: {components:1,start:9},
+        a_flag: {components:1,start:10},
+    },
     getUniforms({matrix, camera, sampleRatio, textureLoader}){
         return {
             u_matrix:matrix,
@@ -37,12 +45,12 @@ export default {
 
 
         //base
-        renderData.push(getData([data.x-sizeX,data.y+sizeY,color.r,color.g,color.b,color.a,0,0,img,isSelected,1]));
-        renderData.push(getData([data.x+sizeX,data.y+sizeY,color.r,color.g,color.b,color.a,1,0,img,isSelected,1]));
-        renderData.push(getData([data.x-sizeX,data.y-sizeY,color.r,color.g,color.b,color.a,0,1,img,isSelected,1]));
-        renderData.push(getData([data.x+sizeX,data.y+sizeY,color.r,color.g,color.b,color.a,1,0,img,isSelected,1]));
-        renderData.push(getData([data.x-sizeX,data.y-sizeY,color.r,color.g,color.b,color.a,0,1,img,isSelected,1]));
-        renderData.push(getData([data.x+sizeX,data.y-sizeY,color.r,color.g,color.b,color.a,1,1,img,isSelected,1]));
+        addData(renderData,[data.x-sizeX,data.y+sizeY,color.r,color.g,color.b,color.a,0,0,img,isSelected,1]);
+        addData(renderData,[data.x+sizeX,data.y+sizeY,color.r,color.g,color.b,color.a,1,0,img,isSelected,1]);
+        addData(renderData,[data.x-sizeX,data.y-sizeY,color.r,color.g,color.b,color.a,0,1,img,isSelected,1]);
+        addData(renderData,[data.x+sizeX,data.y+sizeY,color.r,color.g,color.b,color.a,1,0,img,isSelected,1]);
+        addData(renderData,[data.x-sizeX,data.y-sizeY,color.r,color.g,color.b,color.a,0,1,img,isSelected,1]);
+        addData(renderData,[data.x+sizeX,data.y-sizeY,color.r,color.g,color.b,color.a,1,1,img,isSelected,1]);
 
 
         var hasIcon = data.icon && textureIcon.iconinfo.infos[data.icon],uvs;
@@ -52,12 +60,12 @@ export default {
         if(hasIcon){
             // debugger
             uvs = textureIcon.iconinfo.infos[data.icon].uvs;
-            renderData.push(getData([data.x-iconSize*scale,data.y+iconSize*scale,color.r,color.g,color.b,color.a,uvs[0],uvs[1],-2,isSelected,2]));
-            renderData.push(getData([data.x+iconSize*scale,data.y+iconSize*scale,color.r,color.g,color.b,color.a,uvs[2],uvs[1],-2,isSelected,2]));
-            renderData.push(getData([data.x-iconSize*scale,data.y-iconSize*scale,color.r,color.g,color.b,color.a,uvs[0],uvs[3],-2,isSelected,2]));
-            renderData.push(getData([data.x+iconSize*scale,data.y+iconSize*scale,color.r,color.g,color.b,color.a,uvs[2],uvs[1],-2,isSelected,2]));
-            renderData.push(getData([data.x-iconSize*scale,data.y-iconSize*scale,color.r,color.g,color.b,color.a,uvs[0],uvs[3],-2,isSelected,2]));
-            renderData.push(getData([data.x+iconSize*scale,data.y-iconSize*scale,color.r,color.g,color.b,color.a,uvs[2],uvs[3],-2,isSelected,2]));
+            addData(renderData,[data.x-iconSize*scale,data.y+iconSize*scale,color.r,color.g,color.b,color.a,uvs[0],uvs[1],-2,isSelected,2]);
+            addData(renderData,[data.x+iconSize*scale,data.y+iconSize*scale,color.r,color.g,color.b,color.a,uvs[2],uvs[1],-2,isSelected,2]);
+            addData(renderData,[data.x-iconSize*scale,data.y-iconSize*scale,color.r,color.g,color.b,color.a,uvs[0],uvs[3],-2,isSelected,2]);
+            addData(renderData,[data.x+iconSize*scale,data.y+iconSize*scale,color.r,color.g,color.b,color.a,uvs[2],uvs[1],-2,isSelected,2]);
+            addData(renderData,[data.x-iconSize*scale,data.y-iconSize*scale,color.r,color.g,color.b,color.a,uvs[0],uvs[3],-2,isSelected,2]);
+            addData(renderData,[data.x+iconSize*scale,data.y-iconSize*scale,color.r,color.g,color.b,color.a,uvs[2],uvs[3],-2,isSelected,2]);
         }
 
 
@@ -65,6 +73,13 @@ export default {
     }
 
 }
+
+function addData(arr,attrData) {
+    for(var i = 0;i< attrData.length;i++){
+        arr.push(attrData[i]);
+    }
+}
+
 
 function getData(data) {
     return {

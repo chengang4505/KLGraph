@@ -12,13 +12,13 @@ export default {
     shaderVert: nodeVert,
     shaderFrag: nodeFrag,
     attributes: {
-        a_size: {type: type.FLOAT, comType: comType.FLOAT},
-        a_position: {type: type.FLOAT_VEC2, comType: comType.FLOAT},
-        a_color: {type: type.FLOAT_VEC4, comType: comType.FLOAT},
-        a_img: {type: type.FLOAT, comType: comType.FLOAT},
-        a_selected: {type: type.FLOAT, comType: comType.FLOAT},
-        a_uv: {type: type.FLOAT_VEC2, comType: comType.FLOAT},
-        a_flag: {type: type.FLOAT, comType: comType.FLOAT},
+        a_position: {components:2,start:0},
+        a_color: {components:4,start:2},
+        a_uv:{components:2,start:6},
+        a_img: {components:1,start:8},
+        a_selected: {components:1,start:9},
+        a_flag: {components:1,start:10},
+        a_size: {components:1,start:11},
     },
     getUniforms({matrix, camera, sampleRatio, textureLoader}){
         return {
@@ -42,12 +42,12 @@ export default {
 
         var renderData = [];
 
-        renderData.push(getData([data.x-data.size,data.y+data.size,color.r,color.g,color.b,color.a,0,0,img,isSelected,1,data.size]));
-        renderData.push(getData([data.x+data.size,data.y+data.size,color.r,color.g,color.b,color.a,1,0,img,isSelected,1,data.size]));
-        renderData.push(getData([data.x-data.size,data.y-data.size,color.r,color.g,color.b,color.a,0,1,img,isSelected,1,data.size]));
-        renderData.push(getData([data.x+data.size,data.y+data.size,color.r,color.g,color.b,color.a,1,0,img,isSelected,1,data.size]));
-        renderData.push(getData([data.x-data.size,data.y-data.size,color.r,color.g,color.b,color.a,0,1,img,isSelected,1,data.size]));
-        renderData.push(getData([data.x+data.size,data.y-data.size,color.r,color.g,color.b,color.a,1,1,img,isSelected,1,data.size]));
+        addData(renderData,[data.x-data.size,data.y+data.size,color.r,color.g,color.b,color.a,0,0,img,isSelected,1,data.size]);
+        addData(renderData,[data.x+data.size,data.y+data.size,color.r,color.g,color.b,color.a,1,0,img,isSelected,1,data.size]);
+        addData(renderData,[data.x-data.size,data.y-data.size,color.r,color.g,color.b,color.a,0,1,img,isSelected,1,data.size]);
+        addData(renderData,[data.x+data.size,data.y+data.size,color.r,color.g,color.b,color.a,1,0,img,isSelected,1,data.size]);
+        addData(renderData,[data.x-data.size,data.y-data.size,color.r,color.g,color.b,color.a,0,1,img,isSelected,1,data.size]);
+        addData(renderData,[data.x+data.size,data.y-data.size,color.r,color.g,color.b,color.a,1,1,img,isSelected,1,data.size]);
 
         var hasIcon = data.icon && textureIcon.iconinfo.infos[data.icon],uvs;
         var scale = 0.7;
@@ -55,12 +55,12 @@ export default {
         if(hasIcon){
 
             uvs = textureIcon.iconinfo.infos[data.icon].uvs;
-            renderData.push(getData([data.x-data.size*scale,data.y+data.size*scale,color.r,color.g,color.b,color.a,uvs[0],uvs[1],-2,isSelected,2,data.size]));
-            renderData.push(getData([data.x+data.size*scale,data.y+data.size*scale,color.r,color.g,color.b,color.a,uvs[2],uvs[1],-2,isSelected,2,data.size]));
-            renderData.push(getData([data.x-data.size*scale,data.y-data.size*scale,color.r,color.g,color.b,color.a,uvs[0],uvs[3],-2,isSelected,2,data.size]));
-            renderData.push(getData([data.x+data.size*scale,data.y+data.size*scale,color.r,color.g,color.b,color.a,uvs[2],uvs[1],-2,isSelected,2,data.size]));
-            renderData.push(getData([data.x-data.size*scale,data.y-data.size*scale,color.r,color.g,color.b,color.a,uvs[0],uvs[3],-2,isSelected,2,data.size]));
-            renderData.push(getData([data.x+data.size*scale,data.y-data.size*scale,color.r,color.g,color.b,color.a,uvs[2],uvs[3],-2,isSelected,2,data.size]));
+            addData(renderData,[data.x-data.size*scale,data.y+data.size*scale,color.r,color.g,color.b,color.a,uvs[0],uvs[1],-2,isSelected,2,data.size]);
+            addData(renderData,[data.x+data.size*scale,data.y+data.size*scale,color.r,color.g,color.b,color.a,uvs[2],uvs[1],-2,isSelected,2,data.size]);
+            addData(renderData,[data.x-data.size*scale,data.y-data.size*scale,color.r,color.g,color.b,color.a,uvs[0],uvs[3],-2,isSelected,2,data.size]);
+            addData(renderData,[data.x+data.size*scale,data.y+data.size*scale,color.r,color.g,color.b,color.a,uvs[2],uvs[1],-2,isSelected,2,data.size]);
+            addData(renderData,[data.x-data.size*scale,data.y-data.size*scale,color.r,color.g,color.b,color.a,uvs[0],uvs[3],-2,isSelected,2,data.size]);
+            addData(renderData,[data.x+data.size*scale,data.y-data.size*scale,color.r,color.g,color.b,color.a,uvs[2],uvs[3],-2,isSelected,2,data.size]);
         }
         
         
@@ -68,6 +68,13 @@ export default {
     }
 
 }
+
+function addData(arr,attrData) {
+    for(var i = 0;i< attrData.length;i++){
+        arr.push(attrData[i]);
+    }
+}
+
 
 function getData(data) {
     return {

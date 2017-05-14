@@ -9,6 +9,11 @@ import util from '../../../util'
 export default {
     shaderVert: vert,
     shaderFrag: frag,
+    attributes: {
+        a_position: {components:2,start:0},
+        a_uv:{components:2,start:2},
+        a_size: {components:1,start:4},
+    },
     getUniforms({matrix, camera, sampleRatio, textureLoader}){
         return {
             u_matrix:matrix,
@@ -58,12 +63,12 @@ export default {
             uv = infos[char].uvs;
             x1 = uv[0],y1 = uv[1],x2 = uv[2],y2 = uv[3];
 
-            renderData.push(getData([startx,starty,x1,y1,width]));
-            renderData.push(getData([startx,starty-charHeight,x1,y2,width]));
-            renderData.push(getData([startx+width,starty,x2,y1,width]));
-            renderData.push(getData([startx,starty-charHeight,x1,y2,width]));
-            renderData.push(getData([startx+width,starty,x2,y1,width]));
-            renderData.push(getData([startx+width,starty-charHeight,x2,y2,width]));
+            addData(renderData,[startx,starty,x1,y1,width]);
+            addData(renderData,[startx,starty-charHeight,x1,y2,width]);
+            addData(renderData,[startx+width,starty,x2,y1,width]);
+            addData(renderData,[startx,starty-charHeight,x1,y2,width]);
+            addData(renderData,[startx+width,starty,x2,y1,width]);
+            addData(renderData,[startx+width,starty-charHeight,x2,y2,width]);
 
             startx += width*7/8;
         }
@@ -72,16 +77,9 @@ export default {
 
 }
 
-function getData(data) {
-    return {
-        a_position: [data[0], data[1]],
-        a_uv:[data[2],data[3]],
-        a_size: data[4],
-    }
-}
 
-function addData(arr,attributes,attrData) {
-    for(var i = 0;i< attributes;i++){
+function addData(arr,attrData) {
+    for(var i = 0;i< attrData.length;i++){
         arr.push(attrData[i]);
     }
 }

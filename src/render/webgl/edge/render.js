@@ -11,6 +11,12 @@ import edgeFrag from './glsl/default-frag.glsl'
 export default {
     shaderVert: edgeVert,
     shaderFrag: edgeFrag,
+    attributes: {
+        a_position: {components:2,start:0},
+        a_normal:{components:2,start:2},
+        a_size: {components:1,start:4},
+        a_color: {components:4,start:5},
+    },
     getUniforms({matrix, camera, sampleRatio, textureLoader}){
         return {
             u_matrix:matrix
@@ -37,23 +43,31 @@ export default {
 
         var renderData = [];
 
-        renderData.push(getData([source.x,source.y,crossVector[0],crossVector[1],size,color.r,color.g,color.b,color.a]));
-        renderData.push(getData([arrowX,arrowY,crossVector[0],crossVector[1],size,color.r,color.g,color.b,color.a]));
-        renderData.push(getData([source.x,source.y,-crossVector[0],-crossVector[1],size,color.r,color.g,color.b,color.a]));
-        renderData.push(getData([arrowX,arrowY,crossVector[0],crossVector[1],size,color.r,color.g,color.b,color.a]));
-        renderData.push(getData([source.x,source.y,-crossVector[0],-crossVector[1],size,color.r,color.g,color.b,color.a]));
-        renderData.push(getData([arrowX,arrowY,-crossVector[0],-crossVector[1],size,color.r,color.g,color.b,color.a]));
+        addData(renderData,[source.x,source.y,crossVector[0],crossVector[1],size,color.r,color.g,color.b,color.a]);
+        addData(renderData,[arrowX,arrowY,crossVector[0],crossVector[1],size,color.r,color.g,color.b,color.a]);
+        addData(renderData,[source.x,source.y,-crossVector[0],-crossVector[1],size,color.r,color.g,color.b,color.a]);
+        addData(renderData,[arrowX,arrowY,crossVector[0],crossVector[1],size,color.r,color.g,color.b,color.a]);
+        addData(renderData,[source.x,source.y,-crossVector[0],-crossVector[1],size,color.r,color.g,color.b,color.a]);
+        addData(renderData,[arrowX,arrowY,-crossVector[0],-crossVector[1],size,color.r,color.g,color.b,color.a]);
 
         //arrow
-        renderData.push(getData([arrowX,arrowY,crossVector[0],crossVector[1],arrowSize/2,color.r,color.g,color.b,color.a]));
-        renderData.push(getData([arrowX,arrowY,-crossVector[0],-crossVector[1],arrowSize/2,color.r,color.g,color.b,color.a]));
-        renderData.push(getData([arrowX,arrowY,arrowSize/dis * dx,arrowSize/dis * dy,1,color.r,color.g,color.b,color.a]));
+        addData(renderData,[arrowX,arrowY,crossVector[0],crossVector[1],arrowSize/2,color.r,color.g,color.b,color.a]);
+        addData(renderData,[arrowX,arrowY,-crossVector[0],-crossVector[1],arrowSize/2,color.r,color.g,color.b,color.a]);
+        addData(renderData,[arrowX,arrowY,arrowSize/dis * dx,arrowSize/dis * dy,1,color.r,color.g,color.b,color.a]);
 
 
         return renderData;
     }
 
 }
+
+function addData(arr,attrData) {
+    for(var i = 0;i< attrData.length;i++){
+        arr.push(attrData[i]);
+    }
+}
+
+
 
 function getData(data) {
     return {
