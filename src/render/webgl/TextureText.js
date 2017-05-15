@@ -4,12 +4,8 @@ import EventEmitter from '../../base/EventEmitter'
 import TextSdf from './TextSdf'
 
 export default class TextureText extends EventEmitter{
-    constructor(gl){
+    constructor(){
         super();
-
-        this.gl = gl;
-
-        this.texture = null;
 
         this.border = 2;
 
@@ -20,7 +16,7 @@ export default class TextureText extends EventEmitter{
 
         this.textinfo = null;
 
-        this.texts = null;
+        this.texts = [];
 
         this.sdf = new TextSdf(this.fontSize, this.fontSize/8, this.fontSize/3,null,this.fontFamily);
 
@@ -104,7 +100,7 @@ export default class TextureText extends EventEmitter{
         // c.style.position = 'absolute';
         // c.style.top = '100px';
 
-        this.updateGPUTexture();
+        // this.updateGPUTexture();
     }
 
     computeAlpha(ctx) {
@@ -118,13 +114,10 @@ export default class TextureText extends EventEmitter{
 
     }
 
-    updateGPUTexture(){
-        var gl = this.gl;
-
-        this.createTexture();
+    attachGl(gl){
 
         gl.activeTexture(gl.TEXTURE10);
-        gl.bindTexture(gl.TEXTURE_2D, this.texture);
+        gl.bindTexture(gl.TEXTURE_2D, this.createTexture(gl));
     }
 
     addTexts(strs){
@@ -148,15 +141,13 @@ export default class TextureText extends EventEmitter{
         }
     }
 
-    createTexture(){
+    createTexture(gl){
 
-        var gl = this.gl;
 
-        if(!this.texture) {
-            this.texture = gl.createTexture();
-        }
+        var texture = gl.createTexture();
+
         gl.activeTexture(gl.TEXTURE10);
-        gl.bindTexture(gl.TEXTURE_2D, this.texture);
+        gl.bindTexture(gl.TEXTURE_2D, texture);
 
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
@@ -164,44 +155,13 @@ export default class TextureText extends EventEmitter{
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
 
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, this.textinfo.img);
+
+        return texture;
     }
 
     clear(){
         this.textinfo = null;
-        this.texts = null;
+        this.texts = [];
     }
-
-}
-
-function test() {
-    var chars = '泽材abcdefghkilmnopqrstuvwxyz灭逐莫笔亡鲜';
-    var fontSize = 24;
-
-    var sdf = new TextSdf(fontSize, fontSize/8, fontSize/3,null,'Arial');
-
-    var canvas = document.createElement('canvas');
-    canvas.width = 400;
-    canvas.height = 400;
-    canvas.style.position = 'absolute';
-    canvas.style.top = '200px';
-
-    var ctx = canvas.getContext('2d');
-
-    var now = performance.now();
-    var startx = 0,stary=0,data;
-    for (var i = 0;i< chars.length;i++) {
-        data = sdf.draw(chars[i]);
-        if(startx + data.charWidth + 0 >= canvas.width){
-            stary += sdf.size;
-            startx = 0;
-        }
-
-        ctx.putImageData(data.data, startx, stary,0,0,data.charWidth,data.data.height);
-
-        startx += data.charWidth + 0;
-    }
-   console.log(Math.round(performance.now() - now) + 'ms.');
-
-    document.body.appendChild(canvas);
 
 }

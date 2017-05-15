@@ -42,21 +42,27 @@ export default {
         var color = util.parseColor(edge.color||source.color || '#b3d2ff');
 
         var renderData = [];
+        var indices = [];
 
         addData(renderData,[source.x,source.y,crossVector[0],crossVector[1],size,color.r,color.g,color.b,color.a]);
         addData(renderData,[arrowX,arrowY,crossVector[0],crossVector[1],size,color.r,color.g,color.b,color.a]);
         addData(renderData,[source.x,source.y,-crossVector[0],-crossVector[1],size,color.r,color.g,color.b,color.a]);
-        addData(renderData,[arrowX,arrowY,crossVector[0],crossVector[1],size,color.r,color.g,color.b,color.a]);
-        addData(renderData,[source.x,source.y,-crossVector[0],-crossVector[1],size,color.r,color.g,color.b,color.a]);
+        // addData(renderData,[arrowX,arrowY,crossVector[0],crossVector[1],size,color.r,color.g,color.b,color.a]);
+        // addData(renderData,[source.x,source.y,-crossVector[0],-crossVector[1],size,color.r,color.g,color.b,color.a]);
         addData(renderData,[arrowX,arrowY,-crossVector[0],-crossVector[1],size,color.r,color.g,color.b,color.a]);
 
+        addIndices(indices,[0,1,2,1,2,3]);
         //arrow
         addData(renderData,[arrowX,arrowY,crossVector[0],crossVector[1],arrowSize/2,color.r,color.g,color.b,color.a]);
         addData(renderData,[arrowX,arrowY,-crossVector[0],-crossVector[1],arrowSize/2,color.r,color.g,color.b,color.a]);
         addData(renderData,[arrowX,arrowY,arrowSize/dis * dx,arrowSize/dis * dy,1,color.r,color.g,color.b,color.a]);
 
+        addIndices(indices,[4,5,6]);
 
-        return renderData;
+        return {
+            vertices:renderData,
+            indices:indices,
+        };
     }
 
 }
@@ -67,13 +73,8 @@ function addData(arr,attrData) {
     }
 }
 
-
-
-function getData(data) {
-    return {
-        a_position: [data[0], data[1]],
-        a_normal: [data[2],data[3]],
-        a_size: data[4],
-        a_color: [data[5], data[6], data[7], data[8]],
-    }
+function addIndices(indices,attrIndex) {
+    attrIndex.forEach(function (data) {
+        indices.push(data);
+    });
 }

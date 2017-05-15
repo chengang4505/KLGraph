@@ -99,6 +99,7 @@ export function calTypeOffset(activeAttributes,config) {
 }
 
 export function vertexAttribPointer(gl,activeAttributes,offsetConfig) {
+    // debugger
     var config = offsetConfig.config;
     var strip = offsetConfig.strip;
     for(var attr in activeAttributes){

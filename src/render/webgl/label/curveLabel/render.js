@@ -2,12 +2,11 @@
  * Created by chengang on 17-4-7.
  */
 
-import util from '../../../util'
-import mat3 from '../../../base/Matrix'
+import util from '../../../../util'
+import mat3 from '../../../../base/Matrix'
 
-import vert from './glsl/edge-label-vert.glsl'
-import frag from './glsl/label-frag.glsl'
-
+import vert from './../glsl/edge-label-vert.glsl'
+import frag from './../glsl/label-frag.glsl'
 
 export default {
     shaderVert: vert,
@@ -28,7 +27,7 @@ export default {
         var target = graph.nodesIndex[data.target];
         var source = graph.nodesIndex[data.source];
 
-        if(!data.label) return [];
+        if(!data.label) return null;
 
         // debugger
         var str = data.label.split('');
@@ -55,12 +54,29 @@ export default {
         var dx = target.x - source.x;
         var dy = target.y - source.y;
 
+        //curve
+        var dis = util.getDistance(source.x,source.y,target.x,target.y);
+        var tSize = Math.max(util.getNodeSizeX(target),util.getNodeSizeY(target));
+
+        var tX = target.x - tSize / dis * dx;
+        var tY = target.y - tSize / dis * dy;
+
+        var ctrlP = util.getControlPos(source.x,source.y,tX,tY,data.curveCount,data.curveOrder);
+
+        var tangent = util.getPointTangentOnQuadraticCurve(0.5,source.x,source.y,tX,tY,ctrlP[0],ctrlP[1]);
+
+        dx = tangent[0],dy = tangent[1];
+
         var angle = util.getAngle(1,0,dx,dy);
+
 
         angle = dy < 0 ? Math.PI-angle:angle;
         angle = angle > Math.PI/2 ? angle + Math.PI: angle;
 
-        var centerX = (source.x + target.x)/2, centerY = (source.y + target.y)/2;
+        var center = util.getPointOnQuadraticCurve(0.5,source.x,source.y,tX,tY,ctrlP[0],ctrlP[1]);
+
+
+        var centerX = center[0], centerY = center[1];
         var startx = totalWidht/2 * -1;
         var starty =  charHeight/2;
         var x1,y1,x2,y2;
@@ -80,8 +96,6 @@ export default {
 
             addData(renderData,[startx,starty,x1,y1,width],centerX,centerY,angle);
             addData(renderData,[startx,starty-charHeight,x1,y2,width],centerX,centerY,angle);
-            // addData(renderData,[startx+width,starty,x2,y1,width],centerX,centerY,angle);
-            // addData(renderData,[startx,starty-charHeight,x1,y2,width],centerX,centerY,angle);
             addData(renderData,[startx+width,starty,x2,y1,width],centerX,centerY,angle);
             addData(renderData,[startx+width,starty-charHeight,x2,y2,width],centerX,centerY,angle);
 
@@ -93,7 +107,7 @@ export default {
             startx += width*7/8;
             points += 4;
         }
-
+        
         return {
             vertices:renderData,
             indices:indices,

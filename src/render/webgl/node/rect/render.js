@@ -23,7 +23,7 @@ export default {
         return {
             u_matrix:matrix,
             u_camera_scale:camera.scale,
-            u_textures:textureLoader.texturesIndex,
+            // u_textures:textureLoader.texturesIndex,
             u_borderColor:[212, 82, 95,255.0],
             u_sample_ratio:sampleRatio,
             u_icons_texture:11,

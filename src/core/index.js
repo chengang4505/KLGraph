@@ -52,32 +52,32 @@ export  default  class Core {
     initCanvas() {
 
         this.container.style.position = 'relative';
-
-        this.canvas.render = this._createCanvas();
+        this.canvas.render = this.createElement('div');
         this.container.appendChild(this.canvas.render);
 
-        this.container.oncontextmenu = function (e) {
-            e.preventDefault();
-        };
-
-        this.canvas.mouse = this._createCanvas();
+        this.canvas.mouse = this.createElement('canvas');
         this.canvas.mouse.style.display = 'none';
         this.canvas.mouse.style.cursor = 'cell';
 
         this.container.appendChild(this.canvas.mouse);
     }
 
-    _createCanvas() {
-        var canvas = document.createElement('canvas');
-        canvas.style.position = 'absolute';
-        canvas.style.left = '0px';
-        canvas.style.top = '0px';
-        canvas.width = this.container.clientWidth;
-        canvas.height = this.container.clientHeight;
-        canvas.style.width = '100%';
-        canvas.style.height = '100%';
+    createElement(tag) {
+        var ele = document.createElement(tag);
+        ele.style.position = 'absolute';
+        ele.style.left = '0px';
+        ele.style.top = '0px';
+        ele.style.width = '100%';
+        ele.style.height = '100%';
+        ele.style.border = 'none';
+        ele.width = this.container.clientWidth;
+        ele.height = this.container.clientHeight;
 
-        return canvas;
+        ele.oncontextmenu = function (e) {
+            e.preventDefault();
+        };
+
+        return ele;
     }
 
     _start() {

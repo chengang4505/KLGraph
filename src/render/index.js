@@ -20,13 +20,13 @@ WebGLRender.nodeLabel.default = NodeLabel;
 WebGLRender.nodeLabel.rect = NodeLabel;
 
 import edge from './webgl/edge/render'
-import curve from './webgl/edge/curve/curve'
+import curve from './webgl/edge/curve/render'
 WebGLRender.edge.default = edge;
 WebGLRender.edge.curve = curve;
 
 
 import EdgeLabel from './webgl/label/EdgeLabel'
-import curveLabel from './webgl/label/curveLabel/curveLabel'
+import curveLabel from './webgl/label/curveLabel/render'
 WebGLRender.edgeLabel.default = EdgeLabel;
 WebGLRender.edgeLabel.curve = curveLabel;
 
