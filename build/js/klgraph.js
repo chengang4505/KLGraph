@@ -975,6 +975,7 @@ var WebGLRender = function (_EventEmitter) {
         _this2.textureIcon = new _TextureIcon2.default(_this2.config);
         _this2.textureText = new _TextureText2.default();
 
+        _this2.initGl();
         _this2.initEvent();
         _this2.initIconTexture();
         _this2.initTextTexture();
@@ -996,12 +997,9 @@ var WebGLRender = function (_EventEmitter) {
         _this2.renderLayerMap = {};
         _this2.renderLayersConfig = [{
             name: 'base',
-            subLayers: [{ name: 'edge', context: 'edge', render: WebGLRender.edge.default, check: layerCheckDefault() }, { name: 'edgeCurve', context: 'edge', render: WebGLRender.edge.curve, check: layerCheck('curve') },
-
-            // {name:'edgeLabel',context:'edge',render:WebGLRender.edgeLabel.default,check:layerCheckDefault()},
-            // {name:'edgeCurveLabel',context:'edge',render:WebGLRender.edgeLabel.curve,check:layerCheck('curve')},
-
-            { name: 'node', context: 'node', render: WebGLRender.node.default, check: layerCheckDefault() }, { name: 'rectNode', context: 'node', render: WebGLRender.node.rect, check: layerCheck('rect') }]
+            subLayers: [{ name: 'edge', context: 'edge', render: WebGLRender.edge.default, check: layerCheckDefault() }, { name: 'edgeCurve', context: 'edge', render: WebGLRender.edge.curve, check: layerCheck('curve') }, { name: 'edgeLabel', context: 'edge', render: WebGLRender.edgeLabel.default, check: layerCheckDefault() }, { name: 'edgeCurveLabel', context: 'edge', render: WebGLRender.edgeLabel.curve, check: layerCheck('curve') }, { name: 'node', context: 'node', render: WebGLRender.node.default, check: layerCheckDefault() }, { name: 'rectNode', context: 'node', render: WebGLRender.node.rect, check: layerCheck('rect') }, { name: 'nodeLabel', context: 'node', render: WebGLRender.nodeLabel.default, check: function check() {
+                    return true;
+                } }]
         }];
         _this2.initRenderLayer();
         // debugger
@@ -1014,21 +1012,16 @@ var WebGLRender = function (_EventEmitter) {
         key: 'initRenderLayer',
         value: function initRenderLayer() {
             var renderLayerMap = this.renderLayerMap;
-            var gl;
+            var gl = this.gl;
             var program,
                 strip = 0;
 
             var _this = this;
+
+            this.textureText.attachGl(gl);
+            this.textureIcon.attachGl(gl);
+
             this.renderLayersConfig.forEach(function (layer) {
-
-                layer.dom = _this.createLayerDom(layer.name);
-                _this.container.appendChild(layer.dom);
-                layer.gl = _this.initGl(layer.dom);
-                gl = layer.gl;
-
-                this.textureText.attachGl(gl);
-                this.textureIcon.attachGl(gl);
-                // this.textureLoader.attachGl(gl);
 
                 layer.subLayers.forEach(function (subLayer) {
 
@@ -1159,15 +1152,13 @@ var WebGLRender = function (_EventEmitter) {
             var mainLayer, subLayers, layer, gl, renderLayerMap, program, layerIndex, data, uniforms;
             renderLayerMap = this.renderLayerMap;
 
+            gl = this.gl;
+            gl.clear(gl.COLOR_BUFFER_BIT);
+
             // debugger
             for (var i = 0; i < this.renderLayersConfig.length; i++) {
                 mainLayer = this.renderLayersConfig[i];
                 subLayers = mainLayer.subLayers;
-
-                // debugger
-                gl = mainLayer.gl;
-                gl.clear(gl.COLOR_BUFFER_BIT);
-                gl.viewport(0, 0, mainLayer.dom.width, mainLayer.dom.height);
 
                 for (var j = 0; j < subLayers.length; j++) {
                     layer = subLayers[j].name;
@@ -1200,6 +1191,97 @@ var WebGLRender = function (_EventEmitter) {
                             gl.drawArrays(gl.TRIANGLES, 0, data.length / program.offsetConfig.strip);
                         }
                     }.bind(this));
+
+                    gl.bindBuffer(gl.ARRAY_BUFFER, null);
+                    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
+                }
+            }
+        }
+    }, {
+        key: 'draw1',
+        value: function draw1() {
+
+            var mainLayer, subLayers, layer, gl, renderLayerMap, program, layerIndex, data, uniforms;
+            renderLayerMap = this.renderLayerMap;
+
+            gl = this.gl;
+            gl.clear(gl.COLOR_BUFFER_BIT);
+
+            // debugger
+            for (var i = 0; i < this.renderLayersConfig.length; i++) {
+                mainLayer = this.renderLayersConfig[i];
+                subLayers = mainLayer.subLayers;
+
+                for (var j = 0; j < subLayers.length; j++) {
+                    layer = subLayers[j].name;
+
+                    program = renderLayerMap[layer].program;
+                    gl.useProgram(program);
+
+                    gl.bindBuffer(gl.ARRAY_BUFFER, program.vertexBuffer);
+                    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, program.indexBuffer);
+
+                    layerIndex = renderLayerMap[layer].index;
+
+                    (0, _GLUtil.vertexAttribPointer)(gl, program.activeAttributes, program.offsetConfig);
+
+                    (0, _GLUtil.setUniforms)(gl, program.activeUniforms, renderLayerMap[layer].uniforms);
+
+                    var vertN = 0,
+                        indexN = 0,
+                        vertBuffer,
+                        indexBuffer;
+                    var vertStart = 0,
+                        indexStart = 0,
+                        points = 0,
+                        tempIndexs;
+
+                    layerIndex.forEach(function (id) {
+                        data = this.renderCache[renderLayerMap[layer].context].index[id][layer];
+                        vertN += data.vertices.length;
+                        indexN += data.indices.length;
+                    }.bind(this));
+                    // debugger
+
+                    gl.bufferData(gl.ARRAY_BUFFER, vertN * 4, gl.STATIC_DRAW);
+                    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indexN * 2, gl.STATIC_DRAW);
+
+                    layerIndex.forEach(function (id) {
+                        data = this.renderCache[renderLayerMap[layer].context].index[id][layer];
+                        gl.bufferSubData(gl.ARRAY_BUFFER, vertStart * 4, data.vertices);
+
+                        tempIndexs = new Uint16Array(data.indices.length);
+                        data.indices.forEach(function (index, i) {
+                            tempIndexs[i] = points + index;
+                        });
+                        gl.bufferSubData(gl.ELEMENT_ARRAY_BUFFER, indexStart * 2, tempIndexs);
+
+                        vertStart += data.vertices.length;
+                        indexStart += data.indices.length;
+                        points += data.vertices.length / program.offsetConfig.strip;
+                    }.bind(this));
+
+                    gl.drawElements(gl.TRIANGLES, indexN, gl.UNSIGNED_SHORT, 0);
+
+                    // layerIndex.forEach(function (id) {
+                    //
+                    //     // debugger
+                    //     data = this.renderCache[renderLayerMap[layer].context].index[id][layer];
+                    //
+                    //     if (!data) return;
+                    //
+                    //     if (data.indices && data.vertices) {
+                    //         gl.bufferData(gl.ARRAY_BUFFER, data.vertices, gl.STATIC_DRAW);
+                    //         gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, data.indices, gl.STATIC_DRAW);
+                    //         gl.drawElements(gl.TRIANGLES, data.indices.length, gl.UNSIGNED_SHORT, 0);
+                    //     } else {
+                    //         gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW);
+                    //         gl.drawArrays(
+                    //             gl.TRIANGLES, 0,
+                    //             data.length / program.offsetConfig.strip
+                    //         );
+                    //     }
+                    // }.bind(this));
 
                     gl.bindBuffer(gl.ARRAY_BUFFER, null);
                     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
@@ -1290,12 +1372,15 @@ var WebGLRender = function (_EventEmitter) {
         }
     }, {
         key: 'initGl',
-        value: function initGl(canvas) {
+        value: function initGl() {
             var option = {
                 preserveDrawingBuffer: true
             };
 
-            var gl = canvas.getContext('experimental-webgl', option) || canvas.getContext('webgl', option);
+            var canvas = this.container,
+                gl;
+
+            gl = canvas.getContext('experimental-webgl', option) || canvas.getContext('webgl', option);
 
             if (!gl) {
                 throw '浏览器不支持webGl';
@@ -1310,7 +1395,7 @@ var WebGLRender = function (_EventEmitter) {
             // this.gl.clearColor(218/255, 224/255, 231/255, 1);
             gl.clearColor(0, 0, 0, 0);
 
-            return gl;
+            this.gl = gl;
         }
     }, {
         key: 'initEvent',
@@ -1347,9 +1432,7 @@ var WebGLRender = function (_EventEmitter) {
             });
 
             this.textureIcon.on('load', function () {
-                this.renderLayersConfig.forEach(function (layer) {
-                    this.textureIcon.attachGl(layer.gl);
-                }.bind(this));
+                this.textureIcon.attachGl(this.gl);
                 this.clearRenderCache();
             }.bind(this));
 
@@ -1475,15 +1558,14 @@ var WebGLRender = function (_EventEmitter) {
         value: function resizeCanvas() {
             var canvas;
             var multiplier = this.sampleRatio;
-            this.renderLayersConfig.forEach(function (layer) {
-                canvas = layer.dom;
-                var width = canvas.clientWidth * multiplier | 0;
-                var height = canvas.clientHeight * multiplier | 0;
-                if (canvas.width !== width || canvas.height !== height) {
-                    canvas.width = width;
-                    canvas.height = height;
-                }
-            });
+            canvas = this.container;
+            var width = canvas.clientWidth * multiplier | 0;
+            var height = canvas.clientHeight * multiplier | 0;
+            if (canvas.width !== width || canvas.height !== height) {
+                canvas.width = width;
+                canvas.height = height;
+                this.gl.viewport(0, 0, canvas.width, canvas.height);
+            }
             this.projectMatrix = _Matrix2.default.matrixFromScale(2 / this.container.clientWidth, 2 / this.container.clientHeight);
         }
     }, {
@@ -1671,7 +1753,7 @@ var Core = function () {
         value: function initCanvas() {
 
             this.container.style.position = 'relative';
-            this.canvas.render = this.createElement('div');
+            this.canvas.render = this.createElement('canvas');
             this.container.appendChild(this.canvas.render);
 
             this.canvas.mouse = this.createElement('canvas');
@@ -2635,6 +2717,7 @@ var Graph = function (_EventEmitter) {
     }, {
         key: 'setNodeData',
         value: function setNodeData(id, obj) {
+            // console.time('setNodeData')
             var node = this.nodesIndex[id];
 
             var updatePos = false;
@@ -2647,6 +2730,7 @@ var Graph = function (_EventEmitter) {
                 this.inEdgesIndex[id] && this.inEdgesIndex[id].length > 0 && this.emit('change', ['edge', this.inEdgesIndex[id]]);
                 this.outEdgesIndex[id] && this.outEdgesIndex[id].length > 0 && this.emit('change', ['edge', this.outEdgesIndex[id]]);
             }
+            // console.timeEnd('setNodeData')
         }
     }, {
         key: 'updateNodeQuad',
@@ -5640,22 +5724,38 @@ exports.default = {
 
         var sizeX = data.width || data.size || 10;
         var sizeY = data.height || data.size || 10;
+        var iconSize = Math.min(sizeX, sizeY);
+        var bgSize = Math.max(sizeX, sizeY) * 1.414;
         var isSelected = data.selected ? 1.0 : 0.0;
 
         var renderData = [];
+        var indices = [];
+
+        var points = 0;
+        var bgScale = 1.35;
+
+        if (isSelected > 0.5) {
+            addData(renderData, [data.x - bgSize * bgScale, data.y + bgSize * bgScale, color.r, color.g, color.b, color.a, 0, 0, img, isSelected, 0]);
+            addData(renderData, [data.x + bgSize * bgScale, data.y + bgSize * bgScale, color.r, color.g, color.b, color.a, 1, 0, img, isSelected, 0]);
+            addData(renderData, [data.x - bgSize * bgScale, data.y - bgSize * bgScale, color.r, color.g, color.b, color.a, 0, 1, img, isSelected, 0]);
+            addData(renderData, [data.x + bgSize * bgScale, data.y - bgSize * bgScale, color.r, color.g, color.b, color.a, 1, 1, img, isSelected, 0]);
+
+            addIndices(indices, [points + 0, points + 1, points + 2, points + 1, points + 2, points + 3]);
+            points += 4;
+        }
 
         //base
         addData(renderData, [data.x - sizeX, data.y + sizeY, color.r, color.g, color.b, color.a, 0, 0, img, isSelected, 1]);
         addData(renderData, [data.x + sizeX, data.y + sizeY, color.r, color.g, color.b, color.a, 1, 0, img, isSelected, 1]);
         addData(renderData, [data.x - sizeX, data.y - sizeY, color.r, color.g, color.b, color.a, 0, 1, img, isSelected, 1]);
-        addData(renderData, [data.x + sizeX, data.y + sizeY, color.r, color.g, color.b, color.a, 1, 0, img, isSelected, 1]);
-        addData(renderData, [data.x - sizeX, data.y - sizeY, color.r, color.g, color.b, color.a, 0, 1, img, isSelected, 1]);
         addData(renderData, [data.x + sizeX, data.y - sizeY, color.r, color.g, color.b, color.a, 1, 1, img, isSelected, 1]);
+
+        addIndices(indices, [points + 0, points + 1, points + 2, points + 1, points + 2, points + 3]);
+        points += 4;
 
         var hasIcon = data.icon && textureIcon.iconinfo.infos[data.icon],
             uvs;
         var scale = 0.85;
-        var iconSize = Math.min(sizeX, sizeY);
         //icon
         if (hasIcon) {
             // debugger
@@ -5663,12 +5763,16 @@ exports.default = {
             addData(renderData, [data.x - iconSize * scale, data.y + iconSize * scale, color.r, color.g, color.b, color.a, uvs[0], uvs[1], -2, isSelected, 2]);
             addData(renderData, [data.x + iconSize * scale, data.y + iconSize * scale, color.r, color.g, color.b, color.a, uvs[2], uvs[1], -2, isSelected, 2]);
             addData(renderData, [data.x - iconSize * scale, data.y - iconSize * scale, color.r, color.g, color.b, color.a, uvs[0], uvs[3], -2, isSelected, 2]);
-            addData(renderData, [data.x + iconSize * scale, data.y + iconSize * scale, color.r, color.g, color.b, color.a, uvs[2], uvs[1], -2, isSelected, 2]);
-            addData(renderData, [data.x - iconSize * scale, data.y - iconSize * scale, color.r, color.g, color.b, color.a, uvs[0], uvs[3], -2, isSelected, 2]);
             addData(renderData, [data.x + iconSize * scale, data.y - iconSize * scale, color.r, color.g, color.b, color.a, uvs[2], uvs[3], -2, isSelected, 2]);
+
+            addIndices(indices, [points + 0, points + 1, points + 2, points + 1, points + 2, points + 3]);
+            points += 4;
         }
 
-        return renderData;
+        return {
+            vertices: renderData,
+            indices: indices
+        };
     }
 }; /**
     * Created by chengang on 17-3-28.
@@ -5680,15 +5784,10 @@ function addData(arr, attrData) {
     }
 }
 
-function getData(data) {
-    return {
-        a_position: [data[0], data[1]],
-        a_color: [data[2], data[3], data[4], data[5]],
-        a_uv: [data[6], data[7]],
-        a_img: data[8],
-        a_selected: data[9],
-        a_flag: data[10]
-    };
+function addIndices(indices, attrIndex) {
+    attrIndex.forEach(function (data) {
+        indices.push(data);
+    });
 }
 
 /***/ }),
@@ -5725,7 +5824,7 @@ module.exports = "attribute vec2 a_position;\nattribute vec2 a_uv;\nattribute fl
 /* 37 */
 /***/ (function(module, exports) {
 
-module.exports = "//#ifdef GL_OES_standard_derivatives\n//#extension GL_OES_standard_derivatives : enable\n//#endif\n\n precision mediump float;\n\nvarying vec4 color;\nvarying float selected;\nvarying vec2 uv;\nvarying float flag;\nvarying float size;\n\n\nuniform sampler2D u_icons_texture;\nuniform vec4 u_borderColor;\nuniform float u_sample_ratio;\n\nvec4 borderColor = u_borderColor/255.0;\n\nvoid main()\n{\n   float r = 0.0;\n   float alpha = 1.0;\n   float blur = min(0.05,4.0/size) ;\n   float border = min(0.75,0.06*size) ;\n\nif(flag > 0.5 && flag < 1.5) //flag =1 base\n{\n    vec4 nodecolor = color;\n    vec2 cxy = 2.0 * uv - 1.0;\n    r = length(cxy);\n\n    if(r > 1.0 ){\n        discard;\n    }\n\n    if(r > 1.0-blur){\n        alpha = 1.0 -  smoothstep(1.0-blur, 1.0, r) ;\n     }\n\n\n     if( selected > 0.5  && r > border && r < border + blur){\n        nodecolor = mix(nodecolor,borderColor,smoothstep(border, border + blur, r));\n    }\n\n     if( selected > 0.5  &&  r >= border + blur){\n        nodecolor = borderColor;\n     }\n\n      gl_FragColor = nodecolor * alpha;\n\n}else if(flag > 1.5 && flag < 2.5) {//flag =2 icon\n    gl_FragColor = texture2D(u_icons_texture,uv).w * vec4(1,1,1,1);\n}else if((flag > -0.5 && flag < 0.5)){//flat = 0 selected background\n\n    vec2 cxy = 2.0 * uv - 1.0;\n    r = length(cxy);\n\n    if(r > 1.0 ){\n        discard;\n    }\n\n     gl_FragColor = vec4(1.0,0.0,0.0,0.4);\n}\n\n\n//     gl_FragColor = vec4(1.0,0.0,0.0,1.0);\n\n\n}\n"
+module.exports = "//#ifdef GL_OES_standard_derivatives\n//#extension GL_OES_standard_derivatives : enable\n//#endif\n\n precision mediump float;\n\nvarying vec4 color;\nvarying float selected;\nvarying vec2 uv;\nvarying float flag;\nvarying float size;\n\n\nuniform sampler2D u_icons_texture;\nuniform vec4 u_borderColor;\nuniform float u_sample_ratio;\n\nvec4 borderColor = u_borderColor/255.0;\n\nvoid main()\n{\n   float r = 0.0;\n   float alpha = 1.0;\n   float blur = min(0.05,4.0/size) ;\n   float border = min(0.75,0.06*size) ;\n\nif(flag > 0.5 && flag < 1.5) //flag =1 base\n{\n    vec4 nodecolor = color;\n    vec2 cxy = 2.0 * uv - 1.0;\n    r = length(cxy);\n\n    if(r > 1.0 ){\n        discard;\n    }\n\n    if(r > 1.0-blur){\n        alpha = 1.0 -  smoothstep(1.0-blur, 1.0, r) ;\n     }\n\n\n     if( selected > 0.5  && r > border && r < border + blur){\n        nodecolor = mix(nodecolor,borderColor,smoothstep(border, border + blur, r));\n    }\n\n     if( selected > 0.5  &&  r >= border + blur){\n        nodecolor = borderColor;\n     }\n\n      gl_FragColor = nodecolor * alpha;\n\n}else if(flag > 1.5 && flag < 2.5) {//flag =2 icon\n    gl_FragColor = texture2D(u_icons_texture,uv).w * vec4(1,1,1,1);\n}else if((flag > -0.5 && flag < 0.5)){//flat = 0 selected background\n\n    vec2 cxy = 2.0 * uv - 1.0;\n    r = length(cxy);\n\n    if(r > 1.0 ){\n        discard;\n    }\n\n    r = smoothstep(0.7,1.0,r);\n\n     gl_FragColor = vec4(1.0,0.0,0.0,0.7)*(1.0-r);\n}\n\n\n//     gl_FragColor = vec4(1.0,0.0,0.0,1.0);\n\n\n}\n"
 
 /***/ }),
 /* 38 */
@@ -5737,7 +5836,7 @@ module.exports = "\n precision mediump float;\nattribute vec2 a_position;\nattri
 /* 39 */
 /***/ (function(module, exports) {
 
-module.exports = "//#ifdef GL_OES_standard_derivatives\n//#extension GL_OES_standard_derivatives : enable\n//#endif\n\n precision mediump float;\n\nvarying vec4 color;\nvarying float img;\nvarying float selected;\nvarying vec2 uv;\nvarying float flag;\n\n\n//uniform sampler2D u_textures[10];\nuniform sampler2D u_icons_texture;\nuniform vec4 u_borderColor;\nuniform float u_sample_ratio;\n\n\nvec4 borderColor = u_borderColor/255.0;\n\nvoid main()\n{\n   float r = 0.0, alpha = 1.0,\n   blur = 0.05 ,\n   border = 0.75 ;\n\n\nif(flag > 0.5 && flag < 1.5) //flag =1\n{\n    vec4 nodecolor = color;\n    vec2 cxy = 2.0 * uv - 1.0;\n    r = length(cxy);\n\n\n     if( selected > 0.5  && r > border && r < border + blur){\n        nodecolor = mix(nodecolor,borderColor,smoothstep(border, border + blur, r));\n    }\n\n     if( selected > 0.5  &&  r >= border + blur){\n        nodecolor = borderColor;\n     }\n\n      gl_FragColor = nodecolor * alpha;\n\n}else if(flag > 1.5 && flag < 2.5) {//flag =2\n    gl_FragColor = texture2D(u_icons_texture,uv).w * vec4(1,1,1,1);\n}\n\n\n}\n"
+module.exports = "//#ifdef GL_OES_standard_derivatives\n//#extension GL_OES_standard_derivatives : enable\n//#endif\n\n precision mediump float;\n\nvarying vec4 color;\nvarying float img;\nvarying float selected;\nvarying vec2 uv;\nvarying float flag;\n\n\n//uniform sampler2D u_textures[10];\nuniform sampler2D u_icons_texture;\nuniform vec4 u_borderColor;\nuniform float u_sample_ratio;\n\n\nvec4 borderColor = u_borderColor/255.0;\n\nvoid main()\n{\n   float r = 0.0, alpha = 1.0,\n   blur = 0.05 ,\n   border = 0.75 ;\n\n\nif(flag > 0.5 && flag < 1.5) //flag =1\n{\n    vec4 nodecolor = color;\n    vec2 cxy = 2.0 * uv - 1.0;\n    cxy = abs(cxy);\n\n\n//     if( selected > 0.5  && r > border && r < border + blur){\n//        nodecolor = mix(nodecolor,borderColor,smoothstep(border, border + blur, r));\n//    }\n\n     if(  selected > 0.5 && (cxy.x > 0.65  ||  cxy.y > 0.65)){\n        nodecolor = borderColor;\n     }\n\n      gl_FragColor = nodecolor * alpha;\n\n}else if(flag > 1.5 && flag < 2.5) {//flag =2\n    gl_FragColor = texture2D(u_icons_texture,uv).w * vec4(1,1,1,1);\n}else if((flag > -0.5 && flag < 0.5)){//flat = 0 selected background\n\n     vec2 cxy = 2.0 * uv - 1.0;\n     r = length(cxy);\n\n     if(r > 1.0 ){\n         discard;\n     }\n\n     r = smoothstep(0.6,1.0,r);\n\n      gl_FragColor = vec4(1.0,0.0,0.0,0.7)*(1.0-r);\n }\n\n\n}\n"
 
 /***/ }),
 /* 40 */

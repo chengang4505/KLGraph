@@ -264,6 +264,7 @@ class Graph extends EventEmitter{
     }
 
     setNodeData(id,obj){
+        // console.time('setNodeData')
         var node = this.nodesIndex[id];
 
         var updatePos = false;
@@ -276,6 +277,8 @@ class Graph extends EventEmitter{
             this.inEdgesIndex[id] && this.inEdgesIndex[id].length > 0 && this.emit('change',['edge',this.inEdgesIndex[id]]);
             this.outEdgesIndex[id] && this.outEdgesIndex[id].length > 0 && this.emit('change',['edge',this.outEdgesIndex[id]]);
         }
+        // console.timeEnd('setNodeData')
+
     }
 
     updateNodeQuad(id,oldpos){

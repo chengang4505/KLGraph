@@ -53,6 +53,7 @@ class WebGLRender extends EventEmitter{
         this.textureIcon = new TextureIcon(this.config);
         this.textureText = new TextureText();
 
+        this.initGl();
         this.initEvent();
         this.initIconTexture();
         this.initTextTexture();
@@ -80,13 +81,13 @@ class WebGLRender extends EventEmitter{
                     {name:'edge',context:'edge',render:WebGLRender.edge.default,check:layerCheckDefault()},
                     {name:'edgeCurve',context:'edge',render:WebGLRender.edge.curve,check:layerCheck('curve')},
 
-                    // {name:'edgeLabel',context:'edge',render:WebGLRender.edgeLabel.default,check:layerCheckDefault()},
-                    // {name:'edgeCurveLabel',context:'edge',render:WebGLRender.edgeLabel.curve,check:layerCheck('curve')},
+                    {name:'edgeLabel',context:'edge',render:WebGLRender.edgeLabel.default,check:layerCheckDefault()},
+                    {name:'edgeCurveLabel',context:'edge',render:WebGLRender.edgeLabel.curve,check:layerCheck('curve')},
 
                     {name:'node',context:'node',render:WebGLRender.node.default,check:layerCheckDefault()},
                     {name:'rectNode',context:'node',render:WebGLRender.node.rect,check:layerCheck('rect')},
 
-                    // {name:'nodeLabel',context:'node',render:WebGLRender.nodeLabel.default,check:function () {return true}},
+                    {name:'nodeLabel',context:'node',render:WebGLRender.nodeLabel.default,check:function () {return true}},
                 ]
             },
             // {
@@ -113,20 +114,16 @@ class WebGLRender extends EventEmitter{
 
     initRenderLayer(){
         var  renderLayerMap = this.renderLayerMap;
-        var gl;
+        var gl = this.gl;
         var program,strip = 0;
 
         var _this = this;
+
+        this.textureText.attachGl(gl);
+        this.textureIcon.attachGl(gl);
+
         this.renderLayersConfig.forEach(function (layer) {
 
-            layer.dom = _this.createLayerDom(layer.name);
-            _this.container.appendChild(layer.dom);
-            layer.gl = _this.initGl(layer.dom);
-            gl = layer.gl;
-
-            this.textureText.attachGl(gl);
-            this.textureIcon.attachGl(gl);
-            // this.textureLoader.attachGl(gl);
 
             layer.subLayers.forEach(function (subLayer) {
 
@@ -260,15 +257,13 @@ class WebGLRender extends EventEmitter{
             renderLayerMap, program, layerIndex, data, uniforms;
         renderLayerMap = this.renderLayerMap;
 
+        gl = this.gl;
+        gl.clear(gl.COLOR_BUFFER_BIT);
+
         // debugger
         for (var i = 0; i < this.renderLayersConfig.length; i++) {
             mainLayer = this.renderLayersConfig[i];
             subLayers = mainLayer.subLayers;
-
-            // debugger
-            gl = mainLayer.gl;
-            gl.clear(gl.COLOR_BUFFER_BIT);
-            gl.viewport(0, 0,mainLayer.dom.width, mainLayer.dom.height);
 
             for (var j = 0; j < subLayers.length; j++) {
                 layer = subLayers[j].name;
@@ -304,6 +299,93 @@ class WebGLRender extends EventEmitter{
                         );
                     }
                 }.bind(this));
+
+                gl.bindBuffer(gl.ARRAY_BUFFER, null);
+                gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
+
+            }
+        }
+    }
+    draw1(){
+
+        var mainLayer, subLayers, layer, gl,
+            renderLayerMap, program, layerIndex, data, uniforms;
+        renderLayerMap = this.renderLayerMap;
+
+        gl = this.gl;
+        gl.clear(gl.COLOR_BUFFER_BIT);
+
+        // debugger
+        for (var i = 0; i < this.renderLayersConfig.length; i++) {
+            mainLayer = this.renderLayersConfig[i];
+            subLayers = mainLayer.subLayers;
+
+            for (var j = 0; j < subLayers.length; j++) {
+                layer = subLayers[j].name;
+
+                program = renderLayerMap[layer].program;
+                gl.useProgram(program);
+
+                gl.bindBuffer(gl.ARRAY_BUFFER, program.vertexBuffer);
+                gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, program.indexBuffer);
+
+                layerIndex = renderLayerMap[layer].index;
+
+                vertexAttribPointer(gl, program.activeAttributes, program.offsetConfig);
+
+                setUniforms(gl, program.activeUniforms, renderLayerMap[layer].uniforms);
+
+                var vertN = 0,indexN = 0,vertBuffer,indexBuffer;
+                var vertStart = 0,indexStart = 0,points = 0,tempIndexs;
+
+                layerIndex.forEach(function (id) {
+                    data = this.renderCache[renderLayerMap[layer].context].index[id][layer];
+                    vertN += data.vertices.length;
+                    indexN += data.indices.length;
+
+                }.bind(this));
+                // debugger
+
+                gl.bufferData(gl.ARRAY_BUFFER, vertN*4, gl.STATIC_DRAW);
+                gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indexN*2, gl.STATIC_DRAW);
+
+
+                layerIndex.forEach(function (id) {
+                    data = this.renderCache[renderLayerMap[layer].context].index[id][layer];
+                    gl.bufferSubData(gl.ARRAY_BUFFER,vertStart*4, data.vertices);
+
+                    tempIndexs = new Uint16Array(data.indices.length);
+                    data.indices.forEach(function (index,i) {
+                        tempIndexs[i] = points + index;
+                    });
+                    gl.bufferSubData(gl.ELEMENT_ARRAY_BUFFER,indexStart*2,tempIndexs);
+
+                    vertStart += data.vertices.length;
+                    indexStart += data.indices.length;
+                    points += data.vertices.length/program.offsetConfig.strip;
+                }.bind(this));
+
+                gl.drawElements(gl.TRIANGLES, indexN, gl.UNSIGNED_SHORT, 0);
+
+                // layerIndex.forEach(function (id) {
+                //
+                //     // debugger
+                //     data = this.renderCache[renderLayerMap[layer].context].index[id][layer];
+                //
+                //     if (!data) return;
+                //
+                //     if (data.indices && data.vertices) {
+                //         gl.bufferData(gl.ARRAY_BUFFER, data.vertices, gl.STATIC_DRAW);
+                //         gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, data.indices, gl.STATIC_DRAW);
+                //         gl.drawElements(gl.TRIANGLES, data.indices.length, gl.UNSIGNED_SHORT, 0);
+                //     } else {
+                //         gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW);
+                //         gl.drawArrays(
+                //             gl.TRIANGLES, 0,
+                //             data.length / program.offsetConfig.strip
+                //         );
+                //     }
+                // }.bind(this));
 
                 gl.bindBuffer(gl.ARRAY_BUFFER, null);
                 gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
@@ -389,12 +471,14 @@ class WebGLRender extends EventEmitter{
         // }
 
     }
-    initGl(canvas) {
+    initGl() {
         var option = {
             preserveDrawingBuffer:true
         }
+
+        var canvas = this.container,gl;
         
-        var gl = canvas.getContext('experimental-webgl',option) || canvas.getContext('webgl',option);
+        gl = canvas.getContext('experimental-webgl',option) || canvas.getContext('webgl',option);
 
         if (!gl) {
             throw '浏览器不支持webGl';
@@ -409,7 +493,7 @@ class WebGLRender extends EventEmitter{
         // this.gl.clearColor(218/255, 224/255, 231/255, 1);
         gl.clearColor(0,0,0,0);
         
-        return gl;
+        this.gl = gl;
     }
     initEvent(){
         var _this = this;
@@ -444,9 +528,7 @@ class WebGLRender extends EventEmitter{
 
 
         this.textureIcon.on('load',function () {
-            this.renderLayersConfig.forEach(function (layer) {
-                this.textureIcon.attachGl(layer.gl);
-            }.bind(this));
+            this.textureIcon.attachGl(this.gl);
             this.clearRenderCache();
         }.bind(this));
 
@@ -580,15 +662,14 @@ class WebGLRender extends EventEmitter{
     resizeCanvas() {
         var canvas;
         var multiplier = this.sampleRatio;
-        this.renderLayersConfig.forEach(function (layer) {
-            canvas = layer.dom;
-            var width = canvas.clientWidth * multiplier | 0;
-            var height = canvas.clientHeight * multiplier | 0;
-            if (canvas.width !== width || canvas.height !== height) {
-                canvas.width = width;
-                canvas.height = height;
-            }
-        });
+        canvas =this.container;
+        var width = canvas.clientWidth * multiplier | 0;
+        var height = canvas.clientHeight * multiplier | 0;
+        if (canvas.width !== width || canvas.height !== height) {
+            canvas.width = width;
+            canvas.height = height;
+            this.gl.viewport(0, 0,canvas.width, canvas.height);
+        }
         this.projectMatrix = mat3.matrixFromScale(2/(this.container.clientWidth),2/(this.container.clientHeight));
     }
 

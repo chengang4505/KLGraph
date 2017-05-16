@@ -30,14 +30,14 @@ if(flag > 0.5 && flag < 1.5) //flag =1
 {
     vec4 nodecolor = color;
     vec2 cxy = 2.0 * uv - 1.0;
-    r = length(cxy);
+    cxy = abs(cxy);
 
 
-     if( selected > 0.5  && r > border && r < border + blur){
-        nodecolor = mix(nodecolor,borderColor,smoothstep(border, border + blur, r));
-    }
+//     if( selected > 0.5  && r > border && r < border + blur){
+//        nodecolor = mix(nodecolor,borderColor,smoothstep(border, border + blur, r));
+//    }
 
-     if( selected > 0.5  &&  r >= border + blur){
+     if(  selected > 0.5 && (cxy.x > 0.65  ||  cxy.y > 0.65)){
         nodecolor = borderColor;
      }
 
@@ -45,7 +45,19 @@ if(flag > 0.5 && flag < 1.5) //flag =1
 
 }else if(flag > 1.5 && flag < 2.5) {//flag =2
     gl_FragColor = texture2D(u_icons_texture,uv).w * vec4(1,1,1,1);
-}
+}else if((flag > -0.5 && flag < 0.5)){//flat = 0 selected background
+
+     vec2 cxy = 2.0 * uv - 1.0;
+     r = length(cxy);
+
+     if(r > 1.0 ){
+         discard;
+     }
+
+     r = smoothstep(0.6,1.0,r);
+
+      gl_FragColor = vec4(1.0,0.0,0.0,0.7)*(1.0-r);
+ }
 
 
 }

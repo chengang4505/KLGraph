@@ -52,7 +52,7 @@ export  default  class Core {
     initCanvas() {
 
         this.container.style.position = 'relative';
-        this.canvas.render = this.createElement('div');
+        this.canvas.render = this.createElement('canvas');
         this.container.appendChild(this.canvas.render);
 
         this.canvas.mouse = this.createElement('canvas');

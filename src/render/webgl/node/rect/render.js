@@ -39,23 +39,45 @@ export default {
 
         var sizeX = data.width||data.size||10;
         var sizeY = data.height||data.size||10;
+        var iconSize = Math.min(sizeX,sizeY);
+        var bgSize = Math.max(sizeX,sizeY)*1.414;
         var isSelected = data.selected ? 1.0 : 0.0;
 
         var renderData = [];
+        var indices = [];
+
+        var points = 0;
+        var bgScale = 1.35;
+
+        if(isSelected > 0.5){
+            addData(renderData,[data.x-bgSize*bgScale,data.y+bgSize*bgScale,color.r,color.g,color.b,color.a,0,0,img,isSelected,0]);
+            addData(renderData,[data.x+bgSize*bgScale,data.y+bgSize*bgScale,color.r,color.g,color.b,color.a,1,0,img,isSelected,0]);
+            addData(renderData,[data.x-bgSize*bgScale,data.y-bgSize*bgScale,color.r,color.g,color.b,color.a,0,1,img,isSelected,0]);
+            addData(renderData,[data.x+bgSize*bgScale,data.y-bgSize*bgScale,color.r,color.g,color.b,color.a,1,1,img,isSelected,0]);
+
+            addIndices(indices,[
+                points+0,points+1,points+2,
+                points+1,points+2,points+3
+            ]);
+            points += 4;
+        }
 
 
         //base
         addData(renderData,[data.x-sizeX,data.y+sizeY,color.r,color.g,color.b,color.a,0,0,img,isSelected,1]);
         addData(renderData,[data.x+sizeX,data.y+sizeY,color.r,color.g,color.b,color.a,1,0,img,isSelected,1]);
         addData(renderData,[data.x-sizeX,data.y-sizeY,color.r,color.g,color.b,color.a,0,1,img,isSelected,1]);
-        addData(renderData,[data.x+sizeX,data.y+sizeY,color.r,color.g,color.b,color.a,1,0,img,isSelected,1]);
-        addData(renderData,[data.x-sizeX,data.y-sizeY,color.r,color.g,color.b,color.a,0,1,img,isSelected,1]);
         addData(renderData,[data.x+sizeX,data.y-sizeY,color.r,color.g,color.b,color.a,1,1,img,isSelected,1]);
+
+        addIndices(indices,[
+            points+0,points+1,points+2,
+            points+1,points+2,points+3
+        ]);
+        points += 4;
 
 
         var hasIcon = data.icon && textureIcon.iconinfo.infos[data.icon],uvs;
         var scale = 0.85;
-        var iconSize = Math.min(sizeX,sizeY);
         //icon
         if(hasIcon){
             // debugger
@@ -63,13 +85,20 @@ export default {
             addData(renderData,[data.x-iconSize*scale,data.y+iconSize*scale,color.r,color.g,color.b,color.a,uvs[0],uvs[1],-2,isSelected,2]);
             addData(renderData,[data.x+iconSize*scale,data.y+iconSize*scale,color.r,color.g,color.b,color.a,uvs[2],uvs[1],-2,isSelected,2]);
             addData(renderData,[data.x-iconSize*scale,data.y-iconSize*scale,color.r,color.g,color.b,color.a,uvs[0],uvs[3],-2,isSelected,2]);
-            addData(renderData,[data.x+iconSize*scale,data.y+iconSize*scale,color.r,color.g,color.b,color.a,uvs[2],uvs[1],-2,isSelected,2]);
-            addData(renderData,[data.x-iconSize*scale,data.y-iconSize*scale,color.r,color.g,color.b,color.a,uvs[0],uvs[3],-2,isSelected,2]);
             addData(renderData,[data.x+iconSize*scale,data.y-iconSize*scale,color.r,color.g,color.b,color.a,uvs[2],uvs[3],-2,isSelected,2]);
+
+            addIndices(indices,[
+                points+0,points+1,points+2,
+                points+1,points+2,points+3
+            ]);
+            points += 4;
         }
 
 
-        return renderData;
+        return {
+            vertices:renderData,
+            indices:indices,
+        };
     }
 
 }
@@ -81,13 +110,8 @@ function addData(arr,attrData) {
 }
 
 
-function getData(data) {
-    return {
-        a_position: [data[0], data[1]],
-        a_color: [data[2], data[3], data[4], data[5]],
-        a_uv:[data[6],data[7]],
-        a_img: data[8],
-        a_selected: data[9],
-        a_flag: data[10],
-    }
+function addIndices(indices,attrIndex) {
+    attrIndex.forEach(function (data) {
+        indices.push(data);
+    });
 }
