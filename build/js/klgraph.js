@@ -825,7 +825,7 @@ var WebGLRender = function (_EventEmitter) {
                 this.initTexture = true;
             }
 
-            // console.time('render')
+            console.time('render');
 
             // console.time('renderEdge');
             this.config.renderEdge && this.renderEdge();
@@ -844,8 +844,7 @@ var WebGLRender = function (_EventEmitter) {
             // console.timeEnd('renderNodeLabel');
 
 
-            // console.timeEnd('render')
-
+            console.timeEnd('render');
 
             this.needUpdate = false;
         }
