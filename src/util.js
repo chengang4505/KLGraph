@@ -45,7 +45,6 @@ utils.isFunction =  function( obj ){
 };
 
 //webgl shader tool
-
 utils.loadShader = function(gl, shaderSource, shaderType, error) {
     var compiled,
         shader = gl.createShader(shaderType);
@@ -72,9 +71,6 @@ utils.loadShader = function(gl, shaderSource, shaderType, error) {
 
     return shader;
 };
-
-
-
 utils.loadProgram = function(gl, shaders, attribs, loc, error) {
     var i,
         linked,

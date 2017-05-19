@@ -9,11 +9,8 @@ export default {
     zoomMin:0.05,
     zoomMax:20,
 
-    renderNode:true,
-    renderNodeLabel:true,
-    renderEdge:true,
-    renderEdgeLabel:true,
-
     textureIconWidth:1024,
     textureIconHeight:1024,
+
+    enableOverEvent:false,
 }

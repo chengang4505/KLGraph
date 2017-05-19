@@ -5,50 +5,26 @@
  precision mediump float;
 
 varying vec4 color;
-varying float img;
 varying float selected;
 varying vec2 uv;
 varying float flag;
 varying float size;
+varying float showicon;
 
 
-uniform sampler2D u_textures[10];
+
 uniform sampler2D u_icons_texture;
 uniform vec4 u_borderColor;
 uniform float u_sample_ratio;
-
-
-
-
-
-
-
-//todo
-vec4 getSampleColore(int index,vec2 uv){
-    vec4 c;
-    if(index == 0){
-        c = texture2D(u_textures[0],uv);
-    }else if(index == 1){
-        c = texture2D(u_textures[1],uv);
-    }else if(index == 2){
-        c = texture2D(u_textures[2],uv);
-    }else if(index == 3){
-        c = texture2D(u_textures[3],uv);
-    }else if(index == 4){
-        c = texture2D(u_textures[4],uv);
-    }else if(index == 5){
-        c = texture2D(u_textures[5],uv);
-    }
-    return c;
-}
 
 vec4 borderColor = u_borderColor/255.0;
 
 void main()
 {
-   float r = 0.0, alpha = 1.0,
-   blur = min(0.05,4.0/size) ,
-   border = min(0.75,0.04*size) ;
+   float r = 0.0;
+   float alpha = 1.0;
+   float blur = min(0.05,4.0/size) ;
+   float border = min(0.75,0.06*size) ;
 
 if(flag > 0.5 && flag < 1.5) //flag =1 base
 {
@@ -60,12 +36,8 @@ if(flag > 0.5 && flag < 1.5) //flag =1 base
         discard;
     }
 
-    if(img >= 0.0){
-        nodecolor = getSampleColore(int(img),uv);
-    }
-
-    if(r > 1.0-blur && r <=1.0){
-        alpha = 1.0 - smoothstep(1.0-blur, 1.0, r);
+    if(r > 1.0-blur){
+        alpha = 1.0 -  smoothstep(1.0-blur, 1.0, r) ;
      }
 
 
@@ -80,8 +52,27 @@ if(flag > 0.5 && flag < 1.5) //flag =1 base
       gl_FragColor = nodecolor * alpha;
 
 }else if(flag > 1.5 && flag < 2.5) {//flag =2 icon
+    if(showicon < 0.5) discard;
     gl_FragColor = texture2D(u_icons_texture,uv).w * vec4(1,1,1,1);
+}else if((flag > -0.5 && flag < 0.5)){//flat = 0 selected bg
+
+    if(selected < 0.5) discard;
+
+    vec2 cxy = 2.0 * uv - 1.0;
+    r = length(cxy);
+
+    if(r > 1.0 ){
+        discard;
+    }
+
+    r = smoothstep(0.7,1.0,r);
+
+     gl_FragColor = vec4(1.0,0.0,0.0,0.3)*(1.0-r);
+//     gl_FragColor = vec4(1.0,0.0,0.0,0.8);
 }
+
+
+//     gl_FragColor = vec4(1.0,0.0,0.0,1.0);
 
 
 }

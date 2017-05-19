@@ -64,7 +64,7 @@ window["KLGraph"] =
 /******/ 	__webpack_require__.p = "";
 /******/
 /******/ 	// Load entry module and return exports
-/******/ 	return __webpack_require__(__webpack_require__.s = 41);
+/******/ 	return __webpack_require__(__webpack_require__.s = 43);
 /******/ })
 /************************************************************************/
 /******/ ([
@@ -120,7 +120,6 @@ utils.isFunction = function (obj) {
 };
 
 //webgl shader tool
-
 utils.loadShader = function (gl, shaderSource, shaderType, error) {
     var compiled,
         shader = gl.createShader(shaderType);
@@ -147,7 +146,6 @@ utils.loadShader = function (gl, shaderSource, shaderType, error) {
 
     return shader;
 };
-
 utils.loadProgram = function (gl, shaders, attribs, loc, error) {
     var i,
         linked,
@@ -350,7 +348,7 @@ var EventEmitter = function () {
             }
 
             this._listener[type].push(cb);
-            return cb;
+            return this;
         }
     }, {
         key: 'off',
@@ -412,7 +410,7 @@ var _EventEmitter2 = __webpack_require__(1);
 
 var _EventEmitter3 = _interopRequireDefault(_EventEmitter2);
 
-var _timer = __webpack_require__(9);
+var _timer = __webpack_require__(10);
 
 var _timer2 = _interopRequireDefault(_timer);
 
@@ -481,7 +479,10 @@ var Tween = function (_EventEmitter) {
 
             this.emit('change', [t]);
 
-            if (elapsed >= this._duration) this.stop();
+            if (elapsed >= this._duration) {
+                this.stop();
+                this.emit('end');
+            }
         }
     }, {
         key: 'duration',
@@ -697,7 +698,7 @@ exports.default = mat3;
 /* 4 */
 /***/ (function(module, exports) {
 
-module.exports = " precision mediump float;\n\nvec4 color = vec4(77, 72, 91,255);\n\nvarying vec2 v_texCoord;\nvarying float size;\n\n\nuniform sampler2D u_image;\nuniform float u_camera_scale;\n\n\nvoid main() {\n    color = color / 255.0;\n\n    float offset = size * u_camera_scale * 0.12;\n\n    offset = pow(offset,1.2);\n\n    offset = min((1.0-0.72),offset);\n\n   float dist = texture2D(u_image, v_texCoord).r;\n   float alpha = smoothstep(0.72 - offset, 0.72 + offset, dist);\n   gl_FragColor = color *alpha;\n}"
+module.exports = " precision mediump float;\n\nvec4 color = vec4(77, 72, 91,255);\n\nvarying vec2 v_texCoord;\nvarying float size;\n\n\nuniform sampler2D u_image;\nuniform float u_camera_scale;\n\n\nvoid main() {\n    color = color / 255.0;\n\n    float cutoff = 0.76;\n    float offset = size * u_camera_scale * 0.12;\n\n    offset = pow(offset,1.2);\n\n    offset = min((1.0-cutoff),offset);\n\n   float dist = texture2D(u_image, v_texCoord).r;\n   float alpha = smoothstep(cutoff - offset, cutoff + offset, dist);\n   gl_FragColor = color *alpha;\n}"
 
 /***/ }),
 /* 5 */
@@ -725,25 +726,27 @@ var _EventEmitter2 = __webpack_require__(1);
 
 var _EventEmitter3 = _interopRequireDefault(_EventEmitter2);
 
-var _TextureLoader = __webpack_require__(23);
+var _TextureLoader = __webpack_require__(24);
 
 var _TextureLoader2 = _interopRequireDefault(_TextureLoader);
 
-var _TextureText = __webpack_require__(24);
+var _TextureText = __webpack_require__(25);
 
 var _TextureText2 = _interopRequireDefault(_TextureText);
 
-var _TextureIcon = __webpack_require__(22);
+var _TextureIcon = __webpack_require__(23);
 
 var _TextureIcon2 = _interopRequireDefault(_TextureIcon);
 
-var _Event = __webpack_require__(10);
+var _Event = __webpack_require__(11);
 
 var _Event2 = _interopRequireDefault(_Event);
 
 var _tween = __webpack_require__(2);
 
 var _tween2 = _interopRequireDefault(_tween);
+
+var _GLUtil = __webpack_require__(9);
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
@@ -768,15 +771,14 @@ var WebGLRender = function (_EventEmitter) {
         _this2.graph = context.graph;
 
         _this2.needUpdate = true;
-        _this2.sampleRatio = 1.5;
+        _this2.sampleRatio = 1;
 
-        _this2.initRender();
+        // this.initTexture = false;
+        // this.textureLoader = new TextureLoader();
+        _this2.textureIcon = new _TextureIcon2.default(_this2.config);
+        _this2.textureText = new _TextureText2.default();
 
-        _this2.initTexture = false;
-        _this2.textureLoader = new _TextureLoader2.default(_this2.gl);
-        _this2.textureIcon = new _TextureIcon2.default(_this2.gl, _this2.config);
-        _this2.textureText = new _TextureText2.default(_this2.gl);
-
+        _this2.initGl();
         _this2.initEvent();
         _this2.initIconTexture();
         _this2.initTextTexture();
@@ -790,269 +792,68 @@ var WebGLRender = function (_EventEmitter) {
             rotation: 0
         };
 
-        //cache
-        _this2.renderType = {
-            node: { index: {}, type: {}, cache: false },
-            nodeLabel: { index: {}, type: {}, cache: false },
-            edge: { index: {}, type: {}, cache: false },
-            edgeLabel: { index: {}, type: {}, cache: false }
+        /**
+         * layers:　相关的layer
+         * index: cache索引 map
+         * flag:
+         */
+        _this2.renderCache = {
+            graph: { layers: [], index: {}, flag: false },
+            node: { layers: [], index: {}, flag: false },
+            edge: { layers: [], index: {}, flag: false }
         };
+        _this2.renderLayerMap = {};
+        _this2.renderLayersConfig = config.renderLayersConfig || WebGLRender.defaultLayersConfig;
+        _this2.initRenderLayer();
+
+        _this2.updateLayerData();
+        // debugger
         _Event2.default.call(_this2);
 
         return _this2;
     }
-    //render
-
 
     _createClass(WebGLRender, [{
-        key: 'render',
-        value: function render() {
-            // debugger
-
-            this.resizeCanvas();
-
-            var gl = this.gl;
-            gl.clear(gl.COLOR_BUFFER_BIT);
-
-            if (!this.initTexture) {
-                var imgs = {};
-                var nodes = this.graph.nodes;
-                nodes.forEach(function (node) {
-                    node.img && (imgs[node.img] = true);
-                });
-
-                this.textureLoader.loadImgs(Object.keys(imgs));
-                this.initTexture = true;
-            }
-
-            // console.time('render')
-
-            // console.time('renderEdge');
-            this.config.renderEdge && this.renderEdge();
-            // console.timeEnd('renderEdge');
-
-            // console.time('renderEdgeLabel');
-            this.config.renderEdge && this.config.renderEdgeLabel && this.renderEdgeLabel();
-            // console.timeEnd('renderEdgeLabel');
-
-            // console.time('renderNode');
-            this.config.renderNode && this.renderNode();
-            // console.timeEnd('renderNode');
-
-            // console.time('renderNodeLabel');
-            this.config.renderNode && this.config.renderNodeLabel && this.renderNodeLabel();
-            // console.timeEnd('renderNodeLabel');
-
-
-            // console.timeEnd('render')
-
-
-            this.needUpdate = false;
-        }
-    }, {
-        key: 'renderNode',
-        value: function renderNode() {
-            // debugger
-
-            this.createRenderCache('node', this.graph.nodes, function (data) {
-                return {
-                    data: data,
-                    textureLoader: this.textureLoader,
-                    textureIcon: this.textureIcon
-                };
-            }.bind(this));
-
-            this.renderCacheData('node', this.graph.nodes);
-        }
-    }, {
-        key: 'renderNodeLabel',
-        value: function renderNodeLabel() {
-
-            this.createRenderCache('nodeLabel', this.graph.nodes, function (data) {
-                return {
-                    data: data,
-                    textureText: this.textureText
-                };
-            }.bind(this));
-
-            this.renderCacheData('nodeLabel', this.graph.nodes);
-        }
-    }, {
-        key: 'renderEdge',
-        value: function renderEdge() {
-            this.createRenderCache('edge', this.graph.edges, function (data) {
-                return {
-                    data: data,
-                    source: this.graph.nodesIndex[data.source],
-                    target: this.graph.nodesIndex[data.target]
-                };
-            }.bind(this));
-
-            this.renderCacheData('edge', this.graph.edges);
-        }
-    }, {
-        key: 'renderEdgeLabel',
-        value: function renderEdgeLabel() {
-
-            this.createRenderCache('edgeLabel', this.graph.edges, function (data) {
-                return {
-                    data: data,
-                    source: this.graph.nodesIndex[data.source],
-                    target: this.graph.nodesIndex[data.target],
-                    textureText: this.textureText
-                };
-            }.bind(this));
-
-            this.renderCacheData('edgeLabel', this.graph.edges);
-        }
-    }, {
-        key: 'clearClusterCacheCounter',
-        value: function clearClusterCacheCounter(type) {
-            var renderType = this.renderType[type].type;
-            var layers;
-            for (var e in renderType) {
-                layers = renderType[e].layers;
-                for (var name in layers) {
-                    layers[name].counter = 0;
-                }
-            }
-        }
-    }, {
-        key: 'fixClusterCacheLength',
-        value: function fixClusterCacheLength(type) {
-            var renderType = this.renderType[type].type;
-            var layers;
-            for (var e in renderType) {
-                layers = renderType[e].layers;
-                for (var name in layers) {
-                    layers[name].data.length = layers[name].counter;
-                }
-            }
-        }
-    }, {
-        key: 'createRenderCache',
-        value: function createRenderCache(rootType, data, argFn) {
-            var nodeData, cacheIndex;
-            var start, offset, layers, type;
-
-            var rootType1 = this.renderType[rootType].type;
-
-            if (!this.renderType[rootType].cache) {
-                this.clearClusterCacheCounter(rootType);
-
-                data.forEach(function (e) {
-
-                    type = e.type || 'default';
-                    if (!rootType1[type]) this.initRenderLayers(rootType, type);
-
-                    //cache info
-                    cacheIndex = this.renderType[rootType].index[e.id] = this.renderType[rootType].index[e.id] || {};
-                    cacheIndex.type = type;
-                    cacheIndex.start = {}; //layer start
-
-                    layers = rootType1[type].layers;
-                    for (var name in layers) {
-
-                        start = layers[name].counter;
-                        offset = 0;
-
-                        nodeData = layers[name].render.getRenderData(argFn(e));
-
-                        // no data
-                        if (!nodeData || nodeData.length == 0) {
-                            // cacheIndex.start[name] = null;
-                            continue;
-                        }
-
-                        nodeData.forEach(function (data) {
-                            layers[name].data[start + offset] = data;
-                            offset++;
-                        }.bind(this));
-
-                        //cache info
-                        cacheIndex.start[name] = start;
-
-                        layers[name].counter += offset;
-                    }
-                }.bind(this));
-
-                this.fixClusterCacheLength(rootType);
-
-                this.renderType[rootType].cache = true;
-            }
-        }
-    }, {
-        key: 'renderCacheData',
-        value: function renderCacheData(rootType, data) {
-            var renderType, type, layers, camMatrixInvert, orders, cacheIndex;
-
-            camMatrixInvert = this.getCameraMatrix(true);
-
-            renderType = this.renderType[rootType].type;
-
-            for (type in renderType) {
-
-                layers = renderType[type].layers;
-
-                renderType[type].order.forEach(function (name) {
-
-                    if (layers[name].data.length > 0) {
-
-                        this.gl.useProgram(layers[name].program);
-
-                        layers[name].render.render({
-                            gl: this.gl,
-                            program: layers[name].program,
-                            data: layers[name].data,
-                            matrix: _Matrix2.default.multiMatrix([camMatrixInvert, this.projectMatrix]),
-                            camera: this.camera,
-                            sampleRatio: this.sampleRatio,
-                            textureLoader: this.textureLoader
-                        });
-                    }
-                }.bind(this));
-            }
-        }
-    }, {
-        key: 'initRender',
-        value: function initRender() {
+        key: 'initGl',
+        value: function initGl() {
             var option = {
-                preserveDrawingBuffer: true
+                preserveDrawingBuffer: true,
+                premultipliedAlpha: true,
+                alpha: true,
+                antialias: true
             };
-            this.gl = this.container.getContext('experimental-webgl', option) || this.container.getContext('webgl', option);
 
-            if (!this.gl) {
+            var canvas = this.container,
+                gl;
+
+            gl = canvas.getContext('experimental-webgl', option) || canvas.getContext('webgl', option);
+
+            // canvas.style.background = 'black';
+
+            if (!gl) {
                 throw '浏览器不支持webGl';
             }
 
-            this.gl.getExtension('OES_standard_derivatives');
+            gl.getExtension('OES_standard_derivatives');
 
-            this.resizeCanvas();
-            this.gl.blendFunc(this.gl.SRC_ALPHA, this.gl.ONE_MINUS_SRC_ALPHA);
-            this.gl.enable(this.gl.BLEND);
-            this.gl.disable(this.gl.DEPTH_TEST);
-            // this.gl.clearColor(218/255, 224/255, 231/255, 1);
-            this.gl.clearColor(0, 0, 0, 0);
+            gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+            // gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA,gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);
+            // gl.enable(gl.DEPTH_TEST);
+            gl.enable(gl.BLEND);
+            gl.disable(gl.DEPTH_TEST);
+            gl.clearColor(0, 0, 0, 0);
+
+            this.gl = gl;
         }
     }, {
         key: 'initEvent',
         value: function initEvent() {
             var _this = this;
-            this.graph.on('change', function (type, ids) {
+            this.graph.on('change', function (type, ids, dirtyAttr) {
                 if (type == 'node') {
-                    // console.time('updateNode');
-                    _this.config.renderNode && _this.updateNodeRenderData(ids);
-                    // console.timeEnd('updateNode');
-                    // console.time('updateNodeLabel');
-                    _this.config.renderNode && _this.config.renderNodeLabel && _this.updateNodeLabelRenderData(ids);
-                    // console.timeEnd('updateNodeLabel');
+                    _this.updateNodeRenderData(ids, dirtyAttr);
                 } else if (type == 'edge') {
-                    // console.time('updateEdge');
-                    _this.config.renderEdge && _this.updateEdgeRenderData(ids);
-                    // console.timeEnd('updateEdge');
-                    // console.time('updateEdgeLabel');
-                    _this.config.renderEdge && _this.config.renderEdgeLabel && _this.updateEdgeLabelRenderData(ids);
-                    // console.timeEnd('updateEdgeLabel');
+                    _this.updateEdgeRenderData(ids, dirtyAttr);
                 }
             });
             this.graph.on('reset', function () {
@@ -1078,16 +879,20 @@ var WebGLRender = function (_EventEmitter) {
                 _this.clearRenderCache();
             });
 
-            this.textureIcon.on('load', function () {
-                this.clearRenderCache('node');
-            }.bind(this));
+            // this.textureIcon.on('load',function () {
+            //     this.forceRender();
+            //     this.textureIcon.attachGl(this.gl);
+            //     this.renderCache.node.flag = false;
+            // }.bind(this));
 
-            this.textureLoader.on('load', function (url) {
-                var nodes = _this.graph.nodes;
-                nodes.forEach(function (e) {
-                    if (e.img && e.img == url) _this.updateNodeRenderData(e.id);
-                });
-            });
+
+            // this.textureLoader.on('load',function (url) {
+            //     var nodes = _this.graph.nodes;
+            //     nodes.forEach(function (e) {
+            //         if(e.img && e.img == url) _this.updateNodeRenderData(e.id);
+            //     });
+            // });
+
 
             function getAddText(objs) {
                 var text = '';
@@ -1193,6 +998,342 @@ var WebGLRender = function (_EventEmitter) {
             this.textureIcon.createIcons(icons);
         }
     }, {
+        key: 'initRenderLayer',
+        value: function initRenderLayer() {
+            var renderLayerMap = this.renderLayerMap;
+            var gl = this.gl;
+            var program,
+                strip = 0;
+
+            var _this = this;
+
+            this.textureText.attachGl(gl);
+            this.textureIcon.attachGl(gl);
+
+            this.renderLayersConfig.forEach(function (layer) {
+
+                layer.subLayers.forEach(function (subLayer) {
+
+                    subLayer.enable = true;
+
+                    if (subLayer.custom) return;
+
+                    program = _util2.default.loadProgram(gl, [_util2.default.loadShader(gl, subLayer.render.shaderVert, gl.VERTEX_SHADER), _util2.default.loadShader(gl, subLayer.render.shaderFrag, gl.FRAGMENT_SHADER)]);
+
+                    program.activeAttributes = (0, _GLUtil.getActiveAttributes)(gl, program);
+                    program.activeUniforms = (0, _GLUtil.getActiveUniforms)(gl, program);
+
+                    strip = 0;
+                    for (var attr in subLayer.render.attributes) {
+                        strip += subLayer.render.attributes[attr].components;
+                    }
+                    program.offsetConfig = { config: subLayer.render.attributes, strip: strip };
+                    program.vertexBuffer = gl.createBuffer();
+                    program.indexBuffer = gl.createBuffer();
+                    program.indexN = 0;
+
+                    subLayer.mainLayer = layer.name;
+                    subLayer.program = program;
+                    subLayer.uniforms = null;
+                    subLayer.initBuffer = false;
+                    subLayer.tempVertex = [];
+                    subLayer.tempIndex = [];
+                    subLayer.index = [];
+
+                    _this.renderCache[subLayer.context].layers.push(subLayer.name);
+
+                    renderLayerMap[subLayer.name] = subLayer;
+                });
+            }.bind(this));
+        }
+        //render
+
+    }, {
+        key: 'render',
+        value: function render() {
+            // debugger
+            this.resizeCanvas();
+            // setTimeout(this.render2.bind(this),500);
+            console.time('render');
+
+            this.updateLayerData();
+
+            // console.time('updateLayerUniformData');
+            this.updateLayerUniformData();
+            // console.timeEnd('updateLayerUniformData');
+
+            // console.time('draw');
+            this.draw();
+            // console.timeEnd('draw');
+            console.timeEnd('render');
+
+            this.needUpdate = false;
+
+            // debugger
+            // return;
+            //
+            // if(!this.initTexture){
+            //     var imgs = {};
+            //     var nodes = this.graph.nodes;
+            //     nodes.forEach(function (node) {
+            //         node.img && (imgs[node.img] = true);
+            //     });
+            //
+            //     this.textureLoader.loadImgs(Object.keys(imgs));
+            //     this.initTexture = true;
+            // }
+        }
+    }, {
+        key: 'draw',
+        value: function draw() {
+
+            var num = 0;
+            var mainLayer, subLayers, layer, gl, renderLayerMap, program, layerIndex, data, uniforms;
+            renderLayerMap = this.renderLayerMap;
+
+            gl = this.gl;
+            gl.clear(gl.COLOR_BUFFER_BIT);
+            // gl.enable(gl.DEPTH_TEST);
+            // gl.depthFunc(gl.LEQUAL);
+            // gl.depthMask(true);
+
+            for (var i = 0; i < this.renderLayersConfig.length; i++) {
+                mainLayer = this.renderLayersConfig[i];
+                subLayers = mainLayer.subLayers;
+
+                for (var j = 0; j < subLayers.length; j++) {
+
+                    if (!subLayers[j].enable) continue;
+
+                    //custom render
+                    if (subLayers[j].custom && subLayers[j].render) {
+                        subLayers[j].render.call(subLayers[j], this);
+                        continue;
+                    }
+
+                    layer = subLayers[j].name;
+
+                    program = renderLayerMap[layer].program;
+
+                    if (program.indexN == 0) continue;
+
+                    gl.useProgram(program);
+
+                    gl.bindBuffer(gl.ARRAY_BUFFER, program.vertexBuffer);
+                    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, program.indexBuffer);
+
+                    layerIndex = renderLayerMap[layer].index;
+
+                    (0, _GLUtil.vertexAttribPointer)(gl, program.activeAttributes, program.offsetConfig);
+                    (0, _GLUtil.setUniforms)(gl, program.activeUniforms, renderLayerMap[layer].uniforms);
+
+                    gl.drawElements(gl.TRIANGLES, program.indexN, gl.UNSIGNED_SHORT, 0);
+
+                    gl.bindBuffer(gl.ARRAY_BUFFER, null);
+                    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
+                }
+            }
+            // console.log('render count:',num);
+        }
+    }, {
+        key: 'updateCacheByData',
+        value: function updateCacheByData(context, data, dirtyAttr, forceUpdate) {
+
+            var cacheIndex, temp, points;
+            var contextRelativeLayers = this.renderCache[context].layers;
+            var renderLayerMap = this.renderLayerMap;
+            var gl = this.gl;
+
+            cacheIndex = this.renderCache[context].index[data.id] = this.renderCache[context].index[data.id] || {};
+
+            // debugger
+            contextRelativeLayers.forEach(function (layer) {
+
+                if (!renderLayerMap[layer].enable || !renderLayerMap[layer].check(data)) return;
+
+                if (!forceUpdate && renderLayerMap[layer].cache) return;
+
+                temp = renderLayerMap[layer].render.getRenderData({
+                    dirtyAttr: dirtyAttr,
+                    oldData: cacheIndex[layer],
+                    data: data,
+                    graph: this.graph,
+                    textureText: this.textureText,
+                    // textureLoader: this.textureLoader,
+                    textureIcon: this.textureIcon
+                });
+
+                if (renderLayerMap[layer].initBuffer) {
+                    gl.bindBuffer(gl.ARRAY_BUFFER, renderLayerMap[layer].program.vertexBuffer);
+                    gl.bufferSubData(gl.ARRAY_BUFFER, cacheIndex[layer].vertexStart, new Float32Array(temp.vertices));
+
+                    renderLayerMap[layer].cacheOldData && (cacheIndex[layer].data.vertices = temp.vertices); //cache old data
+                } else {
+                    points = renderLayerMap[layer].tempVertex.length / renderLayerMap[layer].program.offsetConfig.strip;
+
+                    cacheIndex[layer] = cacheIndex[layer] || { vertexStart: 0, data: null };
+
+                    renderLayerMap[layer].cacheOldData && (cacheIndex[layer].data = temp); //cache old data
+
+                    cacheIndex[layer].vertexStart = renderLayerMap[layer].tempVertex.length * 4;
+                    temp.vertices.forEach(function (e) {
+                        renderLayerMap[layer].tempVertex.push(e);
+                    });
+                    temp.indices.forEach(function (e, i) {
+                        temp.indices[i] = e + points;
+                        renderLayerMap[layer].tempIndex.push(temp.indices[i]);
+                    });
+                }
+            }.bind(this));
+        }
+    }, {
+        key: 'updateContextCache',
+        value: function updateContextCache(context) {
+            if (context != 'node' && context != 'edge' && context != 'graph') return;
+
+            if (this.renderCache[context].flag) return;
+
+            var datas, contextRelativeLayers;
+            var gl = this.gl;
+            var renderLayerMap = this.renderLayerMap;
+
+            if (context === 'graph') {} else {
+                datas = context == 'node' ? this.graph.nodes : this.graph.edges;
+                for (var i = 0, len = datas.length; i < len; i++) {
+                    this.updateCacheByData(context, datas[i]);
+                }
+
+                contextRelativeLayers = this.renderCache[context].layers;
+
+                contextRelativeLayers.forEach(function (layer) {
+
+                    renderLayerMap[layer].cache = true;
+
+                    if (renderLayerMap[layer].initBuffer) return;
+
+                    gl.bindBuffer(gl.ARRAY_BUFFER, renderLayerMap[layer].program.vertexBuffer);
+                    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, renderLayerMap[layer].program.indexBuffer);
+
+                    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(renderLayerMap[layer].tempVertex), gl.DYNAMIC_DRAW);
+                    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(renderLayerMap[layer].tempIndex), gl.STATIC_DRAW);
+
+                    renderLayerMap[layer].program.indexN = renderLayerMap[layer].tempIndex.length;
+                    renderLayerMap[layer].initBuffer = true;
+
+                    renderLayerMap[layer].tempVertex = [];
+                    renderLayerMap[layer].tempIndex = [];
+                });
+            }
+
+            this.renderCache[context].flag = true;
+        }
+    }, {
+        key: 'updateLayerData',
+        value: function updateLayerData() {
+            // console.time('updateContextCacheNode');
+            this.updateContextCache('node');
+            // console.timeEnd('updateContextCacheNode');
+
+            // console.time('updateContextCacheEdge');
+            this.updateContextCache('edge');
+            // console.timeEnd('updateContextCacheEdge');
+
+        }
+    }, {
+        key: 'updateLayerUniformData',
+        value: function updateLayerUniformData() {
+            var uniforms, err;
+            var renderLayerMap = this.renderLayerMap;
+
+            for (var layer in renderLayerMap) {
+                uniforms = renderLayerMap[layer].render.getUniforms({
+                    matrix: _Matrix2.default.multiMatrix([this.getCameraMatrix(true), this.projectMatrix]),
+                    camera: this.camera,
+                    sampleRatio: this.sampleRatio
+                });
+
+                if (err = (0, _GLUtil.checkAttrValid)(renderLayerMap[layer].program.activeUniforms, uniforms)) {
+                    throw err.join('\n');
+                }
+
+                renderLayerMap[layer].uniforms = uniforms;
+            }
+        }
+    }, {
+        key: 'updateNodeRenderData',
+        value: function updateNodeRenderData(id, dirtyAttr) {
+            // debugger
+            this.forceRender();
+            // if(!Array.isArray(ids)) ids = [ids];
+            // ids.forEach(function (id) {
+            this.updateCacheByData('node', this.graph.nodesIndex[id], dirtyAttr, true);
+            // }.bind(this));
+        }
+    }, {
+        key: 'updateEdgeRenderData',
+        value: function updateEdgeRenderData(ids, dirtyAttr) {
+            this.forceRender();
+            if (!Array.isArray(ids)) ids = [ids];
+            ids.forEach(function (id) {
+                this.updateCacheByData('edge', this.graph.edgesIndex[id], dirtyAttr, true);
+            }.bind(this));
+        }
+        //cache update
+
+    }, {
+        key: 'clearRenderCache',
+        value: function clearRenderCache(layers) {
+            this.forceRender();
+            var _this = this;
+            if (layers) {
+                if (!_util2.default.isArray(layers)) layers = [layers];
+                layers.forEach(function (layer) {
+                    _this.renderLayerMap[layer].initBuffer = false;
+                    _this.renderLayerMap[layer].cache = false;
+                    _this.renderCache[_this.renderLayerMap[layer].context].flag = false;
+                });
+            } else {
+                for (var layer in _this.renderLayerMap) {
+                    _this.renderLayerMap[layer].initBuffer = false;
+                    _this.renderLayerMap[layer].cache = false;
+                }
+                _this.renderCache.graph.flag = false;
+                _this.renderCache.node.flag = false;
+                _this.renderCache.edge.flag = false;
+            }
+        }
+    }, {
+        key: 'disableRenderLayer',
+        value: function disableRenderLayer(layers) {
+
+            var renderLayerMap = this.renderLayerMap;
+
+            if (!_util2.default.isArray(layers)) layers = [layers];
+
+            layers.forEach(function (layer) {
+                if (renderLayerMap[layer]) {
+                    renderLayerMap[layer].enable = false;
+                }
+            });
+        }
+    }, {
+        key: 'enableRenderLayer',
+        value: function enableRenderLayer(layers) {
+
+            var renderLayerMap = this.renderLayerMap;
+            var renderCache = this.renderCache;
+
+            if (!_util2.default.isArray(layers)) layers = [layers];
+
+            layers.forEach(function (layer) {
+                if (renderLayerMap[layer]) {
+                    renderCache[renderLayerMap[layer].context].flag = 0;
+                    renderLayerMap[layer].enable = true;
+                    renderLayerMap[layer].cache = false;
+                }
+            });
+        }
+    }, {
         key: 'getCameraMatrix',
         value: function getCameraMatrix(isInvert) {
             var mat = _Matrix2.default.multiMatrix([_Matrix2.default.matrixFromScale(this.camera.scale, this.camera.scale), _Matrix2.default.matrixFromRotation(this.camera.rotation), _Matrix2.default.matrixFromTranslate(this.camera.positionX, this.camera.positionY)]);
@@ -1201,30 +1342,30 @@ var WebGLRender = function (_EventEmitter) {
     }, {
         key: 'resizeCanvas',
         value: function resizeCanvas() {
-            var canvas = this.gl.canvas;
+            var canvas;
             var multiplier = this.sampleRatio;
+            canvas = this.container;
             var width = canvas.clientWidth * multiplier | 0;
             var height = canvas.clientHeight * multiplier | 0;
             if (canvas.width !== width || canvas.height !== height) {
                 canvas.width = width;
                 canvas.height = height;
+                this.gl.viewport(0, 0, canvas.width, canvas.height);
             }
-
-            this.projectMatrix = _Matrix2.default.matrixFromScale(2 / canvas.clientWidth, 2 / canvas.clientHeight);
-            this.gl.viewport(0, 0, canvas.width, canvas.height);
+            this.projectMatrix = _Matrix2.default.matrixFromScale(2 / this.container.clientWidth, 2 / this.container.clientHeight);
         }
     }, {
         key: 'graphToDomPos',
         value: function graphToDomPos(pos) {
-            var canvas = this.gl.canvas;
+            var container = this.container;
             var camPos = _Matrix2.default.transformPoint([pos.x, pos.y], this.getCameraMatrix(true));
-            return { x: camPos[0] + canvas.clientWidth / 2, y: canvas.clientHeight / 2 - camPos[1] };
+            return { x: camPos[0] + container.clientWidth / 2, y: container.clientHeight / 2 - camPos[1] };
         }
     }, {
         key: 'toCameraPos',
         value: function toCameraPos(pos) {
-            var canvas = this.gl.canvas;
-            return { x: pos.x - canvas.clientWidth / 2, y: canvas.clientHeight / 2 - pos.y };
+            var container = this.container;
+            return { x: pos.x - container.clientWidth / 2, y: container.clientHeight / 2 - pos.y };
         }
     }, {
         key: 'toGraphPos',
@@ -1277,107 +1418,6 @@ var WebGLRender = function (_EventEmitter) {
                 _this.forceRender();
             });
         }
-
-        //cache update
-
-    }, {
-        key: 'clearRenderCache',
-        value: function clearRenderCache(rootType) {
-            if (rootType && this.renderType[rootType]) {
-                this.forceRender();
-                this.renderType[rootType].cache = false;
-            } else if (!rootType) {
-                this.forceRender();
-                this.renderType.node.cache = false;
-                this.renderType.nodeLabel.cache = false;
-                this.renderType.edge.cache = false;
-                this.renderType.edgeLabel.cache = false;
-            }
-        }
-    }, {
-        key: 'updateRenderData',
-        value: function updateRenderData(rootType, id, argFn) {
-            if (!this.renderType[rootType].cache) return;
-
-            var cache = this.renderType[rootType].index[id]; //
-            var type = cache.type;
-            var start = cache.start;
-
-            var renderType = this.renderType[rootType].type[type];
-
-            for (var layer in renderType.layers) {
-                var renderData = renderType.layers[layer].render.getRenderData(argFn());
-
-                if (!renderData || renderData.length == 0 || renderData && renderData.length > 0 && start[layer] === null) continue;
-
-                renderData.forEach(function (e, i) {
-                    renderType.layers[layer].data[start[layer] + i] = e;
-                });
-            }
-        }
-    }, {
-        key: 'updateNodeRenderData',
-        value: function updateNodeRenderData(ids) {
-            // debugger
-            this.forceRender();
-            if (!Array.isArray(ids)) ids = [ids];
-            ids.forEach(function (id) {
-                this.updateRenderData('node', id, function () {
-                    return {
-                        data: this.graph.nodesIndex[id],
-                        textureLoader: this.textureLoader,
-                        textureIcon: this.textureIcon
-                    };
-                }.bind(this));
-            }.bind(this));
-        }
-    }, {
-        key: 'updateNodeLabelRenderData',
-        value: function updateNodeLabelRenderData(ids) {
-            // debugger
-            this.forceRender();
-            if (!Array.isArray(ids)) ids = [ids];
-            ids.forEach(function (id) {
-                this.updateRenderData('nodeLabel', id, function () {
-                    return {
-                        data: this.graph.nodesIndex[id],
-                        textureText: this.textureText
-                    };
-                }.bind(this));
-            }.bind(this));
-        }
-    }, {
-        key: 'updateEdgeRenderData',
-        value: function updateEdgeRenderData(ids) {
-            this.forceRender();
-            if (!Array.isArray(ids)) ids = [ids];
-            ids.forEach(function (id) {
-                this.updateRenderData('edge', id, function () {
-                    return {
-                        data: this.graph.edgesIndex[id],
-                        source: this.graph.nodesIndex[this.graph.edgesIndex[id].source],
-                        target: this.graph.nodesIndex[this.graph.edgesIndex[id].target]
-                    };
-                }.bind(this));
-            }.bind(this));
-        }
-    }, {
-        key: 'updateEdgeLabelRenderData',
-        value: function updateEdgeLabelRenderData(ids) {
-            // debugger
-            this.forceRender();
-            if (!Array.isArray(ids)) ids = [ids];
-            ids.forEach(function (id) {
-                this.updateRenderData('edgeLabel', id, function () {
-                    return {
-                        data: this.graph.edgesIndex[id],
-                        source: this.graph.nodesIndex[this.graph.edgesIndex[id].source],
-                        target: this.graph.nodesIndex[this.graph.edgesIndex[id].target],
-                        textureText: this.textureText
-                    };
-                }.bind(this));
-            }.bind(this));
-        }
     }]);
 
     return WebGLRender;
@@ -1408,7 +1448,7 @@ Object.defineProperty(exports, "__esModule", {
 
 var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
 
-var _Graph = __webpack_require__(11);
+var _Graph = __webpack_require__(12);
 
 var _Graph2 = _interopRequireDefault(_Graph);
 
@@ -1424,15 +1464,15 @@ var _tween = __webpack_require__(2);
 
 var _tween2 = _interopRequireDefault(_tween);
 
-var _Selection = __webpack_require__(12);
+var _Selection = __webpack_require__(13);
 
 var _Selection2 = _interopRequireDefault(_Selection);
 
-var _index = __webpack_require__(20);
+var _index = __webpack_require__(21);
 
 var _index2 = _interopRequireDefault(_index);
 
-var _config = __webpack_require__(13);
+var _config = __webpack_require__(14);
 
 var _config2 = _interopRequireDefault(_config);
 
@@ -1446,7 +1486,7 @@ var Core = function () {
 
         option = option || {};
 
-        this.config = _util2.default.extend(_config2.default, option.config || {});
+        this.config = _util2.default.extend(option.config || {}, _config2.default);
 
         this.graph = new _Graph2.default({
             nodes: option.nodes,
@@ -1465,8 +1505,6 @@ var Core = function () {
         this.on = this.render.on.bind(this.render);
         this.off = this.render.off.bind(this.render);
 
-        if (this.graph.nodes.length > 0) this.makeLayout(option.layout || 'preset');
-
         this._start();
 
         this._initEvent();
@@ -1477,33 +1515,33 @@ var Core = function () {
         value: function initCanvas() {
 
             this.container.style.position = 'relative';
-
-            this.canvas.render = this._createCanvas();
+            this.canvas.render = this.createElement('canvas');
             this.container.appendChild(this.canvas.render);
 
-            this.container.oncontextmenu = function (e) {
-                e.preventDefault();
-            };
-
-            this.canvas.mouse = this._createCanvas();
+            this.canvas.mouse = this.createElement('canvas');
             this.canvas.mouse.style.display = 'none';
             this.canvas.mouse.style.cursor = 'cell';
 
             this.container.appendChild(this.canvas.mouse);
         }
     }, {
-        key: '_createCanvas',
-        value: function _createCanvas() {
-            var canvas = document.createElement('canvas');
-            canvas.style.position = 'absolute';
-            canvas.style.left = '0px';
-            canvas.style.top = '0px';
-            canvas.width = this.container.clientWidth;
-            canvas.height = this.container.clientHeight;
-            canvas.style.width = '100%';
-            canvas.style.height = '100%';
+        key: 'createElement',
+        value: function createElement(tag) {
+            var ele = document.createElement(tag);
+            ele.style.position = 'absolute';
+            ele.style.left = '0px';
+            ele.style.top = '0px';
+            ele.style.width = '100%';
+            ele.style.height = '100%';
+            ele.style.border = 'none';
+            ele.width = this.container.clientWidth;
+            ele.height = this.container.clientHeight;
 
-            return canvas;
+            ele.oncontextmenu = function (e) {
+                e.preventDefault();
+            };
+
+            return ele;
         }
     }, {
         key: '_start',
@@ -1549,7 +1587,7 @@ var Core = function () {
         key: '_initEvent',
         value: function _initEvent() {
             var _this = this;
-            this.render.on('nodeclick', function (node, e) {
+            this.render.on('nodeleftclick', function (node, e) {
                 if (!_this.selection.isSelected(node)) _this.selection.select(node, e.shiftKey);else if (e.shiftKey) _this.selection.unSelect(node);
             });
 
@@ -1599,7 +1637,7 @@ var Core = function () {
         }
     }, {
         key: 'makeLayout',
-        value: function makeLayout(type, nodes) {
+        value: function makeLayout(type, nodes, cb) {
 
             var _this = this;
             var layout, data;
@@ -1628,8 +1666,13 @@ var Core = function () {
 
                 if (data.length > this.graph.nodes.length * 4 / 5) {
                     new _tween2.default(nodes, 'layout').to(data).duration(2000).on('change', function (t) {
-                        _this.render.clearRenderCache();
-                    });
+                        // console.time('layout')
+                        nodes.forEach(function (node) {
+                            // debugger
+                            _this.graph.setNodeData(node.id, { x: node.x, y: node.y });
+                        });
+                        // console.timeEnd('layout')
+                    }).on('end', cb);
 
                     this.fit(2000, this.getFitOptions(data));
                 } else {
@@ -1647,7 +1690,7 @@ var Core = function () {
 
                     new _tween2.default(nodes, 'layout').to(data).duration(2000).on('change', function (t) {
                         nodes.forEach(function (node) {
-                            _this.graph.setNodeData(node.id, { x: node.x });
+                            _this.graph.setNodeData(node.id, { x: node.x, y: node.y });
                         });
                     });
                 }
@@ -1683,7 +1726,7 @@ exports.default = Core;
 
 
 Object.defineProperty(exports, "__esModule", {
-  value: true
+    value: true
 });
 exports.WebGLRender = undefined;
 
@@ -1691,60 +1734,251 @@ var _render = __webpack_require__(5);
 
 var _render2 = _interopRequireDefault(_render);
 
-var _Node = __webpack_require__(30);
+var _render3 = __webpack_require__(32);
 
-var _Node2 = _interopRequireDefault(_Node);
+var _render4 = _interopRequireDefault(_render3);
 
-var _Rect = __webpack_require__(31);
+var _render5 = __webpack_require__(33);
 
-var _Rect2 = _interopRequireDefault(_Rect);
+var _render6 = _interopRequireDefault(_render5);
 
-var _NodeLabel = __webpack_require__(28);
+var _NodeLabel = __webpack_require__(30);
 
 var _NodeLabel2 = _interopRequireDefault(_NodeLabel);
 
-var _default = __webpack_require__(26);
+var _render7 = __webpack_require__(28);
 
-var _default2 = _interopRequireDefault(_default);
+var _render8 = _interopRequireDefault(_render7);
 
-var _curve = __webpack_require__(25);
+var _render9 = __webpack_require__(27);
 
-var _curve2 = _interopRequireDefault(_curve);
+var _render10 = _interopRequireDefault(_render9);
 
-var _EdgeLabel = __webpack_require__(27);
+var _EdgeLabel = __webpack_require__(29);
 
 var _EdgeLabel2 = _interopRequireDefault(_EdgeLabel);
 
-var _curveLabel = __webpack_require__(29);
+var _render11 = __webpack_require__(31);
 
-var _curveLabel2 = _interopRequireDefault(_curveLabel);
+var _render12 = _interopRequireDefault(_render11);
+
+var _defaultLayerConfig = __webpack_require__(26);
+
+var _defaultLayerConfig2 = _interopRequireDefault(_defaultLayerConfig);
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
-_render2.default.node = {}; /**
-                             * Created by chengang on 17-3-28.
-                             */
-
+_render2.default.node = {};
 _render2.default.edge = {};
 _render2.default.nodeLabel = {};
 _render2.default.edgeLabel = {};
 
-_render2.default.node.default = _Node2.default;
-_render2.default.node.rect = _Rect2.default;
+_render2.default.node.default = _render4.default;
+_render2.default.node.rect = _render6.default;
 
 _render2.default.nodeLabel.default = _NodeLabel2.default;
 _render2.default.nodeLabel.rect = _NodeLabel2.default;
 
-_render2.default.edge.default = _default2.default;
-_render2.default.edge.curve = _curve2.default;
+_render2.default.edge.default = _render8.default;
+_render2.default.edge.curve = _render10.default;
 
 _render2.default.edgeLabel.default = _EdgeLabel2.default;
-_render2.default.edgeLabel.curve = _curveLabel2.default;
+_render2.default.edgeLabel.curve = _render12.default;
+
+(0, _defaultLayerConfig2.default)(_render2.default);
 
 exports.WebGLRender = _render2.default;
 
 /***/ }),
 /* 9 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+exports.GlType = exports.GLComType = undefined;
+exports.getActiveAttributes = getActiveAttributes;
+exports.getActiveUniforms = getActiveUniforms;
+exports.calTypeOffset = calTypeOffset;
+exports.vertexAttribPointer = vertexAttribPointer;
+exports.checkAttrValid = checkAttrValid;
+exports.setUniforms = setUniforms;
+
+var _util = __webpack_require__(0);
+
+var _util2 = _interopRequireDefault(_util);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+var GLComType = exports.GLComType = {
+    FLOAT: { glType: 'FLOAT', bytes: 4 },
+    BYTE: { glType: 'BYTE', bytes: 1 },
+    SHORT: { glType: 'SHORT', bytes: 2 },
+    UNSIGNED_BYTE: { glType: 'UNSIGNED_BYTE', bytes: 1 },
+    UNSIGNED_SHORT: { glType: 'UNSIGNED_SHORT', bytes: 2 }
+};
+
+var GlType = exports.GlType = {
+    FLOAT: { components: 1, glType: 'FLOAT' },
+    FLOAT_VEC2: { components: 2, glType: 'FLOAT_VEC2' },
+    FLOAT_VEC3: { components: 3, glType: 'FLOAT_VEC3' },
+    FLOAT_VEC4: { components: 4, glType: 'FLOAT_VEC4' },
+    INT: { components: 1, glType: 'INT' },
+    INT_VEC2: { components: 2, glType: 'INT_VEC2' },
+    INT_VEC3: { components: 3, glType: 'INT_VEC3' },
+    INT_VEC4: { components: 4, glType: 'INT_VEC4' },
+    BOOL: { components: 1, glType: 'BOOL' },
+    BOOL_VEC2: { components: 2, glType: 'BOOL_VEC2' },
+    BOOL_VEC3: { components: 3, glType: 'BOOL_VEC3' },
+    BOOL_VEC4: { components: 4, glType: 'BOOL_VEC4' },
+    FLOAT_MAT2: { components: 4, glType: 'FLOAT_MAT2' },
+    FLOAT_MAT3: { components: 9, glType: 'FLOAT_MAT3' },
+    FLOAT_MAT4: { components: 16, glType: 'FLOAT_MAT4' },
+    SAMPLER_2D: { components: 1, glType: 'SAMPLER_2D' },
+    SAMPLER_CUBE: { components: 1, glType: 'SAMPLER_CUBE' }
+};
+
+function getType(gl, typeNum) {
+    var type = 'FLOAT';
+    for (var name in GlType) {
+        if (gl[name] == typeNum) return name;
+    }
+    console.error('gl type not found');
+    return type;
+}
+
+function getActiveAttributes(gl, program) {
+    var shaderAttrInfos = {};
+    var numAttribs = gl.getProgramParameter(program, gl.ACTIVE_ATTRIBUTES);
+    for (var i = 0; i < numAttribs; ++i) {
+        var attribInfo = gl.getActiveAttrib(program, i);
+        if (!attribInfo) {
+            continue;
+        }
+
+        shaderAttrInfos[attribInfo.name] = {};
+        shaderAttrInfos[attribInfo.name].type = getType(gl, attribInfo.type);
+        shaderAttrInfos[attribInfo.name].size = attribInfo.size;
+        shaderAttrInfos[attribInfo.name].location = gl.getAttribLocation(program, attribInfo.name);
+    }
+    return shaderAttrInfos;
+}
+function getActiveUniforms(gl, program) {
+    var shaderUniformInfos = {};
+    var numUniforms = gl.getProgramParameter(program, gl.ACTIVE_UNIFORMS);
+    for (var i = 0; i < numUniforms; ++i) {
+        var uniformInfo = gl.getActiveUniform(program, i);
+        if (!uniformInfo) {
+            continue;
+        }
+
+        var name = uniformInfo.name;
+        // remove the array suffix.
+        if (name.substr(-3) === "[0]") {
+            name = name.substr(0, name.length - 3);
+        }
+
+        shaderUniformInfos[name] = {};
+        shaderUniformInfos[name].type = getType(gl, uniformInfo.type);
+        shaderUniformInfos[name].size = uniformInfo.size;
+        shaderUniformInfos[name].location = gl.getUniformLocation(program, name);
+    }
+    return shaderUniformInfos;
+}
+
+function calTypeOffset(activeAttributes, config) {
+    config = config || {};
+    var offsetConfig = {
+        config: {},
+        strip: 0
+    };
+    var type,
+        num = 0;
+    for (var attr in activeAttributes) {
+        type = activeAttributes[attr].type;
+        offsetConfig.config[attr] = {};
+        offsetConfig.config[attr].start = num;
+        offsetConfig.config[attr].components = GlType[type].components;
+        num += GlType[type].components;
+    }
+    offsetConfig.strip = num;
+    return offsetConfig;
+}
+
+function vertexAttribPointer(gl, activeAttributes, offsetConfig) {
+    // debugger
+    var config = offsetConfig.config;
+    var strip = offsetConfig.strip;
+    for (var attr in activeAttributes) {
+        gl.vertexAttribPointer(activeAttributes[attr].location, config[attr].components, gl.FLOAT, false, strip * 4, config[attr].start * 4);
+        gl.enableVertexAttribArray(activeAttributes[attr].location);
+    }
+}
+
+function checkAttrValid(config, data) {
+
+    var type;
+    var err = [];
+    for (var attr in config) {
+        if (!config.hasOwnProperty(attr)) {
+            err.push('shader need attribute: ' + attr);
+            continue;
+        }
+
+        if (data[attr] == undefined) {
+            err.push('attribute [' + attr + ']: is undefined');
+            continue;
+        }
+
+        type = config[attr].type;
+        if (_util2.default.isArray(data[attr]) && data[attr].length != GlType[type].components * config[attr].size) {
+            err.push('attribute [' + attr + ']: size need ' + GlType[type].components);
+        }
+    }
+
+    return err.length ? err : null;
+}
+
+var uniformSetter = {
+    FLOAT: function FLOAT(gl, location, v) {
+        gl.uniform1f(location, v);
+    },
+    FLOAT_VEC2: function FLOAT_VEC2(gl, location, v) {
+        gl.uniform2fv(location, v);
+    },
+    FLOAT_VEC3: function FLOAT_VEC3(gl, location, v) {
+        gl.uniform3fv(location, v);
+    },
+    FLOAT_VEC4: function FLOAT_VEC4(gl, location, v) {
+        gl.uniform4fv(location, v);
+    },
+    FLOAT_MAT2: function FLOAT_MAT2(gl, location, v) {
+        gl.uniformMatrix2fv(location, false, v);
+    },
+    FLOAT_MAT3: function FLOAT_MAT3(gl, location, v) {
+        gl.uniformMatrix3fv(location, false, v);
+    },
+    FLOAT_MAT4: function FLOAT_MAT4(gl, location, v) {
+        gl.uniformMatrix4fv(location, false, v);
+    },
+    SAMPLER_2D: function SAMPLER_2D(gl, location, v) {
+        if (v.length) gl.uniform1iv(location, v);else gl.uniform1i(location, v);
+    }
+};
+
+function setUniforms(gl, activeUniforms, uniforms) {
+    var type;
+    for (var attr in activeUniforms) {
+        type = activeUniforms[attr].type;
+        uniformSetter[type](gl, activeUniforms[attr].location, uniforms[attr]);
+    }
+}
+
+/***/ }),
+/* 10 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -1885,7 +2119,7 @@ function sleep(time) {
 }
 
 /***/ }),
-/* 10 */
+/* 11 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -1908,26 +2142,26 @@ function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { de
 
 function initEvent() {
 
-    function handlerWrap(handle) {
-        return function (e) {
-            var pos = _this.toCameraPos({ x: e.offsetX, y: e.offsetY });
-            e.cameraX = pos.x;
-            e.cameraY = pos.y;
-            handle(e);
-        };
-    }
-
     var _this = this;
     var mouseDown = false,
-        mouseMove = false;
+        mouseMove = false,
+        disableMove = false,
+
+    //over info
+    overInfo = {
+        currentNode: null,
+        currentEdge: null
+    };
+
+    _this.context.overInfo = overInfo;
 
     var events = {
         // click:handlerWrap(_clickHandler),
         mousemove: handlerWrap(_moveHandler),
         mousedown: handlerWrap(_downHandler),
         mouseup: handlerWrap(_upHandler),
-        mousewheel: handlerWrap(_wheelHandler)
-    };
+        mousewheel: handlerWrap(_wheelHandler),
+        DOMMouseScroll: handlerWrap(_wheelHandler) };
 
     for (var e in events) {
         this.container.addEventListener(e, events[e], false);
@@ -1938,6 +2172,7 @@ function initEvent() {
         if (events[type]) events[type](event);
     };
 
+    //function
     function checkInNode(posx, posy, node) {
         var isFind = false;
         var dis, sizeX, sizeY;
@@ -1954,11 +2189,25 @@ function initEvent() {
 
     function getNode(pos) {
         // var nodes = _this.graph.quad.point(pos.x, pos.y);
+        // console.time('getNode')
         var nodes = _this.graph.nodes;
 
         var node, dis;
         var findNode = null;
-        if (nodes.length > 0) {
+
+        var selection = _this.context.selection.getSelection();
+
+        if (selection.length > 0) {
+            for (var i = selection.length - 1; i >= 0; i--) {
+                node = selection[i];
+                if (checkInNode(pos.x, pos.y, node)) {
+                    findNode = node;
+                    break;
+                }
+            }
+        }
+
+        if (!findNode && nodes.length > 0) {
             for (var i = nodes.length - 1; i >= 0; i--) {
                 node = nodes[i];
                 // node = _this.graph.nodesIndex[node.id];
@@ -1968,6 +2217,7 @@ function initEvent() {
                 }
             }
         }
+        // console.timeEnd('getNode')
         return findNode;
     }
 
@@ -1977,18 +2227,16 @@ function initEvent() {
         if (node) _this.emit('nodeclick', [node, e]);else _this.emit('stageclick', [e]);
     }
 
-    function _moveHandler(e) {
-        if (mouseDown) mouseMove = true;
-        // var graphPos = _this.toGraphPos({x:e.cameraX,y:e.cameraY});
-        // var node = getNode(graphPos);
-    }
-
     function _downHandler(e) {
 
         mouseDown = true;
+        disableMove = true;
 
         var graphPos = _this.toGraphPos({ x: e.cameraX, y: e.cameraY });
         var node = getNode(graphPos);
+
+        if (node) _this.emit('nodeleftclick', [node, e]);
+
         handleDrag(!node);
         _this.forceRender();
 
@@ -2049,11 +2297,34 @@ function initEvent() {
             _this.container.addEventListener('mouseout', onmouseout);
 
             function clear() {
+                disableMove = false;
                 onmousemove && _this.container.removeEventListener('mousemove', onmousemove);
                 onmouseup && _this.container.removeEventListener('mouseup', onmouseup);
                 onmouseout && _this.container.removeEventListener('mouseout', onmouseout);
                 onmousemove = onmouseup = onmouseout = null;
             }
+        }
+    }
+
+    function _moveHandler(e) {
+        if (mouseDown) mouseMove = true;
+
+        if (disableMove || !_this.config.enableOverEvent) return;
+
+        var graphPos = _this.toGraphPos({ x: e.cameraX, y: e.cameraY });
+        var node = getNode(graphPos);
+        var old;
+
+        if (node && node !== overInfo.currentNode) {
+            old = overInfo.currentNode;
+            overInfo.currentNode = node;
+
+            _this.emit('overnode', [node, e]);
+            if (old) _this.emit('outnode', [old, e]);
+        } else if (!node && overInfo.currentNode) {
+            old = overInfo.currentNode;
+            overInfo.currentNode = null;
+            _this.emit('outnode', [old, e]);
         }
     }
 
@@ -2077,9 +2348,13 @@ function initEvent() {
     }
 
     function _wheelHandler(e) {
+        var value = e.wheelDelta || e.detail;
+
+        if (Math.abs(value) == 3) value = -1 * value;
+
         _this.forceRender();
         var ratio = _this.config.zoomRatio;
-        if (e.wheelDelta > 0) {
+        if (value > 0) {
             _this.zoomTo(1 / ratio, e.cameraX, e.cameraY);
             _this.emit('zoom', [1 / ratio]);
         } else {
@@ -2090,6 +2365,14 @@ function initEvent() {
 
     //drag
 
+    function handlerWrap(handle) {
+        return function (e) {
+            var pos = _this.toCameraPos({ x: e.offsetX, y: e.offsetY });
+            e.cameraX = pos.x;
+            e.cameraY = pos.y;
+            handle(e);
+        };
+    }
 
     function fit(e) {
         var x = e.offsetX,
@@ -2132,7 +2415,7 @@ function initEvent() {
 }
 
 /***/ }),
-/* 11 */
+/* 12 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -2441,6 +2724,7 @@ var Graph = function (_EventEmitter) {
     }, {
         key: 'setNodeData',
         value: function setNodeData(id, obj) {
+            // console.time('setNodeData')
             var node = this.nodesIndex[id];
 
             var updatePos = false;
@@ -2448,11 +2732,16 @@ var Graph = function (_EventEmitter) {
 
             for (var attr in obj) {
                 node[attr] = obj[attr];
-            }this.emit('change', ['node', id]);
-            if (updatePos) {
-                this.inEdgesIndex[id] && this.inEdgesIndex[id].length > 0 && this.emit('change', ['edge', this.inEdgesIndex[id]]);
-                this.outEdgesIndex[id] && this.outEdgesIndex[id].length > 0 && this.emit('change', ['edge', this.outEdgesIndex[id]]);
+                obj[attr] = true;
             }
+
+            this.emit('change', ['node', id, obj]);
+            if (updatePos) {
+                obj = { source: true, target: true };
+                this.inEdgesIndex[id] && this.inEdgesIndex[id].length > 0 && this.emit('change', ['edge', this.inEdgesIndex[id], obj]);
+                this.outEdgesIndex[id] && this.outEdgesIndex[id].length > 0 && this.emit('change', ['edge', this.outEdgesIndex[id], obj]);
+            }
+            // console.timeEnd('setNodeData')
         }
     }, {
         key: 'updateNodeQuad',
@@ -2476,7 +2765,7 @@ var Graph = function (_EventEmitter) {
 exports.default = Graph;
 
 /***/ }),
-/* 12 */
+/* 13 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -2708,7 +2997,7 @@ var Selection = function (_EventEmitter) {
 exports.default = Selection;
 
 /***/ }),
-/* 13 */
+/* 14 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -2726,17 +3015,14 @@ exports.default = {
     zoomMin: 0.05,
     zoomMax: 20,
 
-    renderNode: true,
-    renderNodeLabel: true,
-    renderEdge: true,
-    renderEdgeLabel: true,
-
     textureIconWidth: 1024,
-    textureIconHeight: 1024
+    textureIconHeight: 1024,
+
+    enableOverEvent: false
 };
 
 /***/ }),
-/* 14 */
+/* 15 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -3532,7 +3818,7 @@ function setOffset(node, x, y) {
 exports.default = CircularLayout;
 
 /***/ }),
-/* 15 */
+/* 16 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -3603,7 +3889,7 @@ var ColaLayout = function () {
 exports.default = ColaLayout;
 
 /***/ }),
-/* 16 */
+/* 17 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -3669,7 +3955,7 @@ var DargeLayout = function () {
 exports.default = DargeLayout;
 
 /***/ }),
-/* 17 */
+/* 18 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -3789,7 +4075,7 @@ var FlowLayout = function () {
 exports.default = FlowLayout;
 
 /***/ }),
-/* 18 */
+/* 19 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -3862,7 +4148,7 @@ var ColaLayout = function () {
 exports.default = ColaLayout;
 
 /***/ }),
-/* 19 */
+/* 20 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -3917,7 +4203,7 @@ var Grid = function () {
 exports.default = Grid;
 
 /***/ }),
-/* 20 */
+/* 21 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -3927,27 +4213,27 @@ Object.defineProperty(exports, "__esModule", {
     value: true
 });
 
-var _CircularLayout = __webpack_require__(14);
+var _CircularLayout = __webpack_require__(15);
 
 var _CircularLayout2 = _interopRequireDefault(_CircularLayout);
 
-var _ColaLayout = __webpack_require__(15);
+var _ColaLayout = __webpack_require__(16);
 
 var _ColaLayout2 = _interopRequireDefault(_ColaLayout);
 
-var _FlowLayout = __webpack_require__(17);
+var _FlowLayout = __webpack_require__(18);
 
 var _FlowLayout2 = _interopRequireDefault(_FlowLayout);
 
-var _DargeLayout = __webpack_require__(16);
+var _DargeLayout = __webpack_require__(17);
 
 var _DargeLayout2 = _interopRequireDefault(_DargeLayout);
 
-var _ForceD3Layout = __webpack_require__(18);
+var _ForceD3Layout = __webpack_require__(19);
 
 var _ForceD3Layout2 = _interopRequireDefault(_ForceD3Layout);
 
-var _Grid = __webpack_require__(19);
+var _Grid = __webpack_require__(20);
 
 var _Grid2 = _interopRequireDefault(_Grid);
 
@@ -3967,7 +4253,7 @@ exports.default = {
 };
 
 /***/ }),
-/* 21 */
+/* 22 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -4087,7 +4373,7 @@ function edt1d(f, d, v, z, n) {
 }
 
 /***/ }),
-/* 22 */
+/* 23 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -4116,50 +4402,51 @@ function _inherits(subClass, superClass) { if (typeof superClass !== "function" 
 var TextureIcon = function (_EventEmitter) {
     _inherits(TextureIcon, _EventEmitter);
 
-    function TextureIcon(gl, option) {
+    function TextureIcon(option) {
         _classCallCheck(this, TextureIcon);
 
-        var _this2 = _possibleConstructorReturn(this, (TextureIcon.__proto__ || Object.getPrototypeOf(TextureIcon)).call(this));
+        // this.gl = gl;
+        var _this = _possibleConstructorReturn(this, (TextureIcon.__proto__ || Object.getPrototypeOf(TextureIcon)).call(this));
 
-        _this2.gl = gl;
-        _this2.texture = null;
+        _this.texture = null;
 
-        _this2.textureIconWidth = option.textureIconWidth;
-        _this2.textureIconHeight = option.textureIconHeight;
+        _this.textureIconWidth = option.textureIconWidth;
+        _this.textureIconHeight = option.textureIconHeight;
 
-        _this2.fontSize = 60;
-        _this2.fontFamily = 'FontAwesome';
+        _this.fontSize = 60;
+        _this.fontFamily = 'FontAwesome';
 
-        _this2.border = 2;
-        _this2.width = 70; //char width
-        _this2.height = 80;
-        _this2.startx = _this2.border + _this2.width / 2;
-        _this2.starty = _this2.border + _this2.height / 2;
+        _this.border = 2;
+        _this.width = 70; //char width
+        _this.height = 80;
+        _this.startx = _this.border + _this.width / 2;
+        _this.starty = _this.border + _this.height / 2;
 
-        _this2.canvas = null;
-        _this2.iconinfo = null;
-        _this2.icons = [];
-        _this2.iconsToCreate = [];
+        _this.canvas = null;
+        _this.iconinfo = null;
+        _this.icons = [];
+        _this.iconsToCreate = [];
 
-        _this2.fontLoaded = false;
+        _this.fontLoaded = true;
 
-        _this2._init();
+        _this._init();
 
-        _this2.updateGPUTexture(true);
+        // this.updateGPUTexture(true);
 
-        var _this = _this2;
-        if (document.fonts) {
-            var fontsReady = document.fonts.ready;
-            if (typeof fontsReady == "function") {
-                fontsReady = document.fonts.ready();
-            }
-            fontsReady.then(function () {
-                _this.fontLoaded = true;
-                _this.createIcons();
-                _this.emit('load');
-            });
-        }
-        return _this2;
+        // var _this = this;
+        // if (document.fonts) {
+        //     debugger
+        //     var fontsReady = document.fonts.ready;
+        //     if (typeof(fontsReady) == "function") {
+        //         fontsReady = document.fonts.ready();
+        //     }
+        //     fontsReady.then(function () {
+        //         _this.fontLoaded  = true;
+        //         _this.createIcons();
+        //         _this.emit('load')
+        //     });
+        // }
+        return _this;
     }
 
     _createClass(TextureIcon, [{
@@ -4211,7 +4498,7 @@ var TextureIcon = function (_EventEmitter) {
             this.computeAlpha();
 
             // document.body.appendChild(this.canvas);
-            this.updateGPUTexture();
+            // this.updateGPUTexture();
         }
     }, {
         key: 'createIcon',
@@ -4255,14 +4542,10 @@ var TextureIcon = function (_EventEmitter) {
             ctx.putImageData(imgData, 0, 0);
         }
     }, {
-        key: 'updateGPUTexture',
-        value: function updateGPUTexture(empty) {
-            var gl = this.gl;
-
-            this.createTexture(empty);
-
+        key: 'attachGl',
+        value: function attachGl(gl) {
             gl.activeTexture(gl.TEXTURE11);
-            gl.bindTexture(gl.TEXTURE_2D, this.texture);
+            gl.bindTexture(gl.TEXTURE_2D, this.createTexture(this.icons.length == 0, gl));
         }
     }, {
         key: 'addIcons',
@@ -4284,15 +4567,11 @@ var TextureIcon = function (_EventEmitter) {
         }
     }, {
         key: 'createTexture',
-        value: function createTexture(empty) {
+        value: function createTexture(empty, gl) {
 
-            var gl = this.gl;
-
-            if (!this.texture) {
-                this.texture = gl.createTexture();
-            }
+            var texture = gl.createTexture();
             gl.activeTexture(gl.TEXTURE11);
-            gl.bindTexture(gl.TEXTURE_2D, this.texture);
+            gl.bindTexture(gl.TEXTURE_2D, texture);
 
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
@@ -4300,6 +4579,7 @@ var TextureIcon = function (_EventEmitter) {
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
 
             if (empty) gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 2, 2, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);else gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, this.iconinfo.img);
+            return texture;
         }
     }, {
         key: 'clear',
@@ -4324,7 +4604,7 @@ var TextureIcon = function (_EventEmitter) {
 exports.default = TextureIcon;
 
 /***/ }),
-/* 23 */
+/* 24 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -4354,17 +4634,16 @@ function _inherits(subClass, superClass) { if (typeof superClass !== "function" 
 var TextureLoader = function (_EventEmitter) {
     _inherits(TextureLoader, _EventEmitter);
 
-    function TextureLoader(gl) {
+    function TextureLoader() {
         _classCallCheck(this, TextureLoader);
 
         var _this = _possibleConstructorReturn(this, (TextureLoader.__proto__ || Object.getPrototypeOf(TextureLoader)).call(this));
 
-        _this.gl = gl;
         _this.cache = {};
         _this.textures = [];
-        _this.defaultTexture = _this.createTexture();
+        // this.defaultTexture = this.createTexture();
         _this.texturesIndex = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
-        _this.updateGPUTexture();
+        // this.updateGPUTexture();
         return _this;
     }
 
@@ -4396,9 +4675,9 @@ var TextureLoader = function (_EventEmitter) {
             }
         }
     }, {
-        key: 'updateGPUTexture',
-        value: function updateGPUTexture() {
-            var gl = this.gl;
+        key: 'attachGl',
+        value: function attachGl(gl) {
+            this.defaultTexture = this.createTexture(gl);
             this.texturesIndex.forEach(function (e) {
                 gl.activeTexture(gl['TEXTURE' + e]);
                 if (e > this.textures.length - 1) {
@@ -4410,8 +4689,7 @@ var TextureLoader = function (_EventEmitter) {
         }
     }, {
         key: 'createTexture',
-        value: function createTexture(img) {
-            var gl = this.gl;
+        value: function createTexture(gl, img) {
             var texture = gl.createTexture();
             gl.activeTexture(gl.TEXTURE0);
             gl.bindTexture(gl.TEXTURE_2D, texture);
@@ -4433,7 +4711,7 @@ var TextureLoader = function (_EventEmitter) {
 exports.default = TextureLoader;
 
 /***/ }),
-/* 24 */
+/* 25 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -4449,7 +4727,7 @@ var _EventEmitter2 = __webpack_require__(1);
 
 var _EventEmitter3 = _interopRequireDefault(_EventEmitter2);
 
-var _TextSdf = __webpack_require__(21);
+var _TextSdf = __webpack_require__(22);
 
 var _TextSdf2 = _interopRequireDefault(_TextSdf);
 
@@ -4464,14 +4742,10 @@ function _inherits(subClass, superClass) { if (typeof superClass !== "function" 
 var TextureText = function (_EventEmitter) {
     _inherits(TextureText, _EventEmitter);
 
-    function TextureText(gl) {
+    function TextureText() {
         _classCallCheck(this, TextureText);
 
         var _this = _possibleConstructorReturn(this, (TextureText.__proto__ || Object.getPrototypeOf(TextureText)).call(this));
-
-        _this.gl = gl;
-
-        _this.texture = null;
 
         _this.border = 2;
 
@@ -4482,7 +4756,7 @@ var TextureText = function (_EventEmitter) {
 
         _this.textinfo = null;
 
-        _this.texts = null;
+        _this.texts = [];
 
         _this.sdf = new _TextSdf2.default(_this.fontSize, _this.fontSize / 8, _this.fontSize / 3, null, _this.fontFamily);
 
@@ -4561,12 +4835,12 @@ var TextureText = function (_EventEmitter) {
                 height: c.height,
                 infos: infos
             };
-            //
+
             // document.body.appendChild(c);
             // c.style.position = 'absolute';
             // c.style.top = '100px';
 
-            this.updateGPUTexture();
+            // this.updateGPUTexture();
         }
     }, {
         key: 'computeAlpha',
@@ -4580,14 +4854,11 @@ var TextureText = function (_EventEmitter) {
             ctx.putImageData(imgData, 0, 0);
         }
     }, {
-        key: 'updateGPUTexture',
-        value: function updateGPUTexture() {
-            var gl = this.gl;
-
-            this.createTexture();
+        key: 'attachGl',
+        value: function attachGl(gl) {
 
             gl.activeTexture(gl.TEXTURE10);
-            gl.bindTexture(gl.TEXTURE_2D, this.texture);
+            gl.bindTexture(gl.TEXTURE_2D, this.createTexture(gl));
         }
     }, {
         key: 'addTexts',
@@ -4614,15 +4885,12 @@ var TextureText = function (_EventEmitter) {
         }
     }, {
         key: 'createTexture',
-        value: function createTexture() {
+        value: function createTexture(gl) {
 
-            var gl = this.gl;
+            var texture = gl.createTexture();
 
-            if (!this.texture) {
-                this.texture = gl.createTexture();
-            }
             gl.activeTexture(gl.TEXTURE10);
-            gl.bindTexture(gl.TEXTURE_2D, this.texture);
+            gl.bindTexture(gl.TEXTURE_2D, texture);
 
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
@@ -4630,12 +4898,14 @@ var TextureText = function (_EventEmitter) {
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
 
             gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, this.textinfo.img);
+
+            return texture;
         }
     }, {
         key: 'clear',
         value: function clear() {
             this.textinfo = null;
-            this.texts = null;
+            this.texts = [];
         }
     }]);
 
@@ -4644,43 +4914,81 @@ var TextureText = function (_EventEmitter) {
 
 exports.default = TextureText;
 
+/***/ }),
+/* 26 */
+/***/ (function(module, exports, __webpack_require__) {
 
-function test() {
-    var chars = '泽材abcdefghkilmnopqrstuvwxyz灭逐莫笔亡鲜';
-    var fontSize = 24;
+"use strict";
 
-    var sdf = new _TextSdf2.default(fontSize, fontSize / 8, fontSize / 3, null, 'Arial');
 
-    var canvas = document.createElement('canvas');
-    canvas.width = 400;
-    canvas.height = 400;
-    canvas.style.position = 'absolute';
-    canvas.style.top = '200px';
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
 
-    var ctx = canvas.getContext('2d');
+exports.default = function (WebGLRender) {
+    WebGLRender.defaultLayersConfig = [{
+        name: 'base',
+        subLayers: [{ name: 'edge', context: 'edge', render: WebGLRender.edge.default, check: layerCheckDefault() }, { name: 'edgeCurve', context: 'edge', render: WebGLRender.edge.curve, check: layerCheck('curve') },
+        //
+        { name: 'edgeLabel', context: 'edge', render: WebGLRender.edgeLabel.default, check: layerCheckDefault() }, { name: 'edgeCurveLabel', context: 'edge', render: WebGLRender.edgeLabel.curve, check: layerCheck('curve') }, { name: 'node', context: 'node', render: WebGLRender.node.default, cacheOldData: true, check: layerCheckDefault() },
+        // {name:'rectNode',context:'node',render:WebGLRender.node.rect,check:layerCheck('rect')},
 
-    var now = performance.now();
-    var startx = 0,
-        stary = 0,
-        data;
-    for (var i = 0; i < chars.length; i++) {
-        data = sdf.draw(chars[i]);
-        if (startx + data.charWidth + 0 >= canvas.width) {
-            stary += sdf.size;
-            startx = 0;
-        }
+        { name: 'nodeOver', custom: true, render: nodeOverCustom }, { name: 'nodeLabel', context: 'node', render: WebGLRender.nodeLabel.default, check: constantTrue() }]
+    }];
+};
 
-        ctx.putImageData(data.data, startx, stary, 0, 0, data.charWidth, data.data.height);
-
-        startx += data.charWidth + 0;
-    }
-    console.log(Math.round(performance.now() - now) + 'ms.');
-
-    document.body.appendChild(canvas);
+function layerCheckDefault() {
+    return function (data) {
+        return !data.type || data.type == 'default';
+    };
+}
+function layerCheck(type) {
+    return function (data) {
+        return data.type == type;
+    };
+}
+function constantTrue() {
+    return function () {
+        return true;
+    };
 }
 
+function nodeOverCustom(render) {
+    var renderLayerMap = render.renderLayerMap;
+    var program;
+    var gl = render.gl;
+    var selection = render.context.selection.getSelection();
+
+    if (selection.length < 1) return;
+
+    if (!this.indexBuffer) this.indexBuffer = gl.createBuffer();
+
+    var indexsNode, cacheIndex, temp;
+
+    indexsNode = [];
+    cacheIndex = render.renderCache.node.index;
+
+    selection.forEach(function (e) {
+        temp = cacheIndex[e.id]['node'].data.indices;
+        temp && temp.forEach(function (index) {
+            indexsNode.push(index);
+        });
+    });
+
+    program = renderLayerMap['node'].program;
+
+    gl.useProgram(program);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, program.vertexBuffer);
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
+    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(indexsNode), gl.STATIC_DRAW);
+    gl.drawElements(gl.TRIANGLES, indexsNode.length, gl.UNSIGNED_SHORT, 0);
+}
+
+;
+
 /***/ }),
-/* 25 */
+/* 27 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -4691,28 +4999,120 @@ Object.defineProperty(exports, "__esModule", {
     value: true
 });
 
-var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
-
 var _util = __webpack_require__(0);
 
 var _util2 = _interopRequireDefault(_util);
 
-var _vert = __webpack_require__(33);
+var _vert = __webpack_require__(35);
 
 var _vert2 = _interopRequireDefault(_vert);
 
-var _frag = __webpack_require__(32);
+var _frag = __webpack_require__(34);
 
 var _frag2 = _interopRequireDefault(_frag);
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
-function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+exports.default = {
+    shaderVert: _vert2.default,
+    shaderFrag: _frag2.default,
+    attributes: {
+        a_position: { components: 2, start: 0 },
+        a_uv: { components: 2, start: 2 },
+        a_dis: { components: 1, start: 4 },
+        a_flag: { components: 1, start: 5 },
+        a_color: { components: 4, start: 6 },
+        a_dashed: { components: 1, start: 10 }
+    },
+    getUniforms: function getUniforms(_ref) {
+        var matrix = _ref.matrix,
+            camera = _ref.camera,
+            sampleRatio = _ref.sampleRatio,
+            textureLoader = _ref.textureLoader;
 
-function addData(arr, attributes, attrData) {
-    for (var i = 0; i < attributes; i++) {
+        return {
+            u_matrix: matrix,
+            u_camera_scale: camera.scale
+        };
+    },
+    getRenderData: function getRenderData(_ref2) {
+        var data = _ref2.data,
+            textureLoader = _ref2.textureLoader,
+            textureIcon = _ref2.textureIcon,
+            graph = _ref2.graph;
+
+        var target = graph.nodesIndex[data.target];
+        var source = graph.nodesIndex[data.source];
+
+        var renderData = [];
+        var indices = [];
+
+        var dx = target.x - source.x;
+        var dy = target.y - source.y;
+
+        var dis = _util2.default.getDistance(source.x, source.y, target.x, target.y);
+        var tSize = Math.max(_util2.default.getNodeSizeX(target), _util2.default.getNodeSizeY(target));
+
+        var aSize = 3,
+            vX,
+            vY;
+
+        var tX = target.x - tSize / dis * dx;
+        var tY = target.y - tSize / dis * dy;
+
+        var ctrlP = _util2.default.getControlPos(source.x, source.y, tX, tY, data.curveCount, data.curveOrder);
+
+        //arrow
+        var dx1 = tX - ctrlP[0],
+            dy1 = tY - ctrlP[1];
+        var dis1 = _util2.default.getDistance(tX, tY, ctrlP[0], ctrlP[1]);
+
+        vX = aSize / dis1 * dx1;
+        vY = aSize / dis1 * dy1;
+
+        var arrowX = tX - vX,
+            arrowY = tY - vY;
+
+        //curve
+        var color = _util2.default.parseColor(data.color || source.color || '#b3d2ff');
+
+        var scalePos = scaleTrangles([source.x, source.y, ctrlP[0], ctrlP[1], tX - vX, tY - vY]);
+        var scaleUV = scaleTrangles([1, 1, 0.5, 0, 0, 0]);
+
+        var dashed = data.dashed ? 1 : 0;
+        // debugger
+        //curve
+        addData(renderData, [scalePos[0], scalePos[1], scaleUV[0], scaleUV[1], dis, 0, color.r, color.g, color.b, color.a, dashed]);
+        addData(renderData, [scalePos[2], scalePos[3], scaleUV[2], scaleUV[3], dis, 0, color.r, color.g, color.b, color.a, dashed]);
+        addData(renderData, [scalePos[4], scalePos[5], scaleUV[4], scaleUV[5], dis, 0, color.r, color.g, color.b, color.a, dashed]);
+
+        addIndices(indices, [0, 1, 2]);
+
+        //arrow
+        addData(renderData, [arrowX + vX, arrowY + vY, 0, 0, 0, 1, color.r, color.g, color.b, color.a, dashed]);
+        addData(renderData, [arrowX + vY * 0.6, arrowY - vX * 0.6, 0, 0, 0, 1, color.r, color.g, color.b, color.a, dashed]);
+        addData(renderData, [arrowX - vY * 0.6, arrowY + vX * 0.6, 0, 0, 0, 1, color.r, color.g, color.b, color.a, dashed]);
+
+        addIndices(indices, [3, 4, 5]);
+
+        return {
+            vertices: renderData,
+            indices: indices
+        };
+    }
+};
+
+
+function addData(arr, attrData) {
+    for (var i = 0; i < attrData.length; i++) {
         arr.push(attrData[i]);
     }
+}
+
+function addIndices(indices, attrIndex) {
+    attrIndex.forEach(function (data) {
+        indices.push(data);
+    });
 }
 
 function scaleTrangles(points, scale) {
@@ -4737,158 +5137,8 @@ function scaleTrangles(points, scale) {
     return [p1_x_new, p1_y_new, p2_x_new, p2_y_new, p3_x_new, p3_y_new];
 }
 
-var Curve = function () {
-    function Curve() {
-        _classCallCheck(this, Curve);
-
-        // this.POINTS = 9;
-        this.ATTRIBUTES = 11;
-
-        this.shaderVert = _vert2.default;
-        this.shaderFrag = _frag2.default;
-
-        this.arrayBuffer = null;
-        this.dataBuffer = null;
-        this.strip = 6 * 4 + 4 + 4;
-    }
-
-    _createClass(Curve, [{
-        key: 'getRenderData',
-        value: function getRenderData(_ref) {
-            var data = _ref.data,
-                source = _ref.source,
-                target = _ref.target;
-
-            var edge = data;
-            var dx = target.x - source.x;
-            var dy = target.y - source.y;
-
-            var dis = _util2.default.getDistance(source.x, source.y, target.x, target.y);
-            var tSize = Math.max(_util2.default.getNodeSizeX(target), _util2.default.getNodeSizeY(target));
-
-            var aSize = 3,
-                vX,
-                vY;
-
-            var tX = target.x - tSize / dis * dx;
-            var tY = target.y - tSize / dis * dy;
-
-            var ctrlP = _util2.default.getControlPos(source.x, source.y, tX, tY, edge.curveCount, edge.curveOrder);
-
-            data = [];
-
-            //arrow
-            var dx1 = tX - ctrlP[0],
-                dy1 = tY - ctrlP[1];
-            var dis1 = _util2.default.getDistance(tX, tY, ctrlP[0], ctrlP[1]);
-
-            vX = aSize / dis1 * dx1;
-            vY = aSize / dis1 * dy1;
-
-            var arrowX = tX - vX,
-                arrowY = tY - vY;
-
-            //curve
-            var color = _util2.default.parseColor(edge.color || source.color || '#b3d2ff');
-
-            var scalePos = scaleTrangles([source.x, source.y, ctrlP[0], ctrlP[1], tX - vX, tY - vY]);
-            var scaleUV = scaleTrangles([1, 1, 0.5, 0, 0, 0]);
-
-            var dashed = edge.dashed ? 1 : 0;
-            // debugger
-            //curve
-            addData(data, this.ATTRIBUTES, [scalePos[0], scalePos[1], scaleUV[0], scaleUV[1], dis, 0, color.r, color.g, color.b, color.a, dashed]);
-            addData(data, this.ATTRIBUTES, [scalePos[2], scalePos[3], scaleUV[2], scaleUV[3], dis, 0, color.r, color.g, color.b, color.a, dashed]);
-            addData(data, this.ATTRIBUTES, [scalePos[4], scalePos[5], scaleUV[4], scaleUV[5], dis, 0, color.r, color.g, color.b, color.a, dashed]);
-
-            //arrow
-            addData(data, this.ATTRIBUTES, [arrowX + vX, arrowY + vY, 0, 0, 0, 1, color.r, color.g, color.b, color.a, dashed]);
-            addData(data, this.ATTRIBUTES, [arrowX + vY * 0.6, arrowY - vX * 0.6, 0, 0, 0, 1, color.r, color.g, color.b, color.a, dashed]);
-            addData(data, this.ATTRIBUTES, [arrowX - vY * 0.6, arrowY + vX * 0.6, 0, 0, 0, 1, color.r, color.g, color.b, color.a, dashed]);
-
-            return data;
-        }
-    }, {
-        key: 'render',
-        value: function render(_ref2) {
-            var gl = _ref2.gl,
-                program = _ref2.program,
-                data = _ref2.data,
-                matrix = _ref2.matrix,
-                camera = _ref2.camera;
-
-            if (!this.dataBuffer) this.dataBuffer = gl.createBuffer();
-
-            // debugger
-            var positionLocation = gl.getAttribLocation(program, "a_position");
-            var uvLocation = gl.getAttribLocation(program, "a_uv");
-            var disLocation = gl.getAttribLocation(program, "a_dis");
-            var flagLocation = gl.getAttribLocation(program, "a_flag");
-            var colorLocation = gl.getAttribLocation(program, "a_color");
-            var dashedLocation = gl.getAttribLocation(program, "a_dashed");
-
-            var matrixLocation = gl.getUniformLocation(program, "u_matrix");
-            var cameraScaleLocation = gl.getUniformLocation(program, "u_camera_scale");
-
-            var len = data.length / this.ATTRIBUTES | 0;
-
-            if (!this.arrayBuffer || len * this.strip != this.arrayBuffer.byteLength) {
-                this.arrayBuffer = new ArrayBuffer(len * this.strip);
-            }
-
-            var float32View = new Float32Array(this.arrayBuffer);
-            var Uint8View = new Uint8Array(this.arrayBuffer);
-
-            var offset32 = this.strip / 4,
-                offset8 = this.strip;
-            for (var i = 0; i < len; i++) {
-                float32View[i * offset32 + 0] = data[i * this.ATTRIBUTES + 0];
-                float32View[i * offset32 + 1] = data[i * this.ATTRIBUTES + 1];
-                float32View[i * offset32 + 2] = data[i * this.ATTRIBUTES + 2];
-                float32View[i * offset32 + 3] = data[i * this.ATTRIBUTES + 3];
-                float32View[i * offset32 + 4] = data[i * this.ATTRIBUTES + 4];
-                float32View[i * offset32 + 5] = data[i * this.ATTRIBUTES + 5];
-
-                Uint8View[i * offset8 + 25] = data[i * this.ATTRIBUTES + 6];
-                Uint8View[i * offset8 + 26] = data[i * this.ATTRIBUTES + 7];
-                Uint8View[i * offset8 + 27] = data[i * this.ATTRIBUTES + 8];
-                Uint8View[i * offset8 + 28] = data[i * this.ATTRIBUTES + 9];
-
-                float32View[i * offset32 + 7] = data[i * this.ATTRIBUTES + 10];
-            }
-
-            gl.bindBuffer(gl.ARRAY_BUFFER, this.dataBuffer);
-            gl.bufferData(gl.ARRAY_BUFFER, this.arrayBuffer, gl.STATIC_DRAW);
-
-            gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, this.strip, 0);
-            gl.vertexAttribPointer(uvLocation, 2, gl.FLOAT, false, this.strip, 2 * 4);
-            gl.vertexAttribPointer(disLocation, 1, gl.FLOAT, false, this.strip, 4 * 4);
-            gl.vertexAttribPointer(flagLocation, 1, gl.FLOAT, false, this.strip, 5 * 4);
-            gl.vertexAttribPointer(colorLocation, 4, gl.UNSIGNED_BYTE, false, this.strip, 6 * 4);
-            gl.vertexAttribPointer(dashedLocation, 1, gl.FLOAT, false, this.strip, 7 * 4);
-
-            gl.bindBuffer(gl.ARRAY_BUFFER, null);
-            gl.enableVertexAttribArray(positionLocation);
-            gl.enableVertexAttribArray(uvLocation);
-            gl.enableVertexAttribArray(disLocation);
-            gl.enableVertexAttribArray(flagLocation);
-            gl.enableVertexAttribArray(colorLocation);
-            gl.enableVertexAttribArray(dashedLocation);
-
-            gl.uniformMatrix3fv(matrixLocation, false, new Float32Array(matrix));
-            gl.uniform1f(cameraScaleLocation, camera.scale);
-
-            gl.drawArrays(gl.TRIANGLES, 0, len);
-        }
-    }]);
-
-    return Curve;
-}();
-
-exports.default = Curve;
-
 /***/ }),
-/* 26 */
+/* 28 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -4897,155 +5147,106 @@ exports.default = Curve;
 Object.defineProperty(exports, "__esModule", {
     value: true
 });
-
-var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }(); /**
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      * Created by chengang on 17-3-31.
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      */
 
 var _util = __webpack_require__(0);
 
 var _util2 = _interopRequireDefault(_util);
 
-var _defaultVert = __webpack_require__(35);
+var _defaultVert = __webpack_require__(37);
 
 var _defaultVert2 = _interopRequireDefault(_defaultVert);
 
-var _defaultFrag = __webpack_require__(34);
+var _defaultFrag = __webpack_require__(36);
 
 var _defaultFrag2 = _interopRequireDefault(_defaultFrag);
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
-function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+exports.default = {
+    shaderVert: _defaultVert2.default,
+    shaderFrag: _defaultFrag2.default,
+    attributes: {
+        a_position: { components: 2, start: 0 },
+        a_normal: { components: 2, start: 2 },
+        a_size: { components: 1, start: 4 },
+        a_color: { components: 4, start: 5 }
+    },
+    getUniforms: function getUniforms(_ref) {
+        var matrix = _ref.matrix,
+            camera = _ref.camera,
+            sampleRatio = _ref.sampleRatio,
+            textureLoader = _ref.textureLoader;
 
-function addData(arr, attributes, attrData) {
-    for (var i = 0; i < attributes; i++) {
+        return {
+            u_matrix: matrix
+        };
+    },
+    getRenderData: function getRenderData(_ref2) {
+        var data = _ref2.data,
+            textureLoader = _ref2.textureLoader,
+            textureIcon = _ref2.textureIcon,
+            graph = _ref2.graph;
+
+        var target = graph.nodesIndex[data.target];
+        var source = graph.nodesIndex[data.source];
+        var edge = data;
+        var dx = target.x - source.x;
+        var dy = target.y - source.y;
+
+        data = [];
+        var size = 0.8,
+            arrowSize = 6;
+        var crossVector = _util2.default.normalize([-dy, dx]);
+
+        //arrow
+        var targetSize = Math.max(_util2.default.getNodeSizeX(target), _util2.default.getNodeSizeY(target));
+        var dis = _util2.default.getDistance(source.x, source.y, target.x, target.y);
+        var arrowX = target.x - (targetSize + arrowSize) / dis * dx;
+        var arrowY = target.y - (targetSize + arrowSize) / dis * dy;
+
+        var color = _util2.default.parseColor(edge.color || source.color || '#b3d2ff');
+
+        var renderData = [];
+        var indices = [];
+
+        addData(renderData, [source.x, source.y, crossVector[0], crossVector[1], size, color.r, color.g, color.b, color.a]);
+        addData(renderData, [arrowX, arrowY, crossVector[0], crossVector[1], size, color.r, color.g, color.b, color.a]);
+        addData(renderData, [source.x, source.y, -crossVector[0], -crossVector[1], size, color.r, color.g, color.b, color.a]);
+        // addData(renderData,[arrowX,arrowY,crossVector[0],crossVector[1],size,color.r,color.g,color.b,color.a]);
+        // addData(renderData,[source.x,source.y,-crossVector[0],-crossVector[1],size,color.r,color.g,color.b,color.a]);
+        addData(renderData, [arrowX, arrowY, -crossVector[0], -crossVector[1], size, color.r, color.g, color.b, color.a]);
+
+        addIndices(indices, [0, 1, 2, 1, 2, 3]);
+        //arrow
+        addData(renderData, [arrowX, arrowY, crossVector[0], crossVector[1], arrowSize / 2, color.r, color.g, color.b, color.a]);
+        addData(renderData, [arrowX, arrowY, -crossVector[0], -crossVector[1], arrowSize / 2, color.r, color.g, color.b, color.a]);
+        addData(renderData, [arrowX, arrowY, arrowSize / dis * dx, arrowSize / dis * dy, 1, color.r, color.g, color.b, color.a]);
+
+        addIndices(indices, [4, 5, 6]);
+
+        return {
+            vertices: renderData,
+            indices: indices
+        };
+    }
+}; /**
+    * Created by chengang on 17-3-31.
+    */
+
+function addData(arr, attrData) {
+    for (var i = 0; i < attrData.length; i++) {
         arr.push(attrData[i]);
     }
 }
 
-var Edge = function () {
-    function Edge() {
-        _classCallCheck(this, Edge);
-
-        this.POINTS = 9;
-        this.ATTRIBUTES = 9;
-
-        this.shaderVert = _defaultVert2.default;
-        this.shaderFrag = _defaultFrag2.default;
-
-        this.arrayBuffer = null;
-        this.dataBuffer = null;
-        this.strip = 5 * 4 + 1 * 4;
-    }
-
-    _createClass(Edge, [{
-        key: 'getRenderData',
-        value: function getRenderData(_ref) {
-            var data = _ref.data,
-                source = _ref.source,
-                target = _ref.target;
-
-            var edge = data;
-            var dx = target.x - source.x;
-            var dy = target.y - source.y;
-
-            data = [];
-            var size = 0.8,
-                arrowSize = 6;
-            var crossVector = _util2.default.normalize([-dy, dx]);
-
-            //arrow
-            var targetSize = Math.max(_util2.default.getNodeSizeX(target), _util2.default.getNodeSizeY(target));
-            var dis = _util2.default.getDistance(source.x, source.y, target.x, target.y);
-            var arrowX = target.x - (targetSize + arrowSize) / dis * dx;
-            var arrowY = target.y - (targetSize + arrowSize) / dis * dy;
-
-            var color = _util2.default.parseColor(edge.color || source.color || '#b3d2ff');
-
-            addData(data, this.ATTRIBUTES, [source.x, source.y, crossVector[0], crossVector[1], size, color.r, color.g, color.b, color.a]);
-            addData(data, this.ATTRIBUTES, [arrowX, arrowY, crossVector[0], crossVector[1], size, color.r, color.g, color.b, color.a]);
-            addData(data, this.ATTRIBUTES, [source.x, source.y, -crossVector[0], -crossVector[1], size, color.r, color.g, color.b, color.a]);
-            addData(data, this.ATTRIBUTES, [arrowX, arrowY, crossVector[0], crossVector[1], size, color.r, color.g, color.b, color.a]);
-            addData(data, this.ATTRIBUTES, [source.x, source.y, -crossVector[0], -crossVector[1], size, color.r, color.g, color.b, color.a]);
-            addData(data, this.ATTRIBUTES, [arrowX, arrowY, -crossVector[0], -crossVector[1], size, color.r, color.g, color.b, color.a]);
-
-            //arrow
-            addData(data, this.ATTRIBUTES, [arrowX, arrowY, crossVector[0], crossVector[1], arrowSize / 2, color.r, color.g, color.b, color.a]);
-            addData(data, this.ATTRIBUTES, [arrowX, arrowY, -crossVector[0], -crossVector[1], arrowSize / 2, color.r, color.g, color.b, color.a]);
-            addData(data, this.ATTRIBUTES, [arrowX, arrowY, arrowSize / dis * dx, arrowSize / dis * dy, 1, color.r, color.g, color.b, color.a]);
-
-            return data;
-        }
-    }, {
-        key: 'render',
-        value: function render(_ref2) {
-            var gl = _ref2.gl,
-                program = _ref2.program,
-                data = _ref2.data,
-                matrix = _ref2.matrix,
-                camera = _ref2.camera;
-
-            if (!this.dataBuffer) this.dataBuffer = gl.createBuffer();
-
-            var positionLocation = gl.getAttribLocation(program, "a_position");
-            var normalLocation = gl.getAttribLocation(program, "a_normal");
-            var colorLocation = gl.getAttribLocation(program, "a_color");
-            var sizeLocation = gl.getAttribLocation(program, "a_size");
-
-            var matrixLocation = gl.getUniformLocation(program, "u_matrix");
-
-            var len = data.length / this.ATTRIBUTES | 0;
-
-            if (!this.arrayBuffer || len * this.strip != this.arrayBuffer.byteLength) {
-                this.arrayBuffer = new ArrayBuffer(len * this.strip);
-            }
-
-            var float32View = new Float32Array(this.arrayBuffer);
-            var Uint8View = new Uint8Array(this.arrayBuffer);
-
-            var offset32 = this.strip / 4,
-                offset8 = this.strip;
-            for (var i = 0; i < len; i++) {
-                float32View[i * offset32 + 0] = data[i * this.ATTRIBUTES + 0];
-                float32View[i * offset32 + 1] = data[i * this.ATTRIBUTES + 1];
-                float32View[i * offset32 + 2] = data[i * this.ATTRIBUTES + 2];
-                float32View[i * offset32 + 3] = data[i * this.ATTRIBUTES + 3];
-                float32View[i * offset32 + 4] = data[i * this.ATTRIBUTES + 4];
-
-                Uint8View[i * offset8 + 20] = data[i * this.ATTRIBUTES + 5];
-                Uint8View[i * offset8 + 21] = data[i * this.ATTRIBUTES + 6];
-                Uint8View[i * offset8 + 22] = data[i * this.ATTRIBUTES + 7];
-                Uint8View[i * offset8 + 23] = data[i * this.ATTRIBUTES + 8];
-            }
-
-            gl.bindBuffer(gl.ARRAY_BUFFER, this.dataBuffer);
-            gl.bufferData(gl.ARRAY_BUFFER, this.arrayBuffer, gl.STATIC_DRAW);
-
-            gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, this.strip, 0);
-            gl.vertexAttribPointer(normalLocation, 2, gl.FLOAT, false, this.strip, 2 * 4);
-            gl.vertexAttribPointer(sizeLocation, 1, gl.FLOAT, false, this.strip, 4 * 4);
-            gl.vertexAttribPointer(colorLocation, 4, gl.UNSIGNED_BYTE, false, this.strip, 5 * 4);
-
-            gl.bindBuffer(gl.ARRAY_BUFFER, null);
-            gl.enableVertexAttribArray(positionLocation);
-            gl.enableVertexAttribArray(normalLocation);
-            gl.enableVertexAttribArray(sizeLocation);
-            gl.enableVertexAttribArray(colorLocation);
-
-            gl.uniformMatrix3fv(matrixLocation, false, new Float32Array(matrix));
-
-            gl.drawArrays(gl.TRIANGLES, 0, len);
-        }
-    }]);
-
-    return Edge;
-}();
-
-exports.default = Edge;
+function addIndices(indices, attrIndex) {
+    attrIndex.forEach(function (data) {
+        indices.push(data);
+    });
+}
 
 /***/ }),
-/* 27 */
+/* 29 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -5054,10 +5255,6 @@ exports.default = Edge;
 Object.defineProperty(exports, "__esModule", {
     value: true
 });
-
-var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }(); /**
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      * Created by chengang on 17-4-7.
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      */
 
 var _util = __webpack_require__(0);
 
@@ -5077,170 +5274,130 @@ var _labelFrag2 = _interopRequireDefault(_labelFrag);
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
-function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+/**
+ * Created by chengang on 17-4-7.
+ */
 
-function addData(arr, attributes, attrData, centerX, centerY, angle) {
+exports.default = {
+    shaderVert: _edgeLabelVert2.default,
+    shaderFrag: _labelFrag2.default,
+    attributes: {
+        a_position: { components: 2, start: 0 },
+        a_uv: { components: 2, start: 2 },
+        a_size: { components: 1, start: 4 }
+    },
+    getUniforms: function getUniforms(_ref) {
+        var matrix = _ref.matrix,
+            camera = _ref.camera,
+            sampleRatio = _ref.sampleRatio,
+            textureLoader = _ref.textureLoader;
+
+        return {
+            u_matrix: matrix,
+            u_camera_scale: camera.scale,
+            u_image: 10
+        };
+    },
+    getRenderData: function getRenderData(_ref2) {
+        var data = _ref2.data,
+            textureLoader = _ref2.textureLoader,
+            textureIcon = _ref2.textureIcon,
+            textureText = _ref2.textureText,
+            graph = _ref2.graph;
+
+        var target = graph.nodesIndex[data.target];
+        var source = graph.nodesIndex[data.source];
+
+        if (!data.label) return [];
+
+        // debugger
+        var str = data.label.split('');
+
+        var renderData = [];
+        var indices = [];
+
+        var size = data.fontSize || Math.max(_util2.default.getNodeSizeX(source), _util2.default.getNodeSizeY(source)) / 3;
+        var infos = textureText.textinfo.infos,
+            charWidth = size,
+            charHeight = size,
+            char,
+            uv,
+            width;
+
+        var totalWidht = 0;
+        for (var i = 0; i < str.length; i++) {
+            char = str[i];
+            if (!infos[char]) {
+                console.log(1);
+                continue;
+            }
+            totalWidht += infos[char].width * charWidth;
+        }
+
+        var dx = target.x - source.x;
+        var dy = target.y - source.y;
+
+        var angle = _util2.default.getAngle(1, 0, dx, dy);
+
+        angle = dy < 0 ? Math.PI - angle : angle;
+        angle = angle > Math.PI / 2 ? angle + Math.PI : angle;
+
+        var centerX = (source.x + target.x) / 2,
+            centerY = (source.y + target.y) / 2;
+        var startx = totalWidht / 2 * -1;
+        var starty = charHeight / 2;
+        var x1, y1, x2, y2;
+
+        var points = 0;
+        for (var i = 0; i < str.length; i++) {
+            char = str[i];
+            if (!infos[char]) {
+                console.log('no text texture info');
+                continue;
+            }
+
+            width = infos[char].width * charWidth;
+            uv = infos[char].uvs;
+            x1 = uv[0], y1 = uv[1], x2 = uv[2], y2 = uv[3];
+
+            addData(renderData, [startx, starty, x1, y1, width], centerX, centerY, angle);
+            addData(renderData, [startx, starty - charHeight, x1, y2, width], centerX, centerY, angle);
+            // addData(renderData,[startx+width,starty,x2,y1,width],centerX,centerY,angle);
+            // addData(renderData,[startx,starty-charHeight,x1,y2,width],centerX,centerY,angle);
+            addData(renderData, [startx + width, starty, x2, y1, width], centerX, centerY, angle);
+            addData(renderData, [startx + width, starty - charHeight, x2, y2, width], centerX, centerY, angle);
+
+            addIndices(indices, [points + 0, points + 1, points + 2, points + 1, points + 2, points + 3]);
+
+            startx += width * 7 / 8;
+            points += 4;
+        }
+
+        return {
+            vertices: renderData,
+            indices: indices
+        };
+    }
+};
+
+
+function addData(arr, attrData, centerX, centerY, angle) {
     var rotate = _Matrix2.default.transformPoint([attrData[0], attrData[1]], _Matrix2.default.matrixFromRotation(angle));
     attrData[0] = rotate[0] + centerX;
     attrData[1] = rotate[1] + centerY;
-
-    for (var i = 0; i < attributes; i++) {
+    for (var i = 0; i < attrData.length; i++) {
         arr.push(attrData[i]);
     }
 }
 
-var NodeLabel = function () {
-    function NodeLabel() {
-        _classCallCheck(this, NodeLabel);
-
-        // this.POINTS = 1;
-        this.ATTRIBUTES = 5;
-
-        this.shaderVert = _edgeLabelVert2.default;
-        this.shaderFrag = _labelFrag2.default;
-
-        this.arrayBuffer = null;
-        this.dataBuffer = null;
-        this.strip = 4 * 5;
-    }
-
-    _createClass(NodeLabel, [{
-        key: 'getRenderData',
-        value: function getRenderData(_ref) {
-            var data = _ref.data,
-                source = _ref.source,
-                target = _ref.target,
-                textureText = _ref.textureText;
-
-            var edge = data;
-            if (!edge.label) return [];
-
-            // debugger
-            var str = edge.label.split('');
-
-            data = [];
-
-            var size = edge.fontSize || Math.max(_util2.default.getNodeSizeX(source), _util2.default.getNodeSizeY(source)) / 3;
-            var infos = textureText.textinfo.infos,
-                charWidth = size,
-                charHeight = size,
-                char,
-                uv,
-                width;
-
-            var totalWidht = 0;
-            for (var i = 0; i < str.length; i++) {
-                char = str[i];
-                if (!infos[char]) {
-                    console.log(1);
-                    continue;
-                }
-                totalWidht += infos[char].width * charWidth;
-            }
-
-            var dx = target.x - source.x;
-            var dy = target.y - source.y;
-
-            var angle = _util2.default.getAngle(1, 0, dx, dy);
-
-            angle = dy < 0 ? Math.PI - angle : angle;
-            angle = angle > Math.PI / 2 ? angle + Math.PI : angle;
-
-            var centerX = (source.x + target.x) / 2,
-                centerY = (source.y + target.y) / 2;
-            var startx = totalWidht / 2 * -1;
-            var starty = charHeight / 2;
-            var x1, y1, x2, y2;
-
-            for (var i = 0; i < str.length; i++) {
-                char = str[i];
-                if (!infos[char]) {
-                    console.log('no text texture info');
-                    continue;
-                }
-
-                width = infos[char].width * charWidth;
-                uv = infos[char].uvs;
-                x1 = uv[0], y1 = uv[1], x2 = uv[2], y2 = uv[3];
-
-                addData(data, this.ATTRIBUTES, [startx, starty, x1, y1, width], centerX, centerY, angle);
-                addData(data, this.ATTRIBUTES, [startx, starty - charHeight, x1, y2, width], centerX, centerY, angle);
-                addData(data, this.ATTRIBUTES, [startx + width, starty, x2, y1, width], centerX, centerY, angle);
-                addData(data, this.ATTRIBUTES, [startx, starty - charHeight, x1, y2, width], centerX, centerY, angle);
-                addData(data, this.ATTRIBUTES, [startx + width, starty, x2, y1, width], centerX, centerY, angle);
-                addData(data, this.ATTRIBUTES, [startx + width, starty - charHeight, x2, y2, width], centerX, centerY, angle);
-
-                startx += width * 7 / 8;
-            }
-
-            return data;
-        }
-    }, {
-        key: 'render',
-        value: function render(_ref2) {
-            var gl = _ref2.gl,
-                program = _ref2.program,
-                data = _ref2.data,
-                matrix = _ref2.matrix,
-                camera = _ref2.camera,
-                textureLoader = _ref2.textureLoader;
-
-            if (!this.dataBuffer) this.dataBuffer = gl.createBuffer();
-
-            var positionLocation = gl.getAttribLocation(program, "a_position");
-            var uvLocation = gl.getAttribLocation(program, "a_uv");
-            var sizeLocation = gl.getAttribLocation(program, "a_size");
-
-            var matrixLocation = gl.getUniformLocation(program, "u_matrix");
-            var imageLocation = gl.getUniformLocation(program, "u_image");
-            var cameaScaleLocation = gl.getUniformLocation(program, "u_camera_scale");
-
-            var len = data.length / this.ATTRIBUTES | 0;
-
-            if (!this.arrayBuffer || len * this.strip != this.arrayBuffer.byteLength) {
-                this.arrayBuffer = new ArrayBuffer(len * this.strip);
-            }
-
-            var float32View = new Float32Array(this.arrayBuffer);
-            // var Uint8View = new Uint8Array(this.arrayBuffer);
-
-            var offset32 = this.strip / 4,
-                offset8 = this.strip;
-            for (var i = 0; i < len; i++) {
-                float32View[i * offset32 + 0] = data[i * this.ATTRIBUTES + 0];
-                float32View[i * offset32 + 1] = data[i * this.ATTRIBUTES + 1];
-                float32View[i * offset32 + 2] = data[i * this.ATTRIBUTES + 2];
-                float32View[i * offset32 + 3] = data[i * this.ATTRIBUTES + 3];
-                float32View[i * offset32 + 4] = data[i * this.ATTRIBUTES + 4];
-            }
-
-            gl.bindBuffer(gl.ARRAY_BUFFER, this.dataBuffer);
-            gl.bufferData(gl.ARRAY_BUFFER, this.arrayBuffer, gl.STATIC_DRAW);
-
-            gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, this.strip, 0);
-            gl.vertexAttribPointer(uvLocation, 2, gl.FLOAT, false, this.strip, 2 * 4);
-            gl.vertexAttribPointer(sizeLocation, 1, gl.FLOAT, false, this.strip, 4 * 4);
-
-            gl.bindBuffer(gl.ARRAY_BUFFER, null);
-            gl.enableVertexAttribArray(positionLocation);
-            gl.enableVertexAttribArray(uvLocation);
-            gl.enableVertexAttribArray(sizeLocation);
-
-            gl.uniformMatrix3fv(matrixLocation, false, new Float32Array(matrix));
-            gl.uniform1i(imageLocation, 10);
-            gl.uniform1f(cameaScaleLocation, camera.scale);
-
-            gl.drawArrays(gl.TRIANGLES, 0, len);
-        }
-    }]);
-
-    return NodeLabel;
-}();
-
-exports.default = NodeLabel;
+function addIndices(indices, attrIndex) {
+    attrIndex.forEach(function (data) {
+        indices.push(data);
+    });
+}
 
 /***/ }),
-/* 28 */
+/* 30 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -5250,12 +5407,7 @@ Object.defineProperty(exports, "__esModule", {
     value: true
 });
 
-var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }(); /**
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      * Created by chengang on 17-4-7.
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      */
-
-
-var _nodeLabelVert = __webpack_require__(36);
+var _nodeLabelVert = __webpack_require__(38);
 
 var _nodeLabelVert2 = _interopRequireDefault(_nodeLabelVert);
 
@@ -5269,156 +5421,113 @@ var _util2 = _interopRequireDefault(_util);
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
-function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+exports.default = {
+    shaderVert: _nodeLabelVert2.default,
+    shaderFrag: _labelFrag2.default,
+    attributes: {
+        a_position: { components: 2, start: 0 },
+        a_uv: { components: 2, start: 2 },
+        a_size: { components: 1, start: 4 }
+    },
+    getUniforms: function getUniforms(_ref) {
+        var matrix = _ref.matrix,
+            camera = _ref.camera,
+            sampleRatio = _ref.sampleRatio,
+            textureLoader = _ref.textureLoader;
 
-function addData(arr, attributes, attrData) {
-    for (var i = 0; i < attributes; i++) {
+        return {
+            u_matrix: matrix,
+            u_camera_scale: camera.scale,
+            u_image: 10
+        };
+    },
+    getRenderData: function getRenderData(_ref2) {
+        var data = _ref2.data,
+            textureLoader = _ref2.textureLoader,
+            textureIcon = _ref2.textureIcon,
+            textureText = _ref2.textureText,
+            graph = _ref2.graph;
+
+
+        if (!data.label) return [];
+
+        // debugger
+        var str = data.label.split('');
+
+        var renderData = [];
+        var indices = [];
+
+        var sizeX = _util2.default.getNodeSizeX(data),
+            sizeY = _util2.default.getNodeSizeY(data);
+        var size = Math.max(sizeX, sizeY);
+        var infos = textureText.textinfo.infos,
+            charWidth = size / 2,
+            charHeight = size / 2,
+            char,
+            uv,
+            width;
+
+        var totalWidht = 0;
+        for (var i = 0; i < str.length; i++) {
+            char = str[i];
+            if (!infos[char]) {
+                // console.log(1);
+                continue;
+            }
+            totalWidht += infos[char].width * charWidth;
+        }
+
+        var startx = totalWidht / 2 * -1 + data.x;
+        var starty = data.y - sizeY;
+        var x1, y1, x2, y2;
+
+        var points = 0;
+        for (var i = 0; i < str.length; i++) {
+            char = str[i];
+            if (!infos[char]) {
+                // console.log(1);
+                continue;
+            }
+
+            width = infos[char].width * charWidth;
+            uv = infos[char].uvs;
+            x1 = uv[0], y1 = uv[1], x2 = uv[2], y2 = uv[3];
+
+            addData(renderData, [startx, starty, x1, y1, width]);
+            addData(renderData, [startx, starty - charHeight, x1, y2, width]);
+            addData(renderData, [startx + width, starty, x2, y1, width]);
+            // addData(renderData,[startx,starty-charHeight,x1,y2,width]);
+            // addData(renderData,[startx+width,starty,x2,y1,width]);
+            addData(renderData, [startx + width, starty - charHeight, x2, y2, width]);
+
+            addIndices(indices, [points + 0, points + 1, points + 2, points + 1, points + 2, points + 3]);
+
+            startx += width * 7 / 8;
+            points += 4;
+        }
+        return {
+            vertices: renderData,
+            indices: indices
+        };
+    }
+}; /**
+    * Created by chengang on 17-4-7.
+    */
+
+function addData(arr, attrData) {
+    for (var i = 0; i < attrData.length; i++) {
         arr.push(attrData[i]);
     }
 }
 
-var NodeLabel = function () {
-    function NodeLabel() {
-        _classCallCheck(this, NodeLabel);
-
-        // this.POINTS = 1;
-        this.ATTRIBUTES = 5;
-
-        this.shaderVert = _nodeLabelVert2.default;
-        this.shaderFrag = _labelFrag2.default;
-
-        this.arrayBuffer = null;
-        this.dataBuffer = null;
-        this.strip = 4 * 5;
-    }
-
-    _createClass(NodeLabel, [{
-        key: 'getRenderData',
-        value: function getRenderData(_ref) {
-            var data = _ref.data,
-                textureText = _ref.textureText;
-
-            var node = data;
-            if (!node.label) return [];
-
-            // debugger
-            var str = node.label.split('');
-
-            var data = [];
-
-            var sizeX = _util2.default.getNodeSizeX(node),
-                sizeY = _util2.default.getNodeSizeY(node);
-            var size = Math.max(sizeX, sizeY);
-            var infos = textureText.textinfo.infos,
-                charWidth = size / 2,
-                charHeight = size / 2,
-                char,
-                uv,
-                width;
-
-            var totalWidht = 0;
-            for (var i = 0; i < str.length; i++) {
-                char = str[i];
-                if (!infos[char]) {
-                    // console.log(1);
-                    continue;
-                }
-                totalWidht += infos[char].width * charWidth;
-            }
-
-            var startx = totalWidht / 2 * -1 + node.x;
-            var starty = node.y - sizeY;
-            var x1, y1, x2, y2;
-
-            for (var i = 0; i < str.length; i++) {
-                char = str[i];
-                if (!infos[char]) {
-                    // console.log(1);
-                    continue;
-                }
-
-                width = infos[char].width * charWidth;
-                uv = infos[char].uvs;
-                x1 = uv[0], y1 = uv[1], x2 = uv[2], y2 = uv[3];
-
-                addData(data, this.ATTRIBUTES, [startx, starty, x1, y1, width]);
-                addData(data, this.ATTRIBUTES, [startx, starty - charHeight, x1, y2, width]);
-                addData(data, this.ATTRIBUTES, [startx + width, starty, x2, y1, width]);
-                addData(data, this.ATTRIBUTES, [startx, starty - charHeight, x1, y2, width]);
-                addData(data, this.ATTRIBUTES, [startx + width, starty, x2, y1, width]);
-                addData(data, this.ATTRIBUTES, [startx + width, starty - charHeight, x2, y2, width]);
-
-                startx += width * 7 / 8;
-            }
-
-            return data;
-        }
-    }, {
-        key: 'render',
-        value: function render(_ref2) {
-            var gl = _ref2.gl,
-                program = _ref2.program,
-                data = _ref2.data,
-                matrix = _ref2.matrix,
-                camera = _ref2.camera,
-                textureLoader = _ref2.textureLoader;
-
-            if (!this.dataBuffer) this.dataBuffer = gl.createBuffer();
-
-            var positionLocation = gl.getAttribLocation(program, "a_position");
-            var uvLocation = gl.getAttribLocation(program, "a_uv");
-            var sizeLocation = gl.getAttribLocation(program, "a_size");
-
-            var matrixLocation = gl.getUniformLocation(program, "u_matrix");
-            var imageLocation = gl.getUniformLocation(program, "u_image");
-            var cameaScaleLocation = gl.getUniformLocation(program, "u_camera_scale");
-
-            var len = data.length / this.ATTRIBUTES | 0;
-
-            if (!this.arrayBuffer || len * this.strip != this.arrayBuffer.byteLength) {
-                this.arrayBuffer = new ArrayBuffer(len * this.strip);
-            }
-
-            var float32View = new Float32Array(this.arrayBuffer);
-            // var Uint8View = new Uint8Array(this.arrayBuffer);
-
-            var offset32 = this.strip / 4,
-                offset8 = this.strip;
-            for (var i = 0; i < len; i++) {
-                float32View[i * offset32 + 0] = data[i * this.ATTRIBUTES + 0];
-                float32View[i * offset32 + 1] = data[i * this.ATTRIBUTES + 1];
-                float32View[i * offset32 + 2] = data[i * this.ATTRIBUTES + 2];
-                float32View[i * offset32 + 3] = data[i * this.ATTRIBUTES + 3];
-                float32View[i * offset32 + 4] = data[i * this.ATTRIBUTES + 4];
-            }
-
-            gl.bindBuffer(gl.ARRAY_BUFFER, this.dataBuffer);
-            gl.bufferData(gl.ARRAY_BUFFER, this.arrayBuffer, gl.STATIC_DRAW);
-
-            gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, this.strip, 0);
-            gl.vertexAttribPointer(uvLocation, 2, gl.FLOAT, false, this.strip, 2 * 4);
-            gl.vertexAttribPointer(sizeLocation, 1, gl.FLOAT, false, this.strip, 4 * 4);
-
-            gl.bindBuffer(gl.ARRAY_BUFFER, null);
-            gl.enableVertexAttribArray(positionLocation);
-            gl.enableVertexAttribArray(uvLocation);
-            gl.enableVertexAttribArray(sizeLocation);
-
-            gl.uniformMatrix3fv(matrixLocation, false, new Float32Array(matrix));
-            gl.uniform1i(imageLocation, 10);
-            gl.uniform1f(cameaScaleLocation, camera.scale);
-
-            gl.drawArrays(gl.TRIANGLES, 0, len);
-        }
-    }]);
-
-    return NodeLabel;
-}();
-
-exports.default = NodeLabel;
+function addIndices(indices, attrIndex) {
+    attrIndex.forEach(function (data) {
+        indices.push(data);
+    });
+}
 
 /***/ }),
-/* 29 */
+/* 31 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -5427,10 +5536,6 @@ exports.default = NodeLabel;
 Object.defineProperty(exports, "__esModule", {
     value: true
 });
-
-var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }(); /**
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      * Created by chengang on 17-4-7.
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      */
 
 var _util = __webpack_require__(0);
 
@@ -5450,185 +5555,143 @@ var _labelFrag2 = _interopRequireDefault(_labelFrag);
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
-function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+/**
+ * Created by chengang on 17-4-7.
+ */
 
-function addData(arr, attributes, attrData, centerX, centerY, angle) {
+exports.default = {
+    shaderVert: _edgeLabelVert2.default,
+    shaderFrag: _labelFrag2.default,
+    attributes: {
+        a_position: { components: 2, start: 0 },
+        a_uv: { components: 2, start: 2 },
+        a_size: { components: 1, start: 4 }
+    },
+    getUniforms: function getUniforms(_ref) {
+        var matrix = _ref.matrix,
+            camera = _ref.camera,
+            sampleRatio = _ref.sampleRatio,
+            textureLoader = _ref.textureLoader;
+
+        return {
+            u_matrix: matrix,
+            u_camera_scale: camera.scale,
+            u_image: 10
+        };
+    },
+    getRenderData: function getRenderData(_ref2) {
+        var data = _ref2.data,
+            textureLoader = _ref2.textureLoader,
+            textureIcon = _ref2.textureIcon,
+            textureText = _ref2.textureText,
+            graph = _ref2.graph;
+
+        var target = graph.nodesIndex[data.target];
+        var source = graph.nodesIndex[data.source];
+
+        if (!data.label) return null;
+
+        // debugger
+        var str = data.label.split('');
+
+        var renderData = [];
+        var indices = [];
+
+        var size = data.fontSize || Math.max(_util2.default.getNodeSizeX(source), _util2.default.getNodeSizeY(source)) / 3;
+        var infos = textureText.textinfo.infos,
+            charWidth = size,
+            charHeight = size,
+            char,
+            uv,
+            width;
+
+        var totalWidht = 0;
+        for (var i = 0; i < str.length; i++) {
+            char = str[i];
+            if (!infos[char]) {
+                console.log(1);
+                continue;
+            }
+            totalWidht += infos[char].width * charWidth;
+        }
+
+        var dx = target.x - source.x;
+        var dy = target.y - source.y;
+
+        //curve
+        var dis = _util2.default.getDistance(source.x, source.y, target.x, target.y);
+        var tSize = Math.max(_util2.default.getNodeSizeX(target), _util2.default.getNodeSizeY(target));
+
+        var tX = target.x - tSize / dis * dx;
+        var tY = target.y - tSize / dis * dy;
+
+        var ctrlP = _util2.default.getControlPos(source.x, source.y, tX, tY, data.curveCount, data.curveOrder);
+
+        var tangent = _util2.default.getPointTangentOnQuadraticCurve(0.5, source.x, source.y, tX, tY, ctrlP[0], ctrlP[1]);
+
+        dx = tangent[0], dy = tangent[1];
+
+        var angle = _util2.default.getAngle(1, 0, dx, dy);
+
+        angle = dy < 0 ? Math.PI - angle : angle;
+        angle = angle > Math.PI / 2 ? angle + Math.PI : angle;
+
+        var center = _util2.default.getPointOnQuadraticCurve(0.5, source.x, source.y, tX, tY, ctrlP[0], ctrlP[1]);
+
+        var centerX = center[0],
+            centerY = center[1];
+        var startx = totalWidht / 2 * -1;
+        var starty = charHeight / 2;
+        var x1, y1, x2, y2;
+
+        var points = 0;
+        for (var i = 0; i < str.length; i++) {
+            char = str[i];
+            if (!infos[char]) {
+                console.log('no text texture info');
+                continue;
+            }
+
+            width = infos[char].width * charWidth;
+            uv = infos[char].uvs;
+            x1 = uv[0], y1 = uv[1], x2 = uv[2], y2 = uv[3];
+
+            addData(renderData, [startx, starty, x1, y1, width], centerX, centerY, angle);
+            addData(renderData, [startx, starty - charHeight, x1, y2, width], centerX, centerY, angle);
+            addData(renderData, [startx + width, starty, x2, y1, width], centerX, centerY, angle);
+            addData(renderData, [startx + width, starty - charHeight, x2, y2, width], centerX, centerY, angle);
+
+            addIndices(indices, [points + 0, points + 1, points + 2, points + 1, points + 2, points + 3]);
+
+            startx += width * 7 / 8;
+            points += 4;
+        }
+
+        return {
+            vertices: renderData,
+            indices: indices
+        };
+    }
+};
+
+
+function addData(arr, attrData, centerX, centerY, angle) {
     var rotate = _Matrix2.default.transformPoint([attrData[0], attrData[1]], _Matrix2.default.matrixFromRotation(angle));
     attrData[0] = rotate[0] + centerX;
     attrData[1] = rotate[1] + centerY;
-
-    for (var i = 0; i < attributes; i++) {
+    for (var i = 0; i < attrData.length; i++) {
         arr.push(attrData[i]);
     }
 }
 
-var CurveLabel = function () {
-    function CurveLabel() {
-        _classCallCheck(this, CurveLabel);
-
-        // this.POINTS = 1;
-        this.ATTRIBUTES = 5;
-
-        this.shaderVert = _edgeLabelVert2.default;
-        this.shaderFrag = _labelFrag2.default;
-
-        this.arrayBuffer = null;
-        this.dataBuffer = null;
-        this.strip = 4 * 5;
-    }
-
-    _createClass(CurveLabel, [{
-        key: 'getRenderData',
-        value: function getRenderData(_ref) {
-            var data = _ref.data,
-                source = _ref.source,
-                target = _ref.target,
-                textureText = _ref.textureText;
-
-            var edge = data;
-            if (!edge.label) return [];
-
-            // debugger
-            var str = edge.label.split('');
-
-            data = [];
-
-            var size = edge.fontSize || Math.max(_util2.default.getNodeSizeX(source), _util2.default.getNodeSizeY(source)) / 3;
-            var infos = textureText.textinfo.infos,
-                charWidth = size,
-                charHeight = size,
-                char,
-                uv,
-                width;
-
-            var totalWidht = 0;
-            for (var i = 0; i < str.length; i++) {
-                char = str[i];
-                if (!infos[char]) {
-                    console.log(1);
-                    continue;
-                }
-                totalWidht += infos[char].width * charWidth;
-            }
-
-            var dx = target.x - source.x;
-            var dy = target.y - source.y;
-
-            //curve
-            var dis = _util2.default.getDistance(source.x, source.y, target.x, target.y);
-            var tSize = Math.max(_util2.default.getNodeSizeX(target), _util2.default.getNodeSizeY(target));
-
-            var tX = target.x - tSize / dis * dx;
-            var tY = target.y - tSize / dis * dy;
-
-            var ctrlP = _util2.default.getControlPos(source.x, source.y, tX, tY, edge.curveCount, edge.curveOrder);
-
-            var tangent = _util2.default.getPointTangentOnQuadraticCurve(0.5, source.x, source.y, tX, tY, ctrlP[0], ctrlP[1]);
-
-            dx = tangent[0], dy = tangent[1];
-
-            var angle = _util2.default.getAngle(1, 0, dx, dy);
-
-            angle = dy < 0 ? Math.PI - angle : angle;
-            angle = angle > Math.PI / 2 ? angle + Math.PI : angle;
-
-            var center = _util2.default.getPointOnQuadraticCurve(0.5, source.x, source.y, tX, tY, ctrlP[0], ctrlP[1]);
-
-            var centerX = center[0],
-                centerY = center[1];
-            var startx = totalWidht / 2 * -1;
-            var starty = charHeight / 2;
-            var x1, y1, x2, y2;
-
-            for (var i = 0; i < str.length; i++) {
-                char = str[i];
-                if (!infos[char]) {
-                    console.log('no text texture info');
-                    continue;
-                }
-
-                width = infos[char].width * charWidth;
-                uv = infos[char].uvs;
-                x1 = uv[0], y1 = uv[1], x2 = uv[2], y2 = uv[3];
-
-                addData(data, this.ATTRIBUTES, [startx, starty, x1, y1, width], centerX, centerY, angle);
-                addData(data, this.ATTRIBUTES, [startx, starty - charHeight, x1, y2, width], centerX, centerY, angle);
-                addData(data, this.ATTRIBUTES, [startx + width, starty, x2, y1, width], centerX, centerY, angle);
-                addData(data, this.ATTRIBUTES, [startx, starty - charHeight, x1, y2, width], centerX, centerY, angle);
-                addData(data, this.ATTRIBUTES, [startx + width, starty, x2, y1, width], centerX, centerY, angle);
-                addData(data, this.ATTRIBUTES, [startx + width, starty - charHeight, x2, y2, width], centerX, centerY, angle);
-
-                startx += width * 7 / 8;
-            }
-
-            return data;
-        }
-    }, {
-        key: 'render',
-        value: function render(_ref2) {
-            var gl = _ref2.gl,
-                program = _ref2.program,
-                data = _ref2.data,
-                matrix = _ref2.matrix,
-                camera = _ref2.camera,
-                textureLoader = _ref2.textureLoader;
-
-            if (!this.dataBuffer) this.dataBuffer = gl.createBuffer();
-
-            var positionLocation = gl.getAttribLocation(program, "a_position");
-            var uvLocation = gl.getAttribLocation(program, "a_uv");
-            var sizeLocation = gl.getAttribLocation(program, "a_size");
-
-            var matrixLocation = gl.getUniformLocation(program, "u_matrix");
-            var imageLocation = gl.getUniformLocation(program, "u_image");
-            var cameaScaleLocation = gl.getUniformLocation(program, "u_camera_scale");
-
-            var len = data.length / this.ATTRIBUTES | 0;
-
-            if (!this.arrayBuffer || len * this.strip != this.arrayBuffer.byteLength) {
-                this.arrayBuffer = new ArrayBuffer(len * this.strip);
-            }
-
-            var float32View = new Float32Array(this.arrayBuffer);
-            // var Uint8View = new Uint8Array(this.arrayBuffer);
-
-            var offset32 = this.strip / 4,
-                offset8 = this.strip;
-            for (var i = 0; i < len; i++) {
-                float32View[i * offset32 + 0] = data[i * this.ATTRIBUTES + 0];
-                float32View[i * offset32 + 1] = data[i * this.ATTRIBUTES + 1];
-                float32View[i * offset32 + 2] = data[i * this.ATTRIBUTES + 2];
-                float32View[i * offset32 + 3] = data[i * this.ATTRIBUTES + 3];
-                float32View[i * offset32 + 4] = data[i * this.ATTRIBUTES + 4];
-            }
-
-            gl.bindBuffer(gl.ARRAY_BUFFER, this.dataBuffer);
-            gl.bufferData(gl.ARRAY_BUFFER, this.arrayBuffer, gl.STATIC_DRAW);
-
-            gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, this.strip, 0);
-            gl.vertexAttribPointer(uvLocation, 2, gl.FLOAT, false, this.strip, 2 * 4);
-            gl.vertexAttribPointer(sizeLocation, 1, gl.FLOAT, false, this.strip, 4 * 4);
-
-            gl.bindBuffer(gl.ARRAY_BUFFER, null);
-            gl.enableVertexAttribArray(positionLocation);
-            gl.enableVertexAttribArray(uvLocation);
-            gl.enableVertexAttribArray(sizeLocation);
-
-            gl.uniformMatrix3fv(matrixLocation, false, new Float32Array(matrix));
-            gl.uniform1i(imageLocation, 10);
-            gl.uniform1f(cameaScaleLocation, camera.scale);
-
-            gl.drawArrays(gl.TRIANGLES, 0, len);
-        }
-    }]);
-
-    return CurveLabel;
-}();
-
-exports.default = CurveLabel;
+function addIndices(indices, attrIndex) {
+    attrIndex.forEach(function (data) {
+        indices.push(data);
+    });
+}
 
 /***/ }),
-/* 30 */
+/* 32 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -5638,194 +5701,138 @@ Object.defineProperty(exports, "__esModule", {
     value: true
 });
 
-var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }(); /**
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      * Created by chengang on 17-3-28.
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      */
-
 var _util = __webpack_require__(0);
 
 var _util2 = _interopRequireDefault(_util);
 
-var _defaultVert = __webpack_require__(38);
+var _defaultVert = __webpack_require__(40);
 
 var _defaultVert2 = _interopRequireDefault(_defaultVert);
 
-var _defaultFrag = __webpack_require__(37);
+var _defaultFrag = __webpack_require__(39);
 
 var _defaultFrag2 = _interopRequireDefault(_defaultFrag);
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
-function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+exports.default = {
+    shaderVert: _defaultVert2.default,
+    shaderFrag: _defaultFrag2.default,
+    attributes: {
+        a_position: { components: 2, start: 0 },
+        a_color: { components: 4, start: 2 },
+        a_uv: { components: 2, start: 6 },
+        a_selected: { components: 1, start: 8 },
+        a_flag: { components: 1, start: 9 },
+        a_size: { components: 1, start: 10 },
+        a_showicon: { components: 1, start: 11 },
+        a_center: { components: 2, start: 12 }
+    },
+    getUniforms: function getUniforms(_ref) {
+        var matrix = _ref.matrix,
+            camera = _ref.camera,
+            sampleRatio = _ref.sampleRatio,
+            textureLoader = _ref.textureLoader;
 
-function addData(arr, attributes, attrData) {
-    for (var i = 0; i < attributes; i++) {
-        arr.push(attrData[i]);
+        return {
+            u_matrix: matrix,
+            u_camera_scale: camera.scale,
+            // u_textures:textureLoader.texturesIndex,
+            u_borderColor: [212, 82, 95, 255.0],
+            u_sample_ratio: sampleRatio,
+            u_icons_texture: 11
+        };
+    },
+    getRenderData: function getRenderData(_ref2) {
+        var data = _ref2.data,
+            textureLoader = _ref2.textureLoader,
+            textureIcon = _ref2.textureIcon,
+            oldData = _ref2.oldData,
+            dirtyAttr = _ref2.dirtyAttr;
+
+        var size = data.size * 2 || 10 * 2;
+        var isSelected = data.selected ? 1.0 : 0.0;
+        var color = _util2.default.parseColor(data.color || '#62ffb7');
+
+        // var img = -1;
+        // if (data.img && textureLoader.cache[data.img])
+        //     img = textureLoader.cache[data.img];
+
+        if (oldData && dirtyAttr && Object.keys(dirtyAttr).length == 2 && dirtyAttr.hasOwnProperty('x') && dirtyAttr.hasOwnProperty('y')) {
+            // debugger
+            var offset = 14;
+            var oldVertices = oldData.data.vertices;
+            for (var i = 0; i < oldVertices.length; i += offset) {
+                oldVertices[i + 12] = data.x;
+                oldVertices[i + 13] = data.y;
+            }
+            return {
+                vertices: oldVertices
+            };
+        }
+
+        var hasIcon = data.icon && textureIcon.iconinfo.infos[data.icon],
+            uvs;
+        uvs = hasIcon ? textureIcon.iconinfo.infos[data.icon].uvs : [0, 0];
+        hasIcon = hasIcon ? 1 : 0;
+
+        var vertices = [];
+        var indices = [];
+
+        var points = 0;
+        var bgScale = 1.35;
+
+        // debugger
+
+        addData(vertices, [-1 * data.size * bgScale, +1 * data.size * bgScale, color.r, color.g, color.b, color.a, 0, 0, isSelected, 0, data.size, hasIcon, data.x, data.y]);
+        addData(vertices, [+1 * data.size * bgScale, +1 * data.size * bgScale, color.r, color.g, color.b, color.a, 1, 0, isSelected, 0, data.size, hasIcon, data.x, data.y]);
+        addData(vertices, [-1 * data.size * bgScale, -1 * data.size * bgScale, color.r, color.g, color.b, color.a, 0, 1, isSelected, 0, data.size, hasIcon, data.x, data.y]);
+        addData(vertices, [+1 * data.size * bgScale, -1 * data.size * bgScale, color.r, color.g, color.b, color.a, 1, 1, isSelected, 0, data.size, hasIcon, data.x, data.y]);
+
+        addIndices(indices, [points + 0, points + 1, points + 2, points + 1, points + 2, points + 3]);
+        points += 4;
+
+        addData(vertices, [-1 * data.size, +1 * data.size, color.r, color.g, color.b, color.a, 0, 0, isSelected, 1, data.size, hasIcon, data.x, data.y]);
+        addData(vertices, [+1 * data.size, +1 * data.size, color.r, color.g, color.b, color.a, 1, 0, isSelected, 1, data.size, hasIcon, data.x, data.y]);
+        addData(vertices, [-1 * data.size, -1 * data.size, color.r, color.g, color.b, color.a, 0, 1, isSelected, 1, data.size, hasIcon, data.x, data.y]);
+        addData(vertices, [+1 * data.size, -1 * data.size, color.r, color.g, color.b, color.a, 1, 1, isSelected, 1, data.size, hasIcon, data.x, data.y]);
+
+        addIndices(indices, [points + 0, points + 1, points + 2, points + 1, points + 2, points + 3]);
+        points += 4;
+
+        var scale = 0.7;
+
+        addData(vertices, [-1 * data.size * scale, +1 * data.size * scale, color.r, color.g, color.b, color.a, uvs[0], uvs[1], isSelected, 2, data.size, hasIcon, data.x, data.y]);
+        addData(vertices, [+1 * data.size * scale, +1 * data.size * scale, color.r, color.g, color.b, color.a, uvs[2], uvs[1], isSelected, 2, data.size, hasIcon, data.x, data.y]);
+        addData(vertices, [-1 * data.size * scale, -1 * data.size * scale, color.r, color.g, color.b, color.a, uvs[0], uvs[3], isSelected, 2, data.size, hasIcon, data.x, data.y]);
+        addData(vertices, [+1 * data.size * scale, -1 * data.size * scale, color.r, color.g, color.b, color.a, uvs[2], uvs[3], isSelected, 2, data.size, hasIcon, data.x, data.y]);
+
+        addIndices(indices, [points + 0, points + 1, points + 2, points + 1, points + 2, points + 3]);
+        points += 4;
+
+        return {
+            vertices: vertices,
+            indices: indices
+        };
     }
+}; /**
+    * Created by chengang on 17-3-28.
+    */
+
+function addData(vertices, attrData) {
+    attrData.forEach(function (data) {
+        vertices.push(data);
+    });
 }
 
-var Node = function () {
-    function Node() {
-        _classCallCheck(this, Node);
-
-        this.ATTRIBUTES = 12;
-
-        this.shaderVert = _defaultVert2.default;
-        this.shaderFrag = _defaultFrag2.default;
-
-        this.arrayBuffer = null;
-        this.dataBuffer = null;
-        this.strip = 5 * 4 + 4 + 4 + 4;
-    }
-
-    _createClass(Node, [{
-        key: 'getRenderData',
-        value: function getRenderData(_ref) {
-            var data = _ref.data,
-                textureLoader = _ref.textureLoader,
-                textureIcon = _ref.textureIcon;
-
-
-            var node = data;
-            var color = _util2.default.parseColor(node.color || '#ff0000');
-
-            var img = -1;
-            if (node.img && textureLoader.cache.hasOwnProperty(node.img)) img = textureLoader.cache[node.img];
-
-            var size = node.size * 2 || 10 * 2;
-            var isSelected = node.selected ? 1.0 : 0.0;
-
-            var data = [];
-
-            //base
-            addData(data, this.ATTRIBUTES, [node.x - node.size, node.y + node.size, color.r, color.g, color.b, color.a, 0, 0, img, isSelected, 1, node.size]);
-            addData(data, this.ATTRIBUTES, [node.x + node.size, node.y + node.size, color.r, color.g, color.b, color.a, 1, 0, img, isSelected, 1, node.size]);
-            addData(data, this.ATTRIBUTES, [node.x - node.size, node.y - node.size, color.r, color.g, color.b, color.a, 0, 1, img, isSelected, 1, node.size]);
-            addData(data, this.ATTRIBUTES, [node.x + node.size, node.y + node.size, color.r, color.g, color.b, color.a, 1, 0, img, isSelected, 1, node.size]);
-            addData(data, this.ATTRIBUTES, [node.x - node.size, node.y - node.size, color.r, color.g, color.b, color.a, 0, 1, img, isSelected, 1, node.size]);
-            addData(data, this.ATTRIBUTES, [node.x + node.size, node.y - node.size, color.r, color.g, color.b, color.a, 1, 1, img, isSelected, 1, node.size]);
-
-            var hasIcon = node.icon && textureIcon.iconinfo.infos[node.icon],
-                uvs;
-            var scale = 0.7;
-            //icon
-            if (hasIcon) {
-
-                uvs = textureIcon.iconinfo.infos[node.icon].uvs;
-                addData(data, this.ATTRIBUTES, [node.x - node.size * scale, node.y + node.size * scale, color.r, color.g, color.b, color.a, uvs[0], uvs[1], -2, isSelected, 2, node.size]);
-                addData(data, this.ATTRIBUTES, [node.x + node.size * scale, node.y + node.size * scale, color.r, color.g, color.b, color.a, uvs[2], uvs[1], -2, isSelected, 2, node.size]);
-                addData(data, this.ATTRIBUTES, [node.x - node.size * scale, node.y - node.size * scale, color.r, color.g, color.b, color.a, uvs[0], uvs[3], -2, isSelected, 2, node.size]);
-                addData(data, this.ATTRIBUTES, [node.x + node.size * scale, node.y + node.size * scale, color.r, color.g, color.b, color.a, uvs[2], uvs[1], -2, isSelected, 2, node.size]);
-                addData(data, this.ATTRIBUTES, [node.x - node.size * scale, node.y - node.size * scale, color.r, color.g, color.b, color.a, uvs[0], uvs[3], -2, isSelected, 2, node.size]);
-                addData(data, this.ATTRIBUTES, [node.x + node.size * scale, node.y - node.size * scale, color.r, color.g, color.b, color.a, uvs[2], uvs[3], -2, isSelected, 2, node.size]);
-            }
-
-            return data;
-        }
-    }, {
-        key: 'render',
-        value: function render(_ref2) {
-            var gl = _ref2.gl,
-                program = _ref2.program,
-                data = _ref2.data,
-                matrix = _ref2.matrix,
-                camera = _ref2.camera,
-                sampleRatio = _ref2.sampleRatio,
-                textureLoader = _ref2.textureLoader;
-
-            // debugger
-
-            if (!this.dataBuffer) this.dataBuffer = gl.createBuffer();
-
-            var positionLocation = gl.getAttribLocation(program, "a_position");
-            var colorLocation = gl.getAttribLocation(program, "a_color");
-            var imgLocation = gl.getAttribLocation(program, "a_img");
-            var selectedLocation = gl.getAttribLocation(program, "a_selected");
-            var uvLocation = gl.getAttribLocation(program, "a_uv");
-            var flagLocation = gl.getAttribLocation(program, "a_flag");
-            var sizeLocation = gl.getAttribLocation(program, "a_size");
-
-            var matrixLocation = gl.getUniformLocation(program, "u_matrix");
-            var cameraScaleLocation = gl.getUniformLocation(program, "u_camera_scale");
-            var texturesLocation = gl.getUniformLocation(program, "u_textures");
-            var borderColorLocation = gl.getUniformLocation(program, "u_borderColor");
-            var sampleRatioLocation = gl.getUniformLocation(program, "u_sample_ratio");
-            var iconTextureLocation = gl.getUniformLocation(program, "u_icons_texture");
-
-            var len = data.length / this.ATTRIBUTES | 0;
-
-            // debugger
-            if (!this.arrayBuffer || len * this.strip != this.arrayBuffer.byteLength) {
-                this.arrayBuffer = new ArrayBuffer(len * this.strip);
-            }
-
-            var float32View = new Float32Array(this.arrayBuffer);
-            var Uint8View = new Uint8Array(this.arrayBuffer);
-            var int8View = new Int8Array(this.arrayBuffer);
-            var int16View = new Int16Array(this.arrayBuffer);
-
-            var offset32 = this.strip / 4,
-                offset16 = this.strip / 2;
-            for (var i = 0; i < len; i++) {
-                float32View[i * offset32 + 0] = data[i * this.ATTRIBUTES + 0]; //x
-                float32View[i * offset32 + 1] = data[i * this.ATTRIBUTES + 1]; //y
-
-                Uint8View[i * this.strip + 8] = data[i * this.ATTRIBUTES + 2]; //color.r
-                Uint8View[i * this.strip + 9] = data[i * this.ATTRIBUTES + 3]; //color.g
-                Uint8View[i * this.strip + 10] = data[i * this.ATTRIBUTES + 4]; //color.b
-                Uint8View[i * this.strip + 11] = data[i * this.ATTRIBUTES + 5]; //color.a
-
-                float32View[i * offset32 + 3] = data[i * this.ATTRIBUTES + 6]; //u
-                float32View[i * offset32 + 4] = data[i * this.ATTRIBUTES + 7]; //v
-
-                int16View[i * offset16 + 10] = data[i * this.ATTRIBUTES + 8]; //img
-                int16View[i * offset16 + 11] = data[i * this.ATTRIBUTES + 9]; //selected
-
-                float32View[i * offset32 + 6] = data[i * this.ATTRIBUTES + 10]; //flag
-                float32View[i * offset32 + 7] = data[i * this.ATTRIBUTES + 11]; //size
-            }
-
-            // debugger
-
-            gl.bindBuffer(gl.ARRAY_BUFFER, this.dataBuffer);
-            gl.bufferData(gl.ARRAY_BUFFER, this.arrayBuffer, gl.STATIC_DRAW);
-
-            gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, this.strip, 0);
-            gl.vertexAttribPointer(colorLocation, 4, gl.UNSIGNED_BYTE, false, this.strip, 2 * 4);
-            gl.vertexAttribPointer(uvLocation, 2, gl.FLOAT, false, this.strip, 3 * 4);
-            gl.vertexAttribPointer(imgLocation, 1, gl.SHORT, false, this.strip, 5 * 4);
-            gl.vertexAttribPointer(selectedLocation, 1, gl.SHORT, false, this.strip, 5 * 4 + 2);
-            gl.vertexAttribPointer(flagLocation, 1, gl.FLOAT, false, this.strip, 6 * 4);
-            gl.vertexAttribPointer(sizeLocation, 1, gl.FLOAT, false, this.strip, 7 * 4);
-
-            gl.bindBuffer(gl.ARRAY_BUFFER, null);
-            gl.enableVertexAttribArray(positionLocation);
-            gl.enableVertexAttribArray(colorLocation);
-            gl.enableVertexAttribArray(imgLocation);
-            gl.enableVertexAttribArray(selectedLocation);
-            gl.enableVertexAttribArray(uvLocation);
-            gl.enableVertexAttribArray(flagLocation);
-            gl.enableVertexAttribArray(sizeLocation);
-
-            gl.uniformMatrix3fv(matrixLocation, false, new Float32Array(matrix));
-            gl.uniform1f(cameraScaleLocation, camera.scale);
-            gl.uniform1f(sampleRatioLocation, sampleRatio);
-            gl.uniform4f(borderColorLocation, 212, 82, 95, 255.0);
-
-            gl.uniform1iv(texturesLocation, textureLoader.texturesIndex);
-            gl.uniform1i(iconTextureLocation, 11);
-
-            gl.drawArrays(gl.TRIANGLES, 0, len);
-        }
-    }]);
-
-    return Node;
-}();
-
-exports.default = Node;
+function addIndices(indices, attrIndex) {
+    attrIndex.forEach(function (data) {
+        indices.push(data);
+    });
+}
 
 /***/ }),
-/* 31 */
+/* 33 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -5835,246 +5842,182 @@ Object.defineProperty(exports, "__esModule", {
     value: true
 });
 
-var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }(); /**
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      * Created by chengang on 17-3-28.
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      */
-
 var _util = __webpack_require__(0);
 
 var _util2 = _interopRequireDefault(_util);
 
-var _vert = __webpack_require__(40);
+var _vert = __webpack_require__(42);
 
 var _vert2 = _interopRequireDefault(_vert);
 
-var _frag = __webpack_require__(39);
+var _frag = __webpack_require__(41);
 
 var _frag2 = _interopRequireDefault(_frag);
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
-function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+exports.default = {
+    shaderVert: _vert2.default,
+    shaderFrag: _frag2.default,
+    attributes: {
+        a_position: { components: 2, start: 0 },
+        a_color: { components: 4, start: 2 },
+        a_uv: { components: 2, start: 6 },
+        a_img: { components: 1, start: 8 },
+        a_selected: { components: 1, start: 9 },
+        a_flag: { components: 1, start: 10 },
+        a_showicon: { components: 1, start: 11 }
+    },
+    getUniforms: function getUniforms(_ref) {
+        var matrix = _ref.matrix,
+            camera = _ref.camera,
+            sampleRatio = _ref.sampleRatio,
+            textureLoader = _ref.textureLoader;
 
-function addData(arr, attributes, attrData) {
-    for (var i = 0; i < attributes; i++) {
+        return {
+            u_matrix: matrix,
+            u_camera_scale: camera.scale,
+            // u_textures:textureLoader.texturesIndex,
+            u_borderColor: [212, 82, 95, 255.0],
+            u_sample_ratio: sampleRatio,
+            u_icons_texture: 11
+        };
+    },
+    getRenderData: function getRenderData(_ref2) {
+        var data = _ref2.data,
+            textureLoader = _ref2.textureLoader,
+            textureIcon = _ref2.textureIcon,
+            graph = _ref2.graph;
+
+
+        var color = _util2.default.parseColor(data.color || '#34e1ff');
+
+        var img = -1;
+        if (data.img && textureLoader.cache.hasOwnProperty(data.img)) img = textureLoader.cache[data.img];
+
+        var sizeX = data.width || data.size || 10;
+        var sizeY = data.height || data.size || 10;
+        var iconSize = Math.min(sizeX, sizeY);
+        var bgSize = Math.max(sizeX, sizeY) * 1.414;
+        var isSelected = data.selected ? 1.0 : 0.0;
+
+        var hasIcon = data.icon && textureIcon.iconinfo.infos[data.icon],
+            uvs;
+        uvs = hasIcon ? textureIcon.iconinfo.infos[data.icon].uvs : [0, 0];
+        hasIcon = hasIcon ? 1 : 0;
+
+        var renderData = [];
+        var indices = [];
+
+        var points = 0;
+        var bgScale = 1.35;
+
+        addData(renderData, [data.x - bgSize * bgScale, data.y + bgSize * bgScale, color.r, color.g, color.b, color.a, 0, 0, img, isSelected, 0, hasIcon]);
+        addData(renderData, [data.x + bgSize * bgScale, data.y + bgSize * bgScale, color.r, color.g, color.b, color.a, 1, 0, img, isSelected, 0, hasIcon]);
+        addData(renderData, [data.x - bgSize * bgScale, data.y - bgSize * bgScale, color.r, color.g, color.b, color.a, 0, 1, img, isSelected, 0, hasIcon]);
+        addData(renderData, [data.x + bgSize * bgScale, data.y - bgSize * bgScale, color.r, color.g, color.b, color.a, 1, 1, img, isSelected, 0, hasIcon]);
+
+        addIndices(indices, [points + 0, points + 1, points + 2, points + 1, points + 2, points + 3]);
+        points += 4;
+
+        //base
+        addData(renderData, [data.x - sizeX, data.y + sizeY, color.r, color.g, color.b, color.a, 0, 0, img, isSelected, 1, hasIcon]);
+        addData(renderData, [data.x + sizeX, data.y + sizeY, color.r, color.g, color.b, color.a, 1, 0, img, isSelected, 1, hasIcon]);
+        addData(renderData, [data.x - sizeX, data.y - sizeY, color.r, color.g, color.b, color.a, 0, 1, img, isSelected, 1, hasIcon]);
+        addData(renderData, [data.x + sizeX, data.y - sizeY, color.r, color.g, color.b, color.a, 1, 1, img, isSelected, 1, hasIcon]);
+
+        addIndices(indices, [points + 0, points + 1, points + 2, points + 1, points + 2, points + 3]);
+        points += 4;
+
+        var scale = 0.85;
+        //icon
+
+        // debugger
+        addData(renderData, [data.x - iconSize * scale, data.y + iconSize * scale, color.r, color.g, color.b, color.a, uvs[0], uvs[1], -2, isSelected, 2, hasIcon]);
+        addData(renderData, [data.x + iconSize * scale, data.y + iconSize * scale, color.r, color.g, color.b, color.a, uvs[2], uvs[1], -2, isSelected, 2, hasIcon]);
+        addData(renderData, [data.x - iconSize * scale, data.y - iconSize * scale, color.r, color.g, color.b, color.a, uvs[0], uvs[3], -2, isSelected, 2, hasIcon]);
+        addData(renderData, [data.x + iconSize * scale, data.y - iconSize * scale, color.r, color.g, color.b, color.a, uvs[2], uvs[3], -2, isSelected, 2, hasIcon]);
+
+        addIndices(indices, [points + 0, points + 1, points + 2, points + 1, points + 2, points + 3]);
+        points += 4;
+
+        return {
+            vertices: renderData,
+            indices: indices
+        };
+    }
+}; /**
+    * Created by chengang on 17-3-28.
+    */
+
+function addData(arr, attrData) {
+    for (var i = 0; i < attrData.length; i++) {
         arr.push(attrData[i]);
     }
 }
 
-var Rect = function () {
-    function Rect() {
-        _classCallCheck(this, Rect);
-
-        this.ATTRIBUTES = 11;
-
-        this.shaderVert = _vert2.default;
-        this.shaderFrag = _frag2.default;
-
-        this.arrayBuffer = null;
-        this.dataBuffer = null;
-        this.strip = 5 * 4 + 4 + 4;
-    }
-
-    _createClass(Rect, [{
-        key: 'getRenderData',
-        value: function getRenderData(_ref) {
-            var data = _ref.data,
-                textureLoader = _ref.textureLoader,
-                textureIcon = _ref.textureIcon;
-
-
-            var node = data;
-            var color = _util2.default.parseColor(node.color || '#34e1ff');
-
-            var img = -1;
-            if (node.img && textureLoader.cache.hasOwnProperty(node.img)) img = textureLoader.cache[node.img];
-
-            var sizeX = node.width || node.size || 10;
-            var sizeY = node.height || node.size || 10;
-            var isSelected = node.selected ? 1.0 : 0.0;
-
-            data = [];
-
-            //base
-            addData(data, this.ATTRIBUTES, [node.x - sizeX, node.y + sizeY, color.r, color.g, color.b, color.a, 0, 0, img, isSelected, 1]);
-            addData(data, this.ATTRIBUTES, [node.x + sizeX, node.y + sizeY, color.r, color.g, color.b, color.a, 1, 0, img, isSelected, 1]);
-            addData(data, this.ATTRIBUTES, [node.x - sizeX, node.y - sizeY, color.r, color.g, color.b, color.a, 0, 1, img, isSelected, 1]);
-            addData(data, this.ATTRIBUTES, [node.x + sizeX, node.y + sizeY, color.r, color.g, color.b, color.a, 1, 0, img, isSelected, 1]);
-            addData(data, this.ATTRIBUTES, [node.x - sizeX, node.y - sizeY, color.r, color.g, color.b, color.a, 0, 1, img, isSelected, 1]);
-            addData(data, this.ATTRIBUTES, [node.x + sizeX, node.y - sizeY, color.r, color.g, color.b, color.a, 1, 1, img, isSelected, 1]);
-
-            var hasIcon = node.icon && textureIcon.iconinfo.infos[node.icon],
-                uvs;
-            var scale = 0.85;
-            var iconSize = Math.min(sizeX, sizeY);
-            //icon
-            if (hasIcon) {
-                // debugger
-                uvs = textureIcon.iconinfo.infos[node.icon].uvs;
-                addData(data, this.ATTRIBUTES, [node.x - iconSize * scale, node.y + iconSize * scale, color.r, color.g, color.b, color.a, uvs[0], uvs[1], -2, isSelected, 2]);
-                addData(data, this.ATTRIBUTES, [node.x + iconSize * scale, node.y + iconSize * scale, color.r, color.g, color.b, color.a, uvs[2], uvs[1], -2, isSelected, 2]);
-                addData(data, this.ATTRIBUTES, [node.x - iconSize * scale, node.y - iconSize * scale, color.r, color.g, color.b, color.a, uvs[0], uvs[3], -2, isSelected, 2]);
-                addData(data, this.ATTRIBUTES, [node.x + iconSize * scale, node.y + iconSize * scale, color.r, color.g, color.b, color.a, uvs[2], uvs[1], -2, isSelected, 2]);
-                addData(data, this.ATTRIBUTES, [node.x - iconSize * scale, node.y - iconSize * scale, color.r, color.g, color.b, color.a, uvs[0], uvs[3], -2, isSelected, 2]);
-                addData(data, this.ATTRIBUTES, [node.x + iconSize * scale, node.y - iconSize * scale, color.r, color.g, color.b, color.a, uvs[2], uvs[3], -2, isSelected, 2]);
-            }
-
-            return data;
-        }
-    }, {
-        key: 'render',
-        value: function render(_ref2) {
-            var gl = _ref2.gl,
-                program = _ref2.program,
-                data = _ref2.data,
-                matrix = _ref2.matrix,
-                camera = _ref2.camera,
-                sampleRatio = _ref2.sampleRatio,
-                textureLoader = _ref2.textureLoader;
-
-            // debugger
-
-            if (!this.dataBuffer) this.dataBuffer = gl.createBuffer();
-
-            var positionLocation = gl.getAttribLocation(program, "a_position");
-            var colorLocation = gl.getAttribLocation(program, "a_color");
-            var imgLocation = gl.getAttribLocation(program, "a_img");
-            var selectedLocation = gl.getAttribLocation(program, "a_selected");
-            var uvLocation = gl.getAttribLocation(program, "a_uv");
-            var flagLocation = gl.getAttribLocation(program, "a_flag");
-
-            var matrixLocation = gl.getUniformLocation(program, "u_matrix");
-            var cameraScaleLocation = gl.getUniformLocation(program, "u_camera_scale");
-            var texturesLocation = gl.getUniformLocation(program, "u_textures");
-            var borderColorLocation = gl.getUniformLocation(program, "u_borderColor");
-            var sampleRatioLocation = gl.getUniformLocation(program, "u_sample_ratio");
-            var iconTextureLocation = gl.getUniformLocation(program, "u_icons_texture");
-
-            var len = data.length / this.ATTRIBUTES | 0;
-
-            // debugger
-            if (!this.arrayBuffer || len * this.strip != this.arrayBuffer.byteLength) {
-                this.arrayBuffer = new ArrayBuffer(len * this.strip);
-            }
-
-            var float32View = new Float32Array(this.arrayBuffer);
-            var Uint8View = new Uint8Array(this.arrayBuffer);
-            var int8View = new Int8Array(this.arrayBuffer);
-            var int16View = new Int16Array(this.arrayBuffer);
-
-            var offset32 = this.strip / 4,
-                offset16 = this.strip / 2;
-            for (var i = 0; i < len; i++) {
-                float32View[i * offset32 + 0] = data[i * this.ATTRIBUTES + 0]; //x
-                float32View[i * offset32 + 1] = data[i * this.ATTRIBUTES + 1]; //y
-
-                Uint8View[i * this.strip + 8] = data[i * this.ATTRIBUTES + 2]; //color.r
-                Uint8View[i * this.strip + 9] = data[i * this.ATTRIBUTES + 3]; //color.g
-                Uint8View[i * this.strip + 10] = data[i * this.ATTRIBUTES + 4]; //color.b
-                Uint8View[i * this.strip + 11] = data[i * this.ATTRIBUTES + 5]; //color.a
-
-                float32View[i * offset32 + 3] = data[i * this.ATTRIBUTES + 6]; //u
-                float32View[i * offset32 + 4] = data[i * this.ATTRIBUTES + 7]; //v
-
-                int16View[i * offset16 + 10] = data[i * this.ATTRIBUTES + 8]; //img
-                int16View[i * offset16 + 11] = data[i * this.ATTRIBUTES + 9]; //selected
-
-                float32View[i * offset32 + 6] = data[i * this.ATTRIBUTES + 10]; //flag
-            }
-
-            // debugger
-
-            gl.bindBuffer(gl.ARRAY_BUFFER, this.dataBuffer);
-            gl.bufferData(gl.ARRAY_BUFFER, this.arrayBuffer, gl.STATIC_DRAW);
-
-            gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, this.strip, 0);
-            gl.vertexAttribPointer(colorLocation, 4, gl.UNSIGNED_BYTE, false, this.strip, 2 * 4);
-            gl.vertexAttribPointer(uvLocation, 2, gl.FLOAT, false, this.strip, 3 * 4);
-            gl.vertexAttribPointer(imgLocation, 1, gl.SHORT, false, this.strip, 5 * 4);
-            gl.vertexAttribPointer(selectedLocation, 1, gl.SHORT, false, this.strip, 5 * 4 + 2);
-            gl.vertexAttribPointer(flagLocation, 1, gl.FLOAT, false, this.strip, 6 * 4);
-
-            gl.bindBuffer(gl.ARRAY_BUFFER, null);
-            gl.enableVertexAttribArray(positionLocation);
-            gl.enableVertexAttribArray(colorLocation);
-            gl.enableVertexAttribArray(imgLocation);
-            gl.enableVertexAttribArray(selectedLocation);
-            gl.enableVertexAttribArray(uvLocation);
-            gl.enableVertexAttribArray(flagLocation);
-
-            gl.uniformMatrix3fv(matrixLocation, false, new Float32Array(matrix));
-            gl.uniform1f(cameraScaleLocation, camera.scale);
-            gl.uniform1f(sampleRatioLocation, sampleRatio);
-            gl.uniform4f(borderColorLocation, 222, 19, 19, 255.0);
-
-            gl.uniform1iv(texturesLocation, textureLoader.texturesIndex);
-            gl.uniform1i(iconTextureLocation, 11);
-
-            gl.drawArrays(gl.TRIANGLES, 0, len);
-        }
-    }]);
-
-    return Rect;
-}();
-
-exports.default = Rect;
-
-/***/ }),
-/* 32 */
-/***/ (function(module, exports) {
-
-module.exports = "#ifdef GL_OES_standard_derivatives\n#extension GL_OES_standard_derivatives : enable\n#endif\n\nprecision mediump float;\nvarying vec4 color;\nvarying vec2 uv;\nvarying float dis;\nvarying float flag;\nvarying float dashed;\n\nuniform float u_camera_scale;\n\n\n\nvoid main(){\n        float a = 0.6;\n        float width = a / u_camera_scale;\n        float scale = 1.0;\n        float base = 0.6;\n        float smooth_factor = 0.4;\n\n        if(flag > -0.5 && flag < 0.5){//curve\n                vec2 px = dFdx(uv);\n                vec2 py = dFdy(uv);\n\n                float fx = 2.0 * uv.x * px.x - px.y;\n                float fy = 2.0 * uv.y * py.x - py.y;\n\n                float sd = (uv.x * uv.x - uv.y) / sqrt(fx * fx + fy * fy);\n\n                float alpha = 1.0 - abs(sd) / width;\n                if (alpha < 0.0 || uv.x < 0.0 || uv.x > 1.0) discard;\n\n                float n = 800.0/dis;\n                float dot = mod(uv.x*100.0,n);\n                if(dashed > 0.5 && dot > n*0.5 && dot < n) discard;\n\n                if(alpha < 0.2) scale = smoothstep(0.0,smooth_factor,alpha);\n\n                gl_FragColor = color*scale;\n\n        }else if(flag > 0.5 && flag < 1.5){//arrow\n                gl_FragColor = color;\n        }\n\n\n}"
-
-/***/ }),
-/* 33 */
-/***/ (function(module, exports) {
-
-module.exports = "attribute vec2 a_position;\n//attribute vec2 a_normal;\nattribute vec4 a_color;\n//attribute float a_size;\nattribute vec2 a_uv;\nattribute float a_dis;\nattribute float a_flag;\nattribute float a_dashed;\n\nuniform mat3 u_matrix;\n\nvarying vec4 color;\nvarying vec2 uv;\nvarying float dis;\nvarying float flag;\nvarying float dashed;\n\nvoid main() {\n\n//vec2 pos  = a_position + a_normal * a_size;\ngl_Position = vec4((u_matrix*vec3(a_position,1)).xy,0,1);\nuv = a_uv;\ndis = a_dis;\nflag = a_flag;\ncolor = a_color/255.0;\ndashed = a_dashed;\n}\n"
+function addIndices(indices, attrIndex) {
+    attrIndex.forEach(function (data) {
+        indices.push(data);
+    });
+}
 
 /***/ }),
 /* 34 */
 /***/ (function(module, exports) {
 
-module.exports = "precision mediump float;\nvarying vec4 color;\nvoid main(){\ngl_FragColor = color;\n}"
+module.exports = "#ifdef GL_OES_standard_derivatives\n#extension GL_OES_standard_derivatives : enable\n#endif\n\nprecision mediump float;\nvarying vec4 color;\nvarying vec2 uv;\nvarying float dis;\nvarying float flag;\nvarying float dashed;\n\nuniform float u_camera_scale;\n\n\n\nvoid main(){\n        float a = 0.8;\n        float width = a / u_camera_scale;\n        float scale = 1.0;\n        float base = 0.6;\n        float smooth_factor = 0.4;\n\n        if(flag > -0.5 && flag < 0.5){//curve\n                vec2 px = dFdx(uv);\n                vec2 py = dFdy(uv);\n\n                float fx = 2.0 * uv.x * px.x - px.y;\n                float fy = 2.0 * uv.y * py.x - py.y;\n\n                float sd = (uv.x * uv.x - uv.y) / sqrt(fx * fx + fy * fy);\n\n                float alpha = 1.0 - abs(sd) / width;\n                if (alpha < 0.0 || uv.x < 0.0 || uv.x > 1.0) discard;\n\n                float n = 800.0/dis;\n                float dot = mod(uv.x*100.0,n);\n                if(dashed > 0.5 && dot > n*0.5 && dot < n) discard;\n\n                if(alpha < 0.2) scale = smoothstep(0.0,smooth_factor,alpha);\n\n                gl_FragColor = color*scale;\n\n        }else if(flag > 0.5 && flag < 1.5){//arrow\n                gl_FragColor = color;\n        }\n\n\n}"
 
 /***/ }),
 /* 35 */
 /***/ (function(module, exports) {
 
-module.exports = "attribute vec2 a_position;\nattribute vec2 a_normal;\nattribute vec4 a_color;\nattribute float a_size;\n\nuniform mat3 u_matrix;\n\nvarying vec4 color;\n\nvoid main() {\n\nvec2 pos  = a_position + a_normal * a_size;\ngl_Position = vec4((u_matrix*vec3(pos,1)).xy,0,1);\n\ncolor = a_color/255.0;\n}\n"
+module.exports = "attribute vec2 a_position;\n//attribute vec2 a_normal;\nattribute vec4 a_color;\n//attribute float a_size;\nattribute vec2 a_uv;\nattribute float a_dis;\nattribute float a_flag;\nattribute float a_dashed;\n\nuniform mat3 u_matrix;\n\nvarying vec4 color;\nvarying vec2 uv;\nvarying float dis;\nvarying float flag;\nvarying float dashed;\n\nvoid main() {\n\n//vec2 pos  = a_position + a_normal * a_size;\ngl_Position = vec4((u_matrix*vec3(a_position,1)).xy,0,1);\nuv = a_uv;\ndis = a_dis;\nflag = a_flag;\ncolor = a_color/255.0;\ndashed = a_dashed;\n}\n"
 
 /***/ }),
 /* 36 */
 /***/ (function(module, exports) {
 
-module.exports = "attribute vec2 a_position;\nattribute vec2 a_uv;\nattribute float a_size;\n\nuniform mat3 u_matrix;\nuniform sampler2D u_image;\n\n\nvarying vec2 v_texCoord;\nvarying float size;\n\nvoid main() {\ngl_Position = vec4((u_matrix*vec3(a_position,1)).xy,0,1);\nv_texCoord = a_uv;\nsize = a_size;\n}\n"
+module.exports = "precision mediump float;\nvarying vec4 color;\nvoid main(){\ngl_FragColor = color;\n}"
 
 /***/ }),
 /* 37 */
 /***/ (function(module, exports) {
 
-module.exports = "//#ifdef GL_OES_standard_derivatives\n//#extension GL_OES_standard_derivatives : enable\n//#endif\n\n precision mediump float;\n\nvarying vec4 color;\nvarying float img;\nvarying float selected;\nvarying vec2 uv;\nvarying float flag;\nvarying float size;\n\n\nuniform sampler2D u_textures[10];\nuniform sampler2D u_icons_texture;\nuniform vec4 u_borderColor;\nuniform float u_sample_ratio;\n\n\n\n\n\n\n\n//todo\nvec4 getSampleColore(int index,vec2 uv){\n    vec4 c;\n    if(index == 0){\n        c = texture2D(u_textures[0],uv);\n    }else if(index == 1){\n        c = texture2D(u_textures[1],uv);\n    }else if(index == 2){\n        c = texture2D(u_textures[2],uv);\n    }else if(index == 3){\n        c = texture2D(u_textures[3],uv);\n    }else if(index == 4){\n        c = texture2D(u_textures[4],uv);\n    }else if(index == 5){\n        c = texture2D(u_textures[5],uv);\n    }\n    return c;\n}\n\nvec4 borderColor = u_borderColor/255.0;\n\nvoid main()\n{\n   float r = 0.0, alpha = 1.0,\n   blur = min(0.05,4.0/size) ,\n   border = min(0.75,0.04*size) ;\n\nif(flag > 0.5 && flag < 1.5) //flag =1 base\n{\n    vec4 nodecolor = color;\n    vec2 cxy = 2.0 * uv - 1.0;\n    r = length(cxy);\n\n    if(r > 1.0 ){\n        discard;\n    }\n\n    if(img >= 0.0){\n        nodecolor = getSampleColore(int(img),uv);\n    }\n\n    if(r > 1.0-blur && r <=1.0){\n        alpha = 1.0 - smoothstep(1.0-blur, 1.0, r);\n     }\n\n\n     if( selected > 0.5  && r > border && r < border + blur){\n        nodecolor = mix(nodecolor,borderColor,smoothstep(border, border + blur, r));\n    }\n\n     if( selected > 0.5  &&  r >= border + blur){\n        nodecolor = borderColor;\n     }\n\n      gl_FragColor = nodecolor * alpha;\n\n}else if(flag > 1.5 && flag < 2.5) {//flag =2 icon\n    gl_FragColor = texture2D(u_icons_texture,uv).w * vec4(1,1,1,1);\n}\n\n\n}\n"
+module.exports = "attribute vec2 a_position;\nattribute vec2 a_normal;\nattribute vec4 a_color;\nattribute float a_size;\n\nuniform mat3 u_matrix;\n\nvarying vec4 color;\n\nvoid main() {\n\nvec2 pos  = a_position + a_normal * a_size;\ngl_Position = vec4((u_matrix*vec3(pos,1)).xy,0,1);\n\ncolor = a_color/255.0;\n}\n"
 
 /***/ }),
 /* 38 */
 /***/ (function(module, exports) {
 
-module.exports = "\n precision mediump float;\nattribute vec2 a_position;\nattribute vec4 a_color;\nattribute float a_img;\nattribute vec2 a_uv;\nattribute float a_selected;\nattribute float a_flag;\nattribute float a_size;\n\nuniform mat3 u_matrix;\nuniform float u_camera_scale;\nuniform float u_sample_ratio;\n\nvarying vec4 color;\nvarying float img;\nvarying float selected;\nvarying vec2 uv;\nvarying float flag;\nvarying float size;\n\n\nvoid main() {\n\ngl_Position = vec4((u_matrix*vec3(a_position,1)).xy,0,1);\ncolor = a_color/255.0;\nimg = a_img;\nselected = a_selected;\nuv = a_uv;\nflag = a_flag;\n\nsize = a_size / u_camera_scale ;\n}\n"
+module.exports = "attribute vec2 a_position;\nattribute vec2 a_uv;\nattribute float a_size;\n\nuniform mat3 u_matrix;\nuniform sampler2D u_image;\n\n\nvarying vec2 v_texCoord;\nvarying float size;\n\nvoid main() {\ngl_Position = vec4((u_matrix*vec3(a_position,1)).xy,0,1);\nv_texCoord = a_uv;\nsize = a_size;\n}\n"
 
 /***/ }),
 /* 39 */
 /***/ (function(module, exports) {
 
-module.exports = "//#ifdef GL_OES_standard_derivatives\n//#extension GL_OES_standard_derivatives : enable\n//#endif\n\n precision mediump float;\n\nvarying vec4 color;\nvarying float img;\nvarying float selected;\nvarying vec2 uv;\nvarying float flag;\n\n\nuniform sampler2D u_textures[10];\nuniform sampler2D u_icons_texture;\nuniform vec4 u_borderColor;\nuniform float u_sample_ratio;\n\n//todo\nvec4 getSampleColore(int index,vec2 uv){\n    vec4 c;\n    if(index == 0){\n        c = texture2D(u_textures[0],uv);\n    }else if(index == 1){\n        c = texture2D(u_textures[1],uv);\n    }else if(index == 2){\n        c = texture2D(u_textures[2],uv);\n    }else if(index == 3){\n        c = texture2D(u_textures[3],uv);\n    }else if(index == 4){\n        c = texture2D(u_textures[4],uv);\n    }else if(index == 5){\n        c = texture2D(u_textures[5],uv);\n    }\n    return c;\n}\n\nvec4 borderColor = u_borderColor/255.0;\n\nvoid main()\n{\n   float r = 0.0, alpha = 1.0,\n   blur = 0.05 ,\n   border = 0.75 ;\n\n\nif(flag > 0.5 && flag < 1.5) //flag =1\n{\n    vec4 nodecolor = color;\n    vec2 cxy = 2.0 * uv - 1.0;\n    r = length(cxy);\n\n    if(img >= 0.0){\n        nodecolor = getSampleColore(int(img),uv);\n    }\n\n     if( selected > 0.5  && r > border && r < border + blur){\n        nodecolor = mix(nodecolor,borderColor,smoothstep(border, border + blur, r));\n    }\n\n     if( selected > 0.5  &&  r >= border + blur){\n        nodecolor = borderColor;\n     }\n\n      gl_FragColor = nodecolor * alpha;\n\n}else if(flag > 1.5 && flag < 2.5) {//flag =2\n    gl_FragColor = texture2D(u_icons_texture,uv).w * vec4(1,1,1,1);\n}\n\n\n}\n"
+module.exports = "//#ifdef GL_OES_standard_derivatives\n//#extension GL_OES_standard_derivatives : enable\n//#endif\n\n precision mediump float;\n\nvarying vec4 color;\nvarying float selected;\nvarying vec2 uv;\nvarying float flag;\nvarying float size;\nvarying float showicon;\n\n\n\nuniform sampler2D u_icons_texture;\nuniform vec4 u_borderColor;\nuniform float u_sample_ratio;\n\nvec4 borderColor = u_borderColor/255.0;\n\nvoid main()\n{\n   float r = 0.0;\n   float alpha = 1.0;\n   float blur = min(0.05,4.0/size) ;\n   float border = min(0.75,0.06*size) ;\n\nif(flag > 0.5 && flag < 1.5) //flag =1 base\n{\n    vec4 nodecolor = color;\n    vec2 cxy = 2.0 * uv - 1.0;\n    r = length(cxy);\n\n    if(r > 1.0 ){\n        discard;\n    }\n\n    if(r > 1.0-blur){\n        alpha = 1.0 -  smoothstep(1.0-blur, 1.0, r) ;\n     }\n\n\n     if( selected > 0.5  && r > border && r < border + blur){\n        nodecolor = mix(nodecolor,borderColor,smoothstep(border, border + blur, r));\n    }\n\n     if( selected > 0.5  &&  r >= border + blur){\n        nodecolor = borderColor;\n     }\n\n      gl_FragColor = nodecolor * alpha;\n\n}else if(flag > 1.5 && flag < 2.5) {//flag =2 icon\n    if(showicon < 0.5) discard;\n    gl_FragColor = texture2D(u_icons_texture,uv).w * vec4(1,1,1,1);\n}else if((flag > -0.5 && flag < 0.5)){//flat = 0 selected bg\n\n    if(selected < 0.5) discard;\n\n    vec2 cxy = 2.0 * uv - 1.0;\n    r = length(cxy);\n\n    if(r > 1.0 ){\n        discard;\n    }\n\n    r = smoothstep(0.7,1.0,r);\n\n     gl_FragColor = vec4(1.0,0.0,0.0,0.3)*(1.0-r);\n//     gl_FragColor = vec4(1.0,0.0,0.0,0.8);\n}\n\n\n//     gl_FragColor = vec4(1.0,0.0,0.0,1.0);\n\n\n}\n"
 
 /***/ }),
 /* 40 */
 /***/ (function(module, exports) {
 
-module.exports = "\n precision mediump float;\nattribute vec2 a_position;\nattribute vec4 a_color;\nattribute float a_img;\nattribute vec2 a_uv;\nattribute float a_selected;\nattribute float a_flag;\n\nuniform mat3 u_matrix;\nuniform float u_camera_scale;\nuniform float u_sample_ratio;\n\nvarying vec4 color;\nvarying float img;\nvarying float selected;\nvarying vec2 uv;\nvarying float flag;\n\n\nvoid main() {\n\ngl_Position = vec4((u_matrix*vec3(a_position,1)).xy,0,1);\ncolor = a_color/255.0;\nimg = a_img;\nselected = a_selected;\nuv = a_uv;\nflag = a_flag;\n}\n"
+module.exports = "\n precision mediump float;\nattribute vec2 a_position;\nattribute vec4 a_color;\nattribute vec2 a_uv;\nattribute float a_selected;\nattribute float a_flag;\nattribute float a_size;\nattribute float a_showicon;\nattribute vec2 a_center;\n\nuniform mat3 u_matrix;\nuniform float u_camera_scale;\nuniform float u_sample_ratio;\n\nvarying vec4 color;\nvarying float selected;\nvarying vec2 uv;\nvarying float flag;\nvarying float size;\nvarying float showicon;\n\n\nvoid main() {\n\nfloat zindex = 0.1;\n\nif(a_selected > 0.5) zindex = 0.05;\n\n\ngl_Position = vec4((u_matrix*vec3((a_position+a_center),1)).xy,zindex,1);\ncolor = a_color/255.0;\nselected = a_selected;\nuv = a_uv;\nflag = a_flag;\n\nsize = a_size / u_camera_scale ;\nshowicon = a_showicon;\n}\n"
 
 /***/ }),
 /* 41 */
+/***/ (function(module, exports) {
+
+module.exports = "//#ifdef GL_OES_standard_derivatives\n//#extension GL_OES_standard_derivatives : enable\n//#endif\n\n precision mediump float;\n\nvarying vec4 color;\nvarying float img;\nvarying float selected;\nvarying vec2 uv;\nvarying float flag;\nvarying float showicon;\n\n\n//uniform sampler2D u_textures[10];\nuniform sampler2D u_icons_texture;\nuniform vec4 u_borderColor;\nuniform float u_sample_ratio;\n\n\nvec4 borderColor = u_borderColor/255.0;\n\nvoid main()\n{\n   float r = 0.0, alpha = 1.0,\n   blur = 0.05 ,\n   border = 0.75 ;\n\n\nif(flag > 0.5 && flag < 1.5) //flag =1\n{\n    vec4 nodecolor = color;\n    vec2 cxy = 2.0 * uv - 1.0;\n    cxy = abs(cxy);\n\n\n//     if( selected > 0.5  && r > border && r < border + blur){\n//        nodecolor = mix(nodecolor,borderColor,smoothstep(border, border + blur, r));\n//    }\n\n     if(  selected > 0.5 && (cxy.x > 0.65  ||  cxy.y > 0.65)){\n        nodecolor = borderColor;\n     }\n\n      gl_FragColor = nodecolor * alpha;\n\n}else if(flag > 1.5 && flag < 2.5) {//flag =2\n    if(showicon < 0.5) discard;\n    gl_FragColor = texture2D(u_icons_texture,uv).w * vec4(1,1,1,1);\n}else if((flag > -0.5 && flag < 0.5)){//flat = 0 selected background\n\n    if(selected < 0.5) discard;\n\n     vec2 cxy = 2.0 * uv - 1.0;\n     r = length(cxy);\n\n     if(r > 1.0 ){\n         discard;\n     }\n\n     r = smoothstep(0.6,1.0,r);\n\n      gl_FragColor = vec4(1.0,0.0,0.0,0.3)*(1.0-r);\n }\n\n\n}\n"
+
+/***/ }),
+/* 42 */
+/***/ (function(module, exports) {
+
+module.exports = "\n precision mediump float;\nattribute vec2 a_position;\nattribute vec4 a_color;\nattribute float a_img;\nattribute vec2 a_uv;\nattribute float a_selected;\nattribute float a_flag;\nattribute float a_showicon;\n\nuniform mat3 u_matrix;\nuniform float u_camera_scale;\nuniform float u_sample_ratio;\n\nvarying vec4 color;\nvarying float img;\nvarying float selected;\nvarying vec2 uv;\nvarying float flag;\nvarying float showicon;\n\n\nvoid main() {\n\n\ngl_Position = vec4((u_matrix*vec3(a_position,1)).xy,0,1);\ncolor = a_color/255.0;\nimg = a_img;\nselected = a_selected;\nuv = a_uv;\nflag = a_flag;\nshowicon = a_showicon;\n}\n"
+
+/***/ }),
+/* 43 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";

@@ -4,14 +4,13 @@
 import EventEmitter from '../../base/EventEmitter'
 
 export  default  class  TextureLoader extends EventEmitter {
-    constructor(gl){
+    constructor(){
         super();
-        this.gl = gl;
         this.cache = {};
         this.textures = [];
-        this.defaultTexture = this.createTexture();
+        // this.defaultTexture = this.createTexture();
         this.texturesIndex = [0,1,2,3,4,5,6,7,8,9];
-        this.updateGPUTexture();
+        // this.updateGPUTexture();
     }
 
     loadImgs(urls){
@@ -39,8 +38,8 @@ export  default  class  TextureLoader extends EventEmitter {
         }
     }
 
-    updateGPUTexture(){
-        var gl = this.gl;
+    attachGl(gl){
+        this.defaultTexture = this.createTexture(gl);
         this.texturesIndex.forEach(function (e) {
             gl.activeTexture(gl['TEXTURE'+e]);
             if(e > this.textures.length - 1){
@@ -51,8 +50,7 @@ export  default  class  TextureLoader extends EventEmitter {
         }.bind(this));
     }
 
-    createTexture(img){
-        var gl = this.gl;
+    createTexture(gl,img){
         var texture = gl.createTexture();
         gl.activeTexture(gl.TEXTURE0);
         gl.bindTexture(gl.TEXTURE_2D, texture);

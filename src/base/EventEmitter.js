@@ -19,7 +19,7 @@ export default class EventEmitter {
         }
 
         this._listener[type].push(cb);
-        return cb;
+        return this;
     }
 
     off(type,cb){

@@ -14,7 +14,7 @@ uniform float u_camera_scale;
 
 
 void main(){
-        float a = 0.6;
+        float a = 0.8;
         float width = a / u_camera_scale;
         float scale = 1.0;
         float base = 0.6;

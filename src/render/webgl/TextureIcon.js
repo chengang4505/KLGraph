@@ -5,10 +5,10 @@
 import EventEmitter from '../../base/EventEmitter'
 
 export default class TextureIcon extends EventEmitter{
-    constructor(gl,option){
+    constructor(option){
         super();
 
-        this.gl = gl;
+        // this.gl = gl;
         this.texture = null;
 
         this.textureIconWidth = option.textureIconWidth;
@@ -28,24 +28,25 @@ export default class TextureIcon extends EventEmitter{
         this.icons = [];
         this.iconsToCreate = [];
 
-        this.fontLoaded = false;
+        this.fontLoaded  = true;
 
         this._init();
 
-        this.updateGPUTexture(true);
+        // this.updateGPUTexture(true);
 
-        var _this = this;
-        if (document.fonts) {
-            var fontsReady = document.fonts.ready;
-            if (typeof(fontsReady) == "function") {
-                fontsReady = document.fonts.ready();
-            }
-            fontsReady.then(function () {
-                _this.fontLoaded  = true;
-                _this.createIcons();
-                _this.emit('load')
-            });
-        }
+        // var _this = this;
+        // if (document.fonts) {
+        //     debugger
+        //     var fontsReady = document.fonts.ready;
+        //     if (typeof(fontsReady) == "function") {
+        //         fontsReady = document.fonts.ready();
+        //     }
+        //     fontsReady.then(function () {
+        //         _this.fontLoaded  = true;
+        //         _this.createIcons();
+        //         _this.emit('load')
+        //     });
+        // }
     }
 
     _init(){
@@ -96,7 +97,7 @@ export default class TextureIcon extends EventEmitter{
 
 
         // document.body.appendChild(this.canvas);
-        this.updateGPUTexture();
+        // this.updateGPUTexture();
     }
 
     createIcon(icon){
@@ -143,13 +144,9 @@ export default class TextureIcon extends EventEmitter{
         ctx.putImageData(imgData,0,0);
     }
 
-    updateGPUTexture(empty){
-        var gl = this.gl;
-
-        this.createTexture(empty);
-
+    attachGl(gl){
         gl.activeTexture(gl.TEXTURE11);
-        gl.bindTexture(gl.TEXTURE_2D, this.texture);
+        gl.bindTexture(gl.TEXTURE_2D, this.createTexture(this.icons.length == 0,gl));
     }
 
     addIcons(icons){
@@ -169,15 +166,11 @@ export default class TextureIcon extends EventEmitter{
         this.updateGPUTexture();
     }
 
-    createTexture(empty){
+    createTexture(empty,gl){
 
-        var gl = this.gl;
-
-        if(!this.texture) {
-            this.texture = gl.createTexture();
-        }
+        var texture = gl.createTexture();
         gl.activeTexture(gl.TEXTURE11);
-        gl.bindTexture(gl.TEXTURE_2D, this.texture);
+        gl.bindTexture(gl.TEXTURE_2D, texture);
 
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
@@ -186,6 +179,7 @@ export default class TextureIcon extends EventEmitter{
 
         if(empty)gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 2, 2, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
         else gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, this.iconinfo.img);
+        return texture;
     }
 
     clear(){
