@@ -64,7 +64,7 @@ window["KLGraph"] =
 /******/ 	__webpack_require__.p = "";
 /******/
 /******/ 	// Load entry module and return exports
-/******/ 	return __webpack_require__(__webpack_require__.s = 40);
+/******/ 	return __webpack_require__(__webpack_require__.s = 41);
 /******/ })
 /************************************************************************/
 /******/ ([
@@ -725,15 +725,15 @@ var _EventEmitter2 = __webpack_require__(1);
 
 var _EventEmitter3 = _interopRequireDefault(_EventEmitter2);
 
-var _TextureLoader = __webpack_require__(22);
+var _TextureLoader = __webpack_require__(23);
 
 var _TextureLoader2 = _interopRequireDefault(_TextureLoader);
 
-var _TextureText = __webpack_require__(23);
+var _TextureText = __webpack_require__(24);
 
 var _TextureText2 = _interopRequireDefault(_TextureText);
 
-var _TextureIcon = __webpack_require__(21);
+var _TextureIcon = __webpack_require__(22);
 
 var _TextureIcon2 = _interopRequireDefault(_TextureIcon);
 
@@ -825,7 +825,7 @@ var WebGLRender = function (_EventEmitter) {
                 this.initTexture = true;
             }
 
-            console.time('render');
+            // console.time('render')
 
             // console.time('renderEdge');
             this.config.renderEdge && this.renderEdge();
@@ -844,7 +844,8 @@ var WebGLRender = function (_EventEmitter) {
             // console.timeEnd('renderNodeLabel');
 
 
-            console.timeEnd('render');
+            // console.timeEnd('render')
+
 
             this.needUpdate = false;
         }
@@ -1427,7 +1428,7 @@ var _Selection = __webpack_require__(12);
 
 var _Selection2 = _interopRequireDefault(_Selection);
 
-var _index = __webpack_require__(19);
+var _index = __webpack_require__(20);
 
 var _index2 = _interopRequireDefault(_index);
 
@@ -1690,31 +1691,31 @@ var _render = __webpack_require__(5);
 
 var _render2 = _interopRequireDefault(_render);
 
-var _Node = __webpack_require__(29);
+var _Node = __webpack_require__(30);
 
 var _Node2 = _interopRequireDefault(_Node);
 
-var _Rect = __webpack_require__(30);
+var _Rect = __webpack_require__(31);
 
 var _Rect2 = _interopRequireDefault(_Rect);
 
-var _NodeLabel = __webpack_require__(27);
+var _NodeLabel = __webpack_require__(28);
 
 var _NodeLabel2 = _interopRequireDefault(_NodeLabel);
 
-var _default = __webpack_require__(25);
+var _default = __webpack_require__(26);
 
 var _default2 = _interopRequireDefault(_default);
 
-var _curve = __webpack_require__(24);
+var _curve = __webpack_require__(25);
 
 var _curve2 = _interopRequireDefault(_curve);
 
-var _EdgeLabel = __webpack_require__(26);
+var _EdgeLabel = __webpack_require__(27);
 
 var _EdgeLabel2 = _interopRequireDefault(_EdgeLabel);
 
-var _curveLabel = __webpack_require__(28);
+var _curveLabel = __webpack_require__(29);
 
 var _curveLabel2 = _interopRequireDefault(_curveLabel);
 
@@ -3794,6 +3795,79 @@ exports.default = FlowLayout;
 "use strict";
 
 
+
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+
+var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+function id(d) {
+    return d.id;
+}
+
+var ColaLayout = function () {
+    function ColaLayout() {
+        _classCallCheck(this, ColaLayout);
+    }
+
+    _createClass(ColaLayout, [{
+        key: 'layout',
+        value: function layout(nodes, edges) {
+            if (!d3 || !d3.forceSimulation) throw 'please add d3 lib first';
+
+            var data = this._init(nodes, edges);
+
+            this.simulation = d3.forceSimulation(data.nodes).force("charge", d3.forceManyBody(-50)).force("link", d3.forceLink(data.edges).id(id).distance(100)).force("collide", d3.forceCollide(20)).force("center", d3.forceCenter());
+
+            this.simulation.stop();
+
+            var n = 100;
+            while (n--) {
+                this.simulation.tick();
+            }return data.nodes.map(function (e) {
+                return { x: e.x, y: e.y };
+            });
+        }
+    }, {
+        key: '_init',
+        value: function _init(_nodes, _edges) {
+            var nodes = [];
+            var edges = [];
+            _nodes.forEach(function (e, i) {
+                nodes.push({
+                    id: e.id
+                });
+            });
+
+            _edges.forEach(function (e, i) {
+                edges.push({
+                    source: e.source,
+                    target: e.target
+                });
+            });
+
+            return {
+                nodes: nodes,
+                edges: edges
+            };
+        }
+    }]);
+
+    return ColaLayout;
+}();
+
+exports.default = ColaLayout;
+
+/***/ }),
+/* 19 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
 Object.defineProperty(exports, "__esModule", {
     value: true
 });
@@ -3843,7 +3917,7 @@ var Grid = function () {
 exports.default = Grid;
 
 /***/ }),
-/* 19 */
+/* 20 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -3869,24 +3943,31 @@ var _DargeLayout = __webpack_require__(16);
 
 var _DargeLayout2 = _interopRequireDefault(_DargeLayout);
 
-var _Grid = __webpack_require__(18);
+var _ForceD3Layout = __webpack_require__(18);
+
+var _ForceD3Layout2 = _interopRequireDefault(_ForceD3Layout);
+
+var _Grid = __webpack_require__(19);
 
 var _Grid2 = _interopRequireDefault(_Grid);
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
+/**
+ * Created by chengang on 17-2-20.
+ */
+
 exports.default = {
     circular: _CircularLayout2.default,
+    d3force: _ForceD3Layout2.default,
     cola: _ColaLayout2.default,
     flow: _FlowLayout2.default,
     darge: _DargeLayout2.default,
     grid: _Grid2.default
-}; /**
-    * Created by chengang on 17-2-20.
-    */
+};
 
 /***/ }),
-/* 20 */
+/* 21 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -4006,7 +4087,7 @@ function edt1d(f, d, v, z, n) {
 }
 
 /***/ }),
-/* 21 */
+/* 22 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -4243,7 +4324,7 @@ var TextureIcon = function (_EventEmitter) {
 exports.default = TextureIcon;
 
 /***/ }),
-/* 22 */
+/* 23 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -4352,7 +4433,7 @@ var TextureLoader = function (_EventEmitter) {
 exports.default = TextureLoader;
 
 /***/ }),
-/* 23 */
+/* 24 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -4368,7 +4449,7 @@ var _EventEmitter2 = __webpack_require__(1);
 
 var _EventEmitter3 = _interopRequireDefault(_EventEmitter2);
 
-var _TextSdf = __webpack_require__(20);
+var _TextSdf = __webpack_require__(21);
 
 var _TextSdf2 = _interopRequireDefault(_TextSdf);
 
@@ -4599,7 +4680,7 @@ function test() {
 }
 
 /***/ }),
-/* 24 */
+/* 25 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -4616,11 +4697,11 @@ var _util = __webpack_require__(0);
 
 var _util2 = _interopRequireDefault(_util);
 
-var _vert = __webpack_require__(32);
+var _vert = __webpack_require__(33);
 
 var _vert2 = _interopRequireDefault(_vert);
 
-var _frag = __webpack_require__(31);
+var _frag = __webpack_require__(32);
 
 var _frag2 = _interopRequireDefault(_frag);
 
@@ -4807,7 +4888,7 @@ var Curve = function () {
 exports.default = Curve;
 
 /***/ }),
-/* 25 */
+/* 26 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -4825,11 +4906,11 @@ var _util = __webpack_require__(0);
 
 var _util2 = _interopRequireDefault(_util);
 
-var _defaultVert = __webpack_require__(34);
+var _defaultVert = __webpack_require__(35);
 
 var _defaultVert2 = _interopRequireDefault(_defaultVert);
 
-var _defaultFrag = __webpack_require__(33);
+var _defaultFrag = __webpack_require__(34);
 
 var _defaultFrag2 = _interopRequireDefault(_defaultFrag);
 
@@ -4964,7 +5045,7 @@ var Edge = function () {
 exports.default = Edge;
 
 /***/ }),
-/* 26 */
+/* 27 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -5159,7 +5240,7 @@ var NodeLabel = function () {
 exports.default = NodeLabel;
 
 /***/ }),
-/* 27 */
+/* 28 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -5174,7 +5255,7 @@ var _createClass = function () { function defineProperties(target, props) { for 
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       */
 
 
-var _nodeLabelVert = __webpack_require__(35);
+var _nodeLabelVert = __webpack_require__(36);
 
 var _nodeLabelVert2 = _interopRequireDefault(_nodeLabelVert);
 
@@ -5337,7 +5418,7 @@ var NodeLabel = function () {
 exports.default = NodeLabel;
 
 /***/ }),
-/* 28 */
+/* 29 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -5547,7 +5628,7 @@ var CurveLabel = function () {
 exports.default = CurveLabel;
 
 /***/ }),
-/* 29 */
+/* 30 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -5565,11 +5646,11 @@ var _util = __webpack_require__(0);
 
 var _util2 = _interopRequireDefault(_util);
 
-var _defaultVert = __webpack_require__(37);
+var _defaultVert = __webpack_require__(38);
 
 var _defaultVert2 = _interopRequireDefault(_defaultVert);
 
-var _defaultFrag = __webpack_require__(36);
+var _defaultFrag = __webpack_require__(37);
 
 var _defaultFrag2 = _interopRequireDefault(_defaultFrag);
 
@@ -5744,7 +5825,7 @@ var Node = function () {
 exports.default = Node;
 
 /***/ }),
-/* 30 */
+/* 31 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -5762,11 +5843,11 @@ var _util = __webpack_require__(0);
 
 var _util2 = _interopRequireDefault(_util);
 
-var _vert = __webpack_require__(39);
+var _vert = __webpack_require__(40);
 
 var _vert2 = _interopRequireDefault(_vert);
 
-var _frag = __webpack_require__(38);
+var _frag = __webpack_require__(39);
 
 var _frag2 = _interopRequireDefault(_frag);
 
@@ -5939,61 +6020,61 @@ var Rect = function () {
 exports.default = Rect;
 
 /***/ }),
-/* 31 */
+/* 32 */
 /***/ (function(module, exports) {
 
 module.exports = "#ifdef GL_OES_standard_derivatives\n#extension GL_OES_standard_derivatives : enable\n#endif\n\nprecision mediump float;\nvarying vec4 color;\nvarying vec2 uv;\nvarying float dis;\nvarying float flag;\nvarying float dashed;\n\nuniform float u_camera_scale;\n\n\n\nvoid main(){\n        float a = 0.6;\n        float width = a / u_camera_scale;\n        float scale = 1.0;\n        float base = 0.6;\n        float smooth_factor = 0.4;\n\n        if(flag > -0.5 && flag < 0.5){//curve\n                vec2 px = dFdx(uv);\n                vec2 py = dFdy(uv);\n\n                float fx = 2.0 * uv.x * px.x - px.y;\n                float fy = 2.0 * uv.y * py.x - py.y;\n\n                float sd = (uv.x * uv.x - uv.y) / sqrt(fx * fx + fy * fy);\n\n                float alpha = 1.0 - abs(sd) / width;\n                if (alpha < 0.0 || uv.x < 0.0 || uv.x > 1.0) discard;\n\n                float n = 800.0/dis;\n                float dot = mod(uv.x*100.0,n);\n                if(dashed > 0.5 && dot > n*0.5 && dot < n) discard;\n\n                if(alpha < 0.2) scale = smoothstep(0.0,smooth_factor,alpha);\n\n                gl_FragColor = color*scale;\n\n        }else if(flag > 0.5 && flag < 1.5){//arrow\n                gl_FragColor = color;\n        }\n\n\n}"
 
 /***/ }),
-/* 32 */
+/* 33 */
 /***/ (function(module, exports) {
 
 module.exports = "attribute vec2 a_position;\n//attribute vec2 a_normal;\nattribute vec4 a_color;\n//attribute float a_size;\nattribute vec2 a_uv;\nattribute float a_dis;\nattribute float a_flag;\nattribute float a_dashed;\n\nuniform mat3 u_matrix;\n\nvarying vec4 color;\nvarying vec2 uv;\nvarying float dis;\nvarying float flag;\nvarying float dashed;\n\nvoid main() {\n\n//vec2 pos  = a_position + a_normal * a_size;\ngl_Position = vec4((u_matrix*vec3(a_position,1)).xy,0,1);\nuv = a_uv;\ndis = a_dis;\nflag = a_flag;\ncolor = a_color/255.0;\ndashed = a_dashed;\n}\n"
 
 /***/ }),
-/* 33 */
+/* 34 */
 /***/ (function(module, exports) {
 
 module.exports = "precision mediump float;\nvarying vec4 color;\nvoid main(){\ngl_FragColor = color;\n}"
 
 /***/ }),
-/* 34 */
+/* 35 */
 /***/ (function(module, exports) {
 
 module.exports = "attribute vec2 a_position;\nattribute vec2 a_normal;\nattribute vec4 a_color;\nattribute float a_size;\n\nuniform mat3 u_matrix;\n\nvarying vec4 color;\n\nvoid main() {\n\nvec2 pos  = a_position + a_normal * a_size;\ngl_Position = vec4((u_matrix*vec3(pos,1)).xy,0,1);\n\ncolor = a_color/255.0;\n}\n"
 
 /***/ }),
-/* 35 */
+/* 36 */
 /***/ (function(module, exports) {
 
 module.exports = "attribute vec2 a_position;\nattribute vec2 a_uv;\nattribute float a_size;\n\nuniform mat3 u_matrix;\nuniform sampler2D u_image;\n\n\nvarying vec2 v_texCoord;\nvarying float size;\n\nvoid main() {\ngl_Position = vec4((u_matrix*vec3(a_position,1)).xy,0,1);\nv_texCoord = a_uv;\nsize = a_size;\n}\n"
 
 /***/ }),
-/* 36 */
+/* 37 */
 /***/ (function(module, exports) {
 
 module.exports = "//#ifdef GL_OES_standard_derivatives\n//#extension GL_OES_standard_derivatives : enable\n//#endif\n\n precision mediump float;\n\nvarying vec4 color;\nvarying float img;\nvarying float selected;\nvarying vec2 uv;\nvarying float flag;\nvarying float size;\n\n\nuniform sampler2D u_textures[10];\nuniform sampler2D u_icons_texture;\nuniform vec4 u_borderColor;\nuniform float u_sample_ratio;\n\n\n\n\n\n\n\n//todo\nvec4 getSampleColore(int index,vec2 uv){\n    vec4 c;\n    if(index == 0){\n        c = texture2D(u_textures[0],uv);\n    }else if(index == 1){\n        c = texture2D(u_textures[1],uv);\n    }else if(index == 2){\n        c = texture2D(u_textures[2],uv);\n    }else if(index == 3){\n        c = texture2D(u_textures[3],uv);\n    }else if(index == 4){\n        c = texture2D(u_textures[4],uv);\n    }else if(index == 5){\n        c = texture2D(u_textures[5],uv);\n    }\n    return c;\n}\n\nvec4 borderColor = u_borderColor/255.0;\n\nvoid main()\n{\n   float r = 0.0, alpha = 1.0,\n   blur = min(0.05,4.0/size) ,\n   border = min(0.75,0.04*size) ;\n\nif(flag > 0.5 && flag < 1.5) //flag =1 base\n{\n    vec4 nodecolor = color;\n    vec2 cxy = 2.0 * uv - 1.0;\n    r = length(cxy);\n\n    if(r > 1.0 ){\n        discard;\n    }\n\n    if(img >= 0.0){\n        nodecolor = getSampleColore(int(img),uv);\n    }\n\n    if(r > 1.0-blur && r <=1.0){\n        alpha = 1.0 - smoothstep(1.0-blur, 1.0, r);\n     }\n\n\n     if( selected > 0.5  && r > border && r < border + blur){\n        nodecolor = mix(nodecolor,borderColor,smoothstep(border, border + blur, r));\n    }\n\n     if( selected > 0.5  &&  r >= border + blur){\n        nodecolor = borderColor;\n     }\n\n      gl_FragColor = nodecolor * alpha;\n\n}else if(flag > 1.5 && flag < 2.5) {//flag =2 icon\n    gl_FragColor = texture2D(u_icons_texture,uv).w * vec4(1,1,1,1);\n}\n\n\n}\n"
 
 /***/ }),
-/* 37 */
+/* 38 */
 /***/ (function(module, exports) {
 
 module.exports = "\n precision mediump float;\nattribute vec2 a_position;\nattribute vec4 a_color;\nattribute float a_img;\nattribute vec2 a_uv;\nattribute float a_selected;\nattribute float a_flag;\nattribute float a_size;\n\nuniform mat3 u_matrix;\nuniform float u_camera_scale;\nuniform float u_sample_ratio;\n\nvarying vec4 color;\nvarying float img;\nvarying float selected;\nvarying vec2 uv;\nvarying float flag;\nvarying float size;\n\n\nvoid main() {\n\ngl_Position = vec4((u_matrix*vec3(a_position,1)).xy,0,1);\ncolor = a_color/255.0;\nimg = a_img;\nselected = a_selected;\nuv = a_uv;\nflag = a_flag;\n\nsize = a_size / u_camera_scale ;\n}\n"
 
 /***/ }),
-/* 38 */
+/* 39 */
 /***/ (function(module, exports) {
 
 module.exports = "//#ifdef GL_OES_standard_derivatives\n//#extension GL_OES_standard_derivatives : enable\n//#endif\n\n precision mediump float;\n\nvarying vec4 color;\nvarying float img;\nvarying float selected;\nvarying vec2 uv;\nvarying float flag;\n\n\nuniform sampler2D u_textures[10];\nuniform sampler2D u_icons_texture;\nuniform vec4 u_borderColor;\nuniform float u_sample_ratio;\n\n//todo\nvec4 getSampleColore(int index,vec2 uv){\n    vec4 c;\n    if(index == 0){\n        c = texture2D(u_textures[0],uv);\n    }else if(index == 1){\n        c = texture2D(u_textures[1],uv);\n    }else if(index == 2){\n        c = texture2D(u_textures[2],uv);\n    }else if(index == 3){\n        c = texture2D(u_textures[3],uv);\n    }else if(index == 4){\n        c = texture2D(u_textures[4],uv);\n    }else if(index == 5){\n        c = texture2D(u_textures[5],uv);\n    }\n    return c;\n}\n\nvec4 borderColor = u_borderColor/255.0;\n\nvoid main()\n{\n   float r = 0.0, alpha = 1.0,\n   blur = 0.05 ,\n   border = 0.75 ;\n\n\nif(flag > 0.5 && flag < 1.5) //flag =1\n{\n    vec4 nodecolor = color;\n    vec2 cxy = 2.0 * uv - 1.0;\n    r = length(cxy);\n\n    if(img >= 0.0){\n        nodecolor = getSampleColore(int(img),uv);\n    }\n\n     if( selected > 0.5  && r > border && r < border + blur){\n        nodecolor = mix(nodecolor,borderColor,smoothstep(border, border + blur, r));\n    }\n\n     if( selected > 0.5  &&  r >= border + blur){\n        nodecolor = borderColor;\n     }\n\n      gl_FragColor = nodecolor * alpha;\n\n}else if(flag > 1.5 && flag < 2.5) {//flag =2\n    gl_FragColor = texture2D(u_icons_texture,uv).w * vec4(1,1,1,1);\n}\n\n\n}\n"
 
 /***/ }),
-/* 39 */
+/* 40 */
 /***/ (function(module, exports) {
 
 module.exports = "\n precision mediump float;\nattribute vec2 a_position;\nattribute vec4 a_color;\nattribute float a_img;\nattribute vec2 a_uv;\nattribute float a_selected;\nattribute float a_flag;\n\nuniform mat3 u_matrix;\nuniform float u_camera_scale;\nuniform float u_sample_ratio;\n\nvarying vec4 color;\nvarying float img;\nvarying float selected;\nvarying vec2 uv;\nvarying float flag;\n\n\nvoid main() {\n\ngl_Position = vec4((u_matrix*vec3(a_position,1)).xy,0,1);\ncolor = a_color/255.0;\nimg = a_img;\nselected = a_selected;\nuv = a_uv;\nflag = a_flag;\n}\n"
 
 /***/ }),
-/* 40 */
+/* 41 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";

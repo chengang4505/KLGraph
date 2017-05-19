@@ -10,6 +10,8 @@
     <script src="assert/lib/cola.min.js"></script>
     <script src="assert/lib/dagre.js"></script>
     <script src="assert/lib/jquery.min.js"></script>
+    <script src="assert/lib/d3.min.js"></script>
+
     <script src="js/klgraph.js"></script>
 
     <script src="assert/js/data.js"></script>
@@ -79,7 +81,7 @@
     testData.data.relationships.forEach(function (e) {
         g.edges.push({
 //            type:/*Math.random() > 0.5 ?'default':*/'curve',
-            type:'curve',
+//            type:'curve',
             dashed: Math.random() > 0.5 ,
             label:e[2],
             source:e[0],
@@ -136,7 +138,7 @@
 
 
     var gview = new KLGraph.GraphView({
-        layout:'circular',
+        layout:'d3force',
         nodes:g.nodes,
         edges:g.edges,
         container:canvas
