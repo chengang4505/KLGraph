@@ -6,8 +6,6 @@ import utils from '../../../../util'
 import nodeVert from './default-vert.glsl'
 import nodeFrag from './default-frag.glsl'
 
-import {GlType as type, GLComType as comType} from '../../../../base/GLUtil'
-
 export default {
     shaderVert: nodeVert,
     shaderFrag: nodeFrag,
@@ -18,7 +16,8 @@ export default {
         a_selected: {components:1,start:8},
         a_flag: {components:1,start:9},
         a_size: {components:1,start:10},
-        // a_img: {components:1,start:8},
+        a_showicon: {components:1,start:11},
+        a_center: {components:2,start:12},
     },
     getUniforms({matrix, camera, sampleRatio, textureLoader}){
         return {
@@ -30,7 +29,7 @@ export default {
             u_icons_texture:11,
         }
     },
-    getRenderData({data, textureLoader, textureIcon}){
+    getRenderData({data, textureLoader, textureIcon,oldData,dirtyAttr}){
         var size = data.size * 2 || 10 * 2;
         var isSelected = data.selected ? 1.0 : 0.0;
         var color = utils.parseColor(data.color || '#62ffb7');
@@ -39,6 +38,22 @@ export default {
         // if (data.img && textureLoader.cache[data.img])
         //     img = textureLoader.cache[data.img];
 
+        if(oldData && dirtyAttr && Object.keys(dirtyAttr).length == 2 && dirtyAttr.hasOwnProperty('x') && dirtyAttr.hasOwnProperty('y')){
+            // debugger
+            var offset = 14;
+            var oldVertices = oldData.data.vertices;
+            for(var i = 0;i< oldVertices.length;i+=offset){
+                oldVertices[i+12] = data.x;
+                oldVertices[i+13] = data.y;
+            }
+            return {
+                vertices:oldVertices,
+            };
+        }
+
+        var hasIcon = data.icon && textureIcon.iconinfo.infos[data.icon],uvs;
+        uvs = hasIcon ? textureIcon.iconinfo.infos[data.icon].uvs : [0,0];
+        hasIcon = hasIcon ? 1:0;
 
         var vertices = [];
         var indices = [];
@@ -46,25 +61,12 @@ export default {
         var points = 0;
         var bgScale = 1.35;
 
+        // debugger
 
-        if(isSelected > 0.5){
-            addData(vertices,[data.x-data.size*bgScale,data.y+data.size*bgScale,color.r,color.g,color.b,color.a,0,0,isSelected,0,data.size]);
-            addData(vertices,[data.x+data.size*bgScale,data.y+data.size*bgScale,color.r,color.g,color.b,color.a,1,0,isSelected,0,data.size]);
-            addData(vertices,[data.x-data.size*bgScale,data.y-data.size*bgScale,color.r,color.g,color.b,color.a,0,1,isSelected,0,data.size]);
-            addData(vertices,[data.x+data.size*bgScale,data.y-data.size*bgScale,color.r,color.g,color.b,color.a,1,1,isSelected,0,data.size]);
-
-            addIndices(indices,[
-                points+0,points+1,points+2,
-                points+1,points+2,points+3
-            ]);
-            points += 4;
-        }
-
-
-        addData(vertices,[data.x-data.size,data.y+data.size,color.r,color.g,color.b,color.a,0,0,isSelected,1,data.size]);
-        addData(vertices,[data.x+data.size,data.y+data.size,color.r,color.g,color.b,color.a,1,0,isSelected,1,data.size]);
-        addData(vertices,[data.x-data.size,data.y-data.size,color.r,color.g,color.b,color.a,0,1,isSelected,1,data.size]);
-        addData(vertices,[data.x+data.size,data.y-data.size,color.r,color.g,color.b,color.a,1,1,isSelected,1,data.size]);
+        addData(vertices,[-1*data.size*bgScale,+1*data.size*bgScale,color.r,color.g,color.b,color.a,0,0,isSelected,0,data.size,hasIcon,data.x,data.y]);
+        addData(vertices,[+1*data.size*bgScale,+1*data.size*bgScale,color.r,color.g,color.b,color.a,1,0,isSelected,0,data.size,hasIcon,data.x,data.y]);
+        addData(vertices,[-1*data.size*bgScale,-1*data.size*bgScale,color.r,color.g,color.b,color.a,0,1,isSelected,0,data.size,hasIcon,data.x,data.y]);
+        addData(vertices,[+1*data.size*bgScale,-1*data.size*bgScale,color.r,color.g,color.b,color.a,1,1,isSelected,0,data.size,hasIcon,data.x,data.y]);
 
         addIndices(indices,[
             points+0,points+1,points+2,
@@ -73,24 +75,33 @@ export default {
         points += 4;
 
 
-        var hasIcon = data.icon && textureIcon.iconinfo.infos[data.icon],uvs;
+
+        addData(vertices,[-1*data.size,+1*data.size,color.r,color.g,color.b,color.a,0,0,isSelected,1,data.size,hasIcon,data.x,data.y]);
+        addData(vertices,[+1*data.size,+1*data.size,color.r,color.g,color.b,color.a,1,0,isSelected,1,data.size,hasIcon,data.x,data.y]);
+        addData(vertices,[-1*data.size,-1*data.size,color.r,color.g,color.b,color.a,0,1,isSelected,1,data.size,hasIcon,data.x,data.y]);
+        addData(vertices,[+1*data.size,-1*data.size,color.r,color.g,color.b,color.a,1,1,isSelected,1,data.size,hasIcon,data.x,data.y]);
+
+        addIndices(indices,[
+            points+0,points+1,points+2,
+            points+1,points+2,points+3
+        ]);
+        points += 4;
+
+
         var scale = 0.7;
-        //icon
-        if(hasIcon){
 
-            uvs = textureIcon.iconinfo.infos[data.icon].uvs;
-            addData(vertices,[data.x-data.size*scale,data.y+data.size*scale,color.r,color.g,color.b,color.a,uvs[0],uvs[1],isSelected,2,data.size]);
-            addData(vertices,[data.x+data.size*scale,data.y+data.size*scale,color.r,color.g,color.b,color.a,uvs[2],uvs[1],isSelected,2,data.size]);
-            addData(vertices,[data.x-data.size*scale,data.y-data.size*scale,color.r,color.g,color.b,color.a,uvs[0],uvs[3],isSelected,2,data.size]);
-            addData(vertices,[data.x+data.size*scale,data.y-data.size*scale,color.r,color.g,color.b,color.a,uvs[2],uvs[3],isSelected,2,data.size]);
 
-            addIndices(indices,[
-                points+0,points+1,points+2,
-                points+1,points+2,points+3
-            ]);
-            points += 4;
+        addData(vertices,[-1*data.size*scale,+1*data.size*scale,color.r,color.g,color.b,color.a,uvs[0],uvs[1],isSelected,2,data.size,hasIcon,data.x,data.y]);
+        addData(vertices,[+1*data.size*scale,+1*data.size*scale,color.r,color.g,color.b,color.a,uvs[2],uvs[1],isSelected,2,data.size,hasIcon,data.x,data.y]);
+        addData(vertices,[-1*data.size*scale,-1*data.size*scale,color.r,color.g,color.b,color.a,uvs[0],uvs[3],isSelected,2,data.size,hasIcon,data.x,data.y]);
+        addData(vertices,[+1*data.size*scale,-1*data.size*scale,color.r,color.g,color.b,color.a,uvs[2],uvs[3],isSelected,2,data.size,hasIcon,data.x,data.y]);
 
-        }
+        addIndices(indices,[
+            points+0,points+1,points+2,
+            points+1,points+2,points+3
+        ]);
+        points += 4;
+
         
         
         return {

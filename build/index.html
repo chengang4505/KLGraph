@@ -1,31 +1,31 @@
 <!DOCTYPE html>
 <html lang="en">
-<head >
-    <title>test</title>
+<head>
+	<title>test</title>
 
-    <meta charset="utf-8">
-    <link rel="stylesheet" href="assert/font-awesome-4.7.0/css/font-awesome.css">
+	<meta charset="utf-8">
+	<link rel="stylesheet" href="assert/font-awesome-4.7.0/css/font-awesome.css">
 
-    <!--<script src="assert/lib/d3.min.js"></script>-->
-    <script src="assert/lib/cola.min.js"></script>
-    <script src="assert/lib/dagre.js"></script>
-    <script src="assert/lib/jquery.min.js"></script>
-    <script src="js/klgraph.js"></script>
+	<!--<script src="assert/lib/d3.min.js"></script>-->
+	<script src="assert/lib/cola.min.js"></script>
+	<script src="assert/lib/dagre.js"></script>
+	<script src="assert/lib/jquery.min.js"></script>
+	<script src="js/klgraph.js"></script>
 
-    <script src="assert/js/data.js"></script>
-    <style>
-        .fa{
-            display: block;
-            height:1px;
-            color: rgba(0,0,0,0);
-        }
+	<script src="assert/js/data.js"></script>
+	<style>
+		.fa {
+			display: block;
+			height: 1px;
+			color: rgba(0, 0, 0, 0);
+		}
 
-        html , body{
-            margin: 0px;
-            width: 100%;
-            height:100%;
-        }
-    </style>
+		html, body {
+			margin: 0px;
+			width: 100%;
+			height: 100%;
+		}
+	</style>
 </head>
 <body>
 <!--<canvas id="canvas" style="width: 1000px;height: 800px;"></canvas>-->
@@ -33,12 +33,12 @@
 <i class="fa fa-university" style="transform: scale(0)"></i>
 <script>
 
-//    var colors = ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd", "#8c564b", "#e377c2", "#7f7f7f", "#bcbd22", "#17becf"];
+    //    var colors = ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd", "#8c564b", "#e377c2", "#7f7f7f", "#bcbd22", "#17becf"];
     var colors1 = [
-        'rgba(51, 153, 131, 0.65)',
-        'rgba(51, 118, 153, 0.65)',
-        'rgba(80, 121, 187, 0.65)',
-        'rgba(47, 40, 139,  0.65)',
+        'rgba(51, 153, 131, 0.55)',
+        'rgba(51, 118, 153, 0.55)',
+        'rgba(80, 121, 187, 0.55)',
+        'rgba(47, 40, 139,  0.55)',
     ];
 
     var colors = [
@@ -49,115 +49,151 @@
     ];
 
     var g = {
-        nodes:[],
-        edges:[]
+        nodes: [],
+        edges: []
     };
 
     var canvas = document.getElementById('canvas');
 
-    var N = 1000;
+    var N = 2000;
 
-    var icons = ['\uf19c','\uf1a7','\uf19e','\uf1a0'];
+    var icons = ['\uf19c', '\uf1a7', '\uf19e', '\uf1a0'];
 
-    testData.data.nodes.forEach(function (e) {
-        g.nodes.push({
-//            img:Math.random() > 0.5 ? null : './img/eye-icon.png',
-            type:Math.random() > 0.5 ?'default':'rect',
-            flag:Math.random() > 0.5,
-            id:e[0],
-            label:e[1],
-            x: (Math.random() * 2-1)*500,
-            y: (Math.random() * 2-1)*400,
-            size:16,
-            width:12,
-            height:6,
-            color:colors[(Math.random()*colors.length)|0],
-            icon:icons[(Math.random()*icons.length)|0],
-        });
-    })
-
-    testData.data.relationships.forEach(function (e) {
-        g.edges.push({
-            type:Math.random() > 0.5 ?'default':'curve',
-//            type:'curve',
-            dashed: Math.random() > 0.5 ,
-            label:e[2],
-            source:e[0],
-            target:e[1],
-            color:colors1[(Math.random()*colors1.length)|0],
-        });
-    })
-
-
-//
-//    for (var i = 0; i < N; i++) {
+//    testData.data.nodes.forEach(function (e) {
 //        g.nodes.push({
 ////            img:Math.random() > 0.5 ? null : './img/eye-icon.png',
-////            img:'./img/eye-icon.png',
-//            type:Math.random() > 0.5 ?'default':'rect',
-//            id:'node'+i,
-//            label:'node'+i,
-//            x: (Math.random() * 2-1)*500,
-//            y: (Math.random() * 2-1)*400,
-//            size:(Math.random())*10+5,
-//            color:colors[(Math.random()*colors.length)|0],
-//            icon:icons[(Math.random()*icons.length)|0],
+////            type:Math.random() > 0.5 ?'default':'rect',
+//            flag: Math.random() > 0.5,
+//            id: e[0],
+//            label: e[1],
+//            x: (Math.random() * 2 - 1) * 500,
+//            y: (Math.random() * 2 - 1) * 400,
+//            size: 16,
+//            width: 12,
+//            height: 6,
+//            color: colors[(Math.random() * colors.length) | 0],
+//            icon: icons[(Math.random() * icons.length) | 0],
 //        });
-//    }
+//    })
 //
-//    for (var i = 0; i < N/2; i++) {
-//        var sourceid =  (Math.random() * N) | 0;
-//        var targetid =  (Math.random() * N) | 0;
-//        if(sourceid != targetid){
-//            g.edges.push({
-//                id:'edge'+i,
-//                type:Math.random() > 0.5 ?'default':'curve',
-//                label:'edge'+i,
-//                source:'node'+sourceid,
-//                target:'node'+targetid
-//            });
-//        }
-//
-//    }
-
-//    g.nodes = [
-//        {id:'node1',label:'节点１', x:-200, y:0, size:15},
-//        {id:'node2',label:'节点2', x:0, y:0, size:15},
-////        {id:'node3',label:'节点2', x:(Math.random() * 2-1)*500, y:(Math.random() * 2-1)*500, size:50},
-////        {id:'node4',label:'节点2', x:(Math.random() * 2-1)*500, y:(Math.random() * 2-1)*500, size:50},
-//    ];
-//
-//    g.edges = [
-//        {source:'node1',target:'node2',label:'curve1',type:'curve'},
-//        {source:'node1',target:'node2',label:'curve2',type:'curve'},
-//        {source:'node2',target:'node1',label:'curve3',type:'curve'}
-//    ];
+//    testData.data.relationships.forEach(function (e) {
+//        g.edges.push({
+////            type:Math.random() > 0.5 ?'default':'curve',
+////            type:'curve',
+//            dashed: Math.random() > 0.5,
+//            label: e[2],
+//            source: e[0],
+//            target: e[1],
+//            color: colors1[(Math.random() * colors1.length) | 0],
+////            color: 'rgba(51, 153, 131, 0.65)',
+//        });
+//    })
 
 
-
-    var gview = new KLGraph.GraphView({
-        layout:'circular',
-        nodes:g.nodes,
-        edges:g.edges,
-        container:canvas
-    });
-
-    gview.on('nodeclick',function (node,e) {
-//        gview.graph.setNodeData(node.id,{selected:true});
-        console.log(node);
-//        console.log('nodeclick');
-    });
-    gview.on('stageclick',function (e) {
-        console.log('stageclick');
-    });
-
-    document.addEventListener('keydown',function (e) {
-        if(e.which == 46){
-            gview.selection.delete();
+    //
+        for (var i = 0; i < N; i++) {
+            g.nodes.push({
+    //            img:Math.random() > 0.5 ? null : './img/eye-icon.png',
+    //            img:'./img/eye-icon.png',
+    //            type:Math.random() > 0.5 ?'default':'rect',
+                id:'node'+i,
+                label:'node'+i,
+                x: (Math.random() * 2-1)*500,
+                y: (Math.random() * 2-1)*400,
+                size:(Math.random())*10+5,
+                color:colors[(Math.random()*colors.length)|0],
+                icon:icons[(Math.random()*icons.length)|0],
+            });
         }
-    })
+
+        for (var i = 0; i < N/2; i++) {
+            var sourceid =  (Math.random() * N) | 0;
+            var targetid =  (Math.random() * N) | 0;
+            if(sourceid != targetid){
+                g.edges.push({
+                    id:'edge'+i,
+    //                type:Math.random() > 0.5 ?'default':'curve',
+                    label:'edge'+i,
+                    source:'node'+sourceid,
+                    target:'node'+targetid
+                });
+            }
+
+        }
+
+    //    g.nodes = [
+    //        {id:'node1',label:'节点１', x:-200, y:0, size:15},
+    //        {id:'node2',label:'节点2', x:0, y:0, size:15},
+    ////        {id:'node3',label:'节点2', x:(Math.random() * 2-1)*500, y:(Math.random() * 2-1)*500, size:50},
+    ////        {id:'node4',label:'节点2', x:(Math.random() * 2-1)*500, y:(Math.random() * 2-1)*500, size:50},
+    //    ];
+    //
+    //    g.edges = [
+    //        {source:'node1',target:'node2',label:'curve1',type:'curve'},
+    //        {source:'node1',target:'node2',label:'curve2',type:'curve'},
+    //        {source:'node2',target:'node1',label:'curve3',type:'curve'}
+    //    ];
 
 
+    var gview;
+
+
+    if (document.fonts) {
+        var fontsReady = document.fonts.ready;
+        if (typeof(fontsReady) == "function") {
+            fontsReady = document.fonts.ready();
+        }
+        fontsReady.then(function () {
+            main();
+        });
+    }
+
+    function main() {
+
+        gview = new KLGraph.GraphView({
+//        layout:'circular',
+            nodes: g.nodes,
+            edges: g.edges,
+            container: canvas,
+		config:{
+//                enableOverEvent:true
+		}
+        });
+//
+//        var layers = ['edge', 'edgeCurve', 'edgeLabel', 'nodeLabel']
+//        gview.render.disableRenderLayer(layers);
+//        gview.makeLayout('circular', null, function () {
+//            gview.render.enableRenderLayer(layers);
+//        });
+        
+        gview.on('overnode',function (node) {
+		console.log('overNode',node);
+        });
+
+        gview.on('outnode',function (node) {
+            console.log('outNode',node);
+        });
+
+        gview.on('nodeleftclick',function (node) {
+            console.log('nodeleftclick',node);
+        });
+
+
+        gview.on('nodeclick', function (node, e) {
+//        gview.graph.setNodeData(node.id,{selected:true});
+            console.log(node);
+//        console.log('nodeclick');
+        });
+        gview.on('stageclick', function (e) {
+            console.log('stageclick');
+        });
+
+        document.addEventListener('keydown', function (e) {
+            if (e.which == 46) {
+                gview.selection.delete();
+            }
+        })
+    }
 
 
 </script>

@@ -8,18 +8,18 @@ import util from '../util'
 
 export default function initEvent() {
 
-    function handlerWrap(handle) {
-        return function (e) {
-            var pos = _this.toCameraPos({x: e.offsetX, y: e.offsetY});
-            e.cameraX = pos.x;
-            e.cameraY = pos.y;
-            handle(e);
-        }
-    }
-
-
     var _this = this;
-    var mouseDown= false,mouseMove = false;
+    var mouseDown= false,
+        mouseMove = false,
+        disableMove = false,
+        //over info
+        overInfo = {
+            currentNode:null,
+            currentEdge:null,
+        };
+
+    _this.context.overInfo = overInfo;
+
 
     var events = {
         // click:handlerWrap(_clickHandler),
@@ -27,6 +27,7 @@ export default function initEvent() {
         mousedown:handlerWrap(_downHandler),
         mouseup:handlerWrap(_upHandler),
         mousewheel:handlerWrap(_wheelHandler),
+        DOMMouseScroll:handlerWrap(_wheelHandler),//firfox
     };
 
 
@@ -39,7 +40,7 @@ export default function initEvent() {
         if(events[type]) events[type](event);
     };
 
-
+    //function
     function checkInNode(posx,posy,node) {
         var isFind = false;
         var dis,sizeX,sizeY;
@@ -56,6 +57,7 @@ export default function initEvent() {
 
     function getNode(pos) {
         // var nodes = _this.graph.quad.point(pos.x, pos.y);
+        // console.time('getNode')
         var nodes = _this.graph.nodes;
 
         var node, dis;
@@ -70,6 +72,7 @@ export default function initEvent() {
                 }
             }
         }
+        // console.timeEnd('getNode')
         return findNode;
     }
 
@@ -82,19 +85,16 @@ export default function initEvent() {
         else _this.emit('stageclick',[e]);
     }
 
-    function _moveHandler(e) {
-        if(mouseDown)   mouseMove = true;
-        // var graphPos = _this.toGraphPos({x:e.cameraX,y:e.cameraY});
-        // var node = getNode(graphPos);
-    }
-
-
     function _downHandler(e) {
 
         mouseDown = true;
+        disableMove = true;
 
         var graphPos = _this.toGraphPos({x:e.cameraX,y:e.cameraY});
         var node = getNode(graphPos);
+
+        if(node) _this.emit('nodeleftclick',[node,e]);
+
          handleDrag(!node);
         _this.forceRender();
 
@@ -157,6 +157,7 @@ export default function initEvent() {
 
 
             function clear() {
+                disableMove = false;
                 onmousemove&&_this.container.removeEventListener('mousemove',onmousemove);
                 onmouseup&&_this.container.removeEventListener('mouseup',onmouseup);
                 onmouseout&&_this.container.removeEventListener('mouseout',onmouseout);
@@ -164,6 +165,29 @@ export default function initEvent() {
             }
 
 
+        }
+
+    }
+
+    function _moveHandler(e) {
+        if(mouseDown)   mouseMove = true;
+        
+        if(disableMove || !_this.config.enableOverEvent) return;
+
+        var graphPos = _this.toGraphPos({x:e.cameraX,y:e.cameraY});
+        var node = getNode(graphPos);
+        var old;
+
+        if(node && node !== overInfo.currentNode){
+            old = overInfo.currentNode;
+            overInfo.currentNode = node;
+
+            _this.emit('overnode', [node,e]);
+           if(old) _this.emit('outnode', [old,e]);
+        }else if(!node && overInfo.currentNode){
+            old = overInfo.currentNode;
+            overInfo.currentNode = null;
+            _this.emit('outnode', [old,e]);
         }
 
     }
@@ -191,9 +215,13 @@ export default function initEvent() {
     }
 
     function _wheelHandler(e) {
+        var value = e.wheelDelta || e.detail;
+
+        if(Math.abs(value) ==  3 ) value = -1 * value;
+
         _this.forceRender();
         var ratio = _this.config.zoomRatio;
-        if(e.wheelDelta > 0){
+        if(value > 0){
             _this.zoomTo(1/ratio,e.cameraX,e.cameraY);
             _this.emit('zoom',[1/ratio])
         }else {
@@ -204,6 +232,14 @@ export default function initEvent() {
 
     //drag
 
+    function handlerWrap(handle) {
+        return function (e) {
+            var pos = _this.toCameraPos({x: e.offsetX, y: e.offsetY});
+            e.cameraX = pos.x;
+            e.cameraY = pos.y;
+            handle(e);
+        }
+    }
 
     function fit(e) {
         var x = e.offsetX,y = e.offsetY;

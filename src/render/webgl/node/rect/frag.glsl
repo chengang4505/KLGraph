@@ -9,6 +9,7 @@ varying float img;
 varying float selected;
 varying vec2 uv;
 varying float flag;
+varying float showicon;
 
 
 //uniform sampler2D u_textures[10];
@@ -44,8 +45,11 @@ if(flag > 0.5 && flag < 1.5) //flag =1
       gl_FragColor = nodecolor * alpha;
 
 }else if(flag > 1.5 && flag < 2.5) {//flag =2
+    if(showicon < 0.5) discard;
     gl_FragColor = texture2D(u_icons_texture,uv).w * vec4(1,1,1,1);
 }else if((flag > -0.5 && flag < 0.5)){//flat = 0 selected background
+
+    if(selected < 0.5) discard;
 
      vec2 cxy = 2.0 * uv - 1.0;
      r = length(cxy);
@@ -56,7 +60,7 @@ if(flag > 0.5 && flag < 1.5) //flag =1
 
      r = smoothstep(0.6,1.0,r);
 
-      gl_FragColor = vec4(1.0,0.0,0.0,0.7)*(1.0-r);
+      gl_FragColor = vec4(1.0,0.0,0.0,0.3)*(1.0-r);
  }
 
 

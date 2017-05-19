@@ -20,7 +20,7 @@ export  default  class Core {
     constructor(option) {
         option = option || {};
 
-        this.config = utils.extend(defaultConfig, option.config || {});
+        this.config = utils.extend(option.config || {},defaultConfig);
 
         this.graph = new Graph({
             nodes: option.nodes,
@@ -41,8 +41,6 @@ export  default  class Core {
 
         this.on = this.render.on.bind(this.render);
         this.off = this.render.off.bind(this.render);
-
-        if(this.graph.nodes.length > 0) this.makeLayout(option.layout || 'preset');
 
         this._start();
 
@@ -123,7 +121,7 @@ export  default  class Core {
 
     _initEvent() {
         var _this = this;
-        this.render.on('nodeclick', function (node, e) {
+        this.render.on('nodeleftclick', function (node, e) {
             if (!_this.selection.isSelected(node))
                 _this.selection.select(node,e.shiftKey);
             else if(e.shiftKey) _this.selection.unSelect(node);
@@ -171,7 +169,7 @@ export  default  class Core {
     }
 
 
-    makeLayout(type,nodes) {
+    makeLayout(type,nodes,cb) {
 
         var _this = this;
         var layout, data;
@@ -199,9 +197,16 @@ export  default  class Core {
             data = layout.layout(nodes,edges);
 
             if(data.length > this.graph.nodes.length * 4/5){
-                new Tween(nodes, 'layout').to(data).duration(2000).on('change', function (t) {
-                    _this.render.clearRenderCache();
-                });
+                new Tween(nodes, 'layout').to(data).duration(2000)
+                    .on('change', function (t) {
+                        // console.time('layout')
+                        nodes.forEach(function (node) {
+                            // debugger
+                            _this.graph.setNodeData(node.id, {x: node.x, y: node.y});
+                        });
+                        // console.timeEnd('layout')
+                    })
+                    .on('end', cb);
 
                 this.fit(2000,this.getFitOptions(data));
             }else {
@@ -219,7 +224,7 @@ export  default  class Core {
 
                 new Tween(nodes, 'layout').to(data).duration(2000).on('change', function (t) {
                     nodes.forEach(function (node) {
-                       _this.graph.setNodeData(node.id,{x:node.x});
+                       _this.graph.setNodeData(node.id,{x: node.x, y: node.y});
                     });
                 });
             }

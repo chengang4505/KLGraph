@@ -62,7 +62,10 @@ export  default class Tween extends  EventEmitter{
 
         this.emit('change',[t]);
 
-        if(elapsed >=this._duration) this.stop();
+        if(elapsed >=this._duration){
+            this.stop();
+            this.emit('end');
+        }
 
     }
 

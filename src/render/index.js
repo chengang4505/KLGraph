@@ -1,6 +1,3 @@
-/**
- * Created by chengang on 17-3-28.
- */
 
 
 import WebGLRender from './webgl/render'
@@ -31,6 +28,10 @@ WebGLRender.edgeLabel.default = EdgeLabel;
 WebGLRender.edgeLabel.curve = curveLabel;
 
 
+
+
+import initDefaultConfig from  './webgl/defaultLayerConfig'
+initDefaultConfig(WebGLRender);
 
 export {
     WebGLRender

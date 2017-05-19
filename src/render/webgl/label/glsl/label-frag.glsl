@@ -13,13 +13,14 @@ uniform float u_camera_scale;
 void main() {
     color = color / 255.0;
 
+    float cutoff = 0.76;
     float offset = size * u_camera_scale * 0.12;
 
     offset = pow(offset,1.2);
 
-    offset = min((1.0-0.72),offset);
+    offset = min((1.0-cutoff),offset);
 
    float dist = texture2D(u_image, v_texCoord).r;
-   float alpha = smoothstep(0.72 - offset, 0.72 + offset, dist);
+   float alpha = smoothstep(cutoff - offset, cutoff + offset, dist);
    gl_FragColor = color *alpha;
 }

@@ -28,24 +28,25 @@ export default class TextureIcon extends EventEmitter{
         this.icons = [];
         this.iconsToCreate = [];
 
-        this.fontLoaded = false;
+        this.fontLoaded  = true;
 
         this._init();
 
         // this.updateGPUTexture(true);
 
-        var _this = this;
-        if (document.fonts) {
-            var fontsReady = document.fonts.ready;
-            if (typeof(fontsReady) == "function") {
-                fontsReady = document.fonts.ready();
-            }
-            fontsReady.then(function () {
-                _this.fontLoaded  = true;
-                _this.createIcons();
-                _this.emit('load')
-            });
-        }
+        // var _this = this;
+        // if (document.fonts) {
+        //     debugger
+        //     var fontsReady = document.fonts.ready;
+        //     if (typeof(fontsReady) == "function") {
+        //         fontsReady = document.fonts.ready();
+        //     }
+        //     fontsReady.then(function () {
+        //         _this.fontLoaded  = true;
+        //         _this.createIcons();
+        //         _this.emit('load')
+        //     });
+        // }
     }
 
     _init(){

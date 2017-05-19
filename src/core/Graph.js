@@ -270,12 +270,16 @@ class Graph extends EventEmitter{
         var updatePos = false;
         if(obj.hasOwnProperty('x') || obj.hasOwnProperty('y')) updatePos = true;
 
-        for(var attr in obj) node[attr] = obj[attr];
+        for(var attr in obj){
+            node[attr] = obj[attr];
+            obj[attr] = true;
+        }
 
-        this.emit('change',['node',id]);
+        this.emit('change',['node',id,obj]);
         if(updatePos){
-            this.inEdgesIndex[id] && this.inEdgesIndex[id].length > 0 && this.emit('change',['edge',this.inEdgesIndex[id]]);
-            this.outEdgesIndex[id] && this.outEdgesIndex[id].length > 0 && this.emit('change',['edge',this.outEdgesIndex[id]]);
+            obj = {source:true,target:true};
+            this.inEdgesIndex[id] && this.inEdgesIndex[id].length > 0 && this.emit('change',['edge',this.inEdgesIndex[id],obj]);
+            this.outEdgesIndex[id] && this.outEdgesIndex[id].length > 0 && this.emit('change',['edge',this.outEdgesIndex[id],obj]);
         }
         // console.timeEnd('setNodeData')
 
