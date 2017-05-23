@@ -14,7 +14,7 @@ void main() {
     color = color / 255.0;
 
     float cutoff = 0.76;
-    float offset = size * u_camera_scale * 0.12;
+    float offset = 8.0/size * u_camera_scale;
 
     offset = pow(offset,1.2);
 

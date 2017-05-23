@@ -24,7 +24,7 @@ export  default  class Core {
 
         this.graph = new Graph({
             nodes: option.nodes,
-            edges: option.edges,
+            edges: option.edges
         });
 
         this.container = option.container;
@@ -73,6 +73,7 @@ export  default  class Core {
 
         ele.oncontextmenu = function (e) {
             e.preventDefault();
+            return false;
         };
 
         return ele;
@@ -197,7 +198,7 @@ export  default  class Core {
             data = layout.layout(nodes,edges);
 
             if(data.length > this.graph.nodes.length * 4/5){
-                new Tween(nodes, 'layout').to(data).duration(2000)
+                new Tween(nodes, 'layout').to(data).duration(1000)
                     .on('change', function (t) {
                         // console.time('layout')
                         nodes.forEach(function (node) {
@@ -208,7 +209,7 @@ export  default  class Core {
                     })
                     .on('end', cb);
 
-                this.fit(2000,this.getFitOptions(data));
+                this.fit(1000,this.getFitOptions(data));
             }else {
 
                 var bbox = utils.getBBox(nodes);
@@ -222,11 +223,13 @@ export  default  class Core {
                     e.y += offsetY;
                 });
 
-                new Tween(nodes, 'layout').to(data).duration(2000).on('change', function (t) {
-                    nodes.forEach(function (node) {
-                       _this.graph.setNodeData(node.id,{x: node.x, y: node.y});
-                    });
-                });
+                new Tween(nodes, 'layout').to(data).duration(1000)
+                    .on('change', function (t) {
+                        nodes.forEach(function (node) {
+                            _this.graph.setNodeData(node.id, {x: node.x, y: node.y});
+                        });
+                    })
+                    .on('end', cb);
             }
 
         }

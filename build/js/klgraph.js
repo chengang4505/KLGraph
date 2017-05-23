@@ -698,7 +698,7 @@ exports.default = mat3;
 /* 4 */
 /***/ (function(module, exports) {
 
-module.exports = " precision mediump float;\n\nvec4 color = vec4(77, 72, 91,255);\n\nvarying vec2 v_texCoord;\nvarying float size;\n\n\nuniform sampler2D u_image;\nuniform float u_camera_scale;\n\n\nvoid main() {\n    color = color / 255.0;\n\n    float cutoff = 0.76;\n    float offset = size * u_camera_scale * 0.12;\n\n    offset = pow(offset,1.2);\n\n    offset = min((1.0-cutoff),offset);\n\n   float dist = texture2D(u_image, v_texCoord).r;\n   float alpha = smoothstep(cutoff - offset, cutoff + offset, dist);\n   gl_FragColor = color *alpha;\n}"
+module.exports = " precision mediump float;\n\nvec4 color = vec4(77, 72, 91,255);\n\nvarying vec2 v_texCoord;\nvarying float size;\n\n\nuniform sampler2D u_image;\nuniform float u_camera_scale;\n\n\nvoid main() {\n    color = color / 255.0;\n\n    float cutoff = 0.76;\n    float offset = 8.0/size * u_camera_scale;\n\n    offset = pow(offset,1.2);\n\n    offset = min((1.0-cutoff),offset);\n\n   float dist = texture2D(u_image, v_texCoord).r;\n   float alpha = smoothstep(cutoff - offset, cutoff + offset, dist);\n   gl_FragColor = color *alpha;\n}"
 
 /***/ }),
 /* 5 */
@@ -792,6 +792,9 @@ var WebGLRender = function (_EventEmitter) {
             rotation: 0
         };
 
+        _this2.saveDataFrame = null;
+        _this2.saveDataTex = null;
+
         /**
          * layers:　相关的layer
          * index: cache索引 map
@@ -835,13 +838,14 @@ var WebGLRender = function (_EventEmitter) {
             }
 
             gl.getExtension('OES_standard_derivatives');
+            gl.getExtension('OES_element_index_uint');
 
             gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
             // gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA,gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);
             // gl.enable(gl.DEPTH_TEST);
             gl.enable(gl.BLEND);
             gl.disable(gl.DEPTH_TEST);
-            gl.clearColor(0, 0, 0, 0);
+            gl.clearColor(1, 1, 1, 1);
 
             this.gl = gl;
         }
@@ -873,7 +877,11 @@ var WebGLRender = function (_EventEmitter) {
                 });
 
                 _this.textureText.addTexts(getAddText(objs));
+                _this.textureText.attachGl(_this.gl);
+
                 _this.clearRenderCache();
+
+                // _this.initTextTexture();
             });
             this.graph.on('remove', function (type, ids) {
                 _this.clearRenderCache();
@@ -939,42 +947,8 @@ var WebGLRender = function (_EventEmitter) {
             });
 
             this.textureText.createCanvasImg(texts);
-        }
-    }, {
-        key: 'initRenderLayers',
-        value: function initRenderLayers(root, type) {
-            var renderType = type;
-            var typeRoot = WebGLRender[root];
 
-            var renderRoot;
-
-            renderRoot = this.renderType[root].type;
-
-            if (!typeRoot[type]) {
-                console.error(root + ': no type[' + type + '],use default');
-                type = 'default';
-            }
-
-            var temp, layersConfig;
-            if (!renderRoot[renderType]) {
-
-                layersConfig = typeRoot[type];
-                if (_util2.default.isFunction(layersConfig)) {
-                    layersConfig = {
-                        layers: [{ name: 'base', layer: layersConfig }]
-                    };
-                }
-                renderRoot[renderType] = { layers: {}, order: [] };
-                layersConfig.layers.forEach(function (config) {
-                    temp = {};
-                    temp.counter = 0;
-                    temp.data = [];
-                    temp.render = new config.layer();
-                    temp.program = _util2.default.loadProgram(this.gl, [_util2.default.loadShader(this.gl, temp.render.shaderVert, this.gl.VERTEX_SHADER), _util2.default.loadShader(this.gl, temp.render.shaderFrag, this.gl.FRAGMENT_SHADER)]);
-                    renderRoot[renderType].layers[config.name] = temp;
-                    renderRoot[renderType].order.push(config.name);
-                }.bind(this));
-            }
+            this.textureText.attachGl(this.gl);
         }
     }, {
         key: 'initIconTexture',
@@ -996,6 +970,8 @@ var WebGLRender = function (_EventEmitter) {
             });
 
             this.textureIcon.createIcons(icons);
+
+            this.textureIcon.attachGl(this.gl);
         }
     }, {
         key: 'initRenderLayer',
@@ -1007,8 +983,8 @@ var WebGLRender = function (_EventEmitter) {
 
             var _this = this;
 
-            this.textureText.attachGl(gl);
-            this.textureIcon.attachGl(gl);
+            // this.textureText.attachGl(gl);
+            // this.textureIcon.attachGl(gl);
 
             this.renderLayersConfig.forEach(function (layer) {
 
@@ -1054,7 +1030,7 @@ var WebGLRender = function (_EventEmitter) {
             // debugger
             this.resizeCanvas();
             // setTimeout(this.render2.bind(this),500);
-            console.time('render');
+            // console.time('render');
 
             this.updateLayerData();
 
@@ -1065,7 +1041,7 @@ var WebGLRender = function (_EventEmitter) {
             // console.time('draw');
             this.draw();
             // console.timeEnd('draw');
-            console.timeEnd('render');
+            // console.timeEnd('render');
 
             this.needUpdate = false;
 
@@ -1127,7 +1103,7 @@ var WebGLRender = function (_EventEmitter) {
                     (0, _GLUtil.vertexAttribPointer)(gl, program.activeAttributes, program.offsetConfig);
                     (0, _GLUtil.setUniforms)(gl, program.activeUniforms, renderLayerMap[layer].uniforms);
 
-                    gl.drawElements(gl.TRIANGLES, program.indexN, gl.UNSIGNED_SHORT, 0);
+                    gl.drawElements(gl.TRIANGLES, program.indexN, gl.UNSIGNED_INT, 0);
 
                     gl.bindBuffer(gl.ARRAY_BUFFER, null);
                     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
@@ -1211,11 +1187,13 @@ var WebGLRender = function (_EventEmitter) {
 
                     if (renderLayerMap[layer].initBuffer) return;
 
+                    if (renderLayerMap[layer].tempVertex.length == 0) return;
+
                     gl.bindBuffer(gl.ARRAY_BUFFER, renderLayerMap[layer].program.vertexBuffer);
                     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, renderLayerMap[layer].program.indexBuffer);
 
                     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(renderLayerMap[layer].tempVertex), gl.DYNAMIC_DRAW);
-                    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(renderLayerMap[layer].tempIndex), gl.STATIC_DRAW);
+                    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint32Array(renderLayerMap[layer].tempIndex), gl.STATIC_DRAW);
 
                     renderLayerMap[layer].program.indexN = renderLayerMap[layer].tempIndex.length;
                     renderLayerMap[layer].initBuffer = true;
@@ -1266,6 +1244,7 @@ var WebGLRender = function (_EventEmitter) {
             this.forceRender();
             // if(!Array.isArray(ids)) ids = [ids];
             // ids.forEach(function (id) {
+            if (!this.renderCache.node.flag) return;
             this.updateCacheByData('node', this.graph.nodesIndex[id], dirtyAttr, true);
             // }.bind(this));
         }
@@ -1273,6 +1252,7 @@ var WebGLRender = function (_EventEmitter) {
         key: 'updateEdgeRenderData',
         value: function updateEdgeRenderData(ids, dirtyAttr) {
             this.forceRender();
+            if (!this.renderCache.edge.flag) return;
             if (!Array.isArray(ids)) ids = [ids];
             ids.forEach(function (id) {
                 this.updateCacheByData('edge', this.graph.edgesIndex[id], dirtyAttr, true);
@@ -1327,7 +1307,7 @@ var WebGLRender = function (_EventEmitter) {
 
             layers.forEach(function (layer) {
                 if (renderLayerMap[layer]) {
-                    renderCache[renderLayerMap[layer].context].flag = 0;
+                    renderCache[renderLayerMap[layer].context].flag = false;
                     renderLayerMap[layer].enable = true;
                     renderLayerMap[layer].cache = false;
                 }
@@ -1416,6 +1396,53 @@ var WebGLRender = function (_EventEmitter) {
             var _this = this;
             new _tween2.default(this.camera, 'camera').to(option).duration(time).on('change', function () {
                 _this.forceRender();
+            });
+        }
+    }, {
+        key: 'saveData',
+        value: function saveData() {
+            // debugger
+            var gl = this.gl;
+
+            this.sampleRatio = 16;
+            var width = this.container.clientWidth * this.sampleRatio;
+            var height = this.container.clientHeight * this.sampleRatio;
+
+            this.gl.viewport(0, 0, width, height);
+
+            if (!this.saveDataFrame) {
+                this.saveDataFrame = gl.createFramebuffer();
+                gl.bindFramebuffer(gl.FRAMEBUFFER, this.saveDataFrame);
+                this.saveDataTex = gl.createTexture();
+                gl.activeTexture(gl.TEXTURE0);
+                gl.bindTexture(gl.TEXTURE_2D, this.saveDataTex);
+                gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+
+                gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.saveDataTex, 0);
+                gl.bindTexture(gl.TEXTURE_2D, null);
+            }
+
+            gl.bindFramebuffer(gl.FRAMEBUFFER, this.saveDataFrame);
+            this.render();
+            var pixels = new Uint8Array(width * height * 4);
+            gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+            // console.log(pixels);
+            gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
+            this.sampleRatio = 1;
+            this.gl.viewport(0, 0, this.container.clientWidth, this.container.clientHeight);
+
+            var canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            var ctx = canvas.getContext('2d');
+            var imageData = ctx.createImageData(width, height);
+            for (var i = 0, len = imageData.data.length; i < len; i++) {
+                imageData.data[i] = pixels[i];
+            }ctx.putImageData(imageData, 0, 0);
+
+            canvas.toBlob(function (blob) {
+                saveAs(blob, "test.png");
             });
         }
     }]);
@@ -1539,6 +1566,7 @@ var Core = function () {
 
             ele.oncontextmenu = function (e) {
                 e.preventDefault();
+                return false;
             };
 
             return ele;
@@ -1665,7 +1693,7 @@ var Core = function () {
                 data = layout.layout(nodes, edges);
 
                 if (data.length > this.graph.nodes.length * 4 / 5) {
-                    new _tween2.default(nodes, 'layout').to(data).duration(2000).on('change', function (t) {
+                    new _tween2.default(nodes, 'layout').to(data).duration(1000).on('change', function (t) {
                         // console.time('layout')
                         nodes.forEach(function (node) {
                             // debugger
@@ -1674,7 +1702,7 @@ var Core = function () {
                         // console.timeEnd('layout')
                     }).on('end', cb);
 
-                    this.fit(2000, this.getFitOptions(data));
+                    this.fit(1000, this.getFitOptions(data));
                 } else {
 
                     var bbox = _util2.default.getBBox(nodes);
@@ -1688,11 +1716,11 @@ var Core = function () {
                         e.y += offsetY;
                     });
 
-                    new _tween2.default(nodes, 'layout').to(data).duration(2000).on('change', function (t) {
+                    new _tween2.default(nodes, 'layout').to(data).duration(1000).on('change', function (t) {
                         nodes.forEach(function (node) {
                             _this.graph.setNodeData(node.id, { x: node.x, y: node.y });
                         });
-                    });
+                    }).on('end', cb);
                 }
             }
 
@@ -4928,12 +4956,18 @@ Object.defineProperty(exports, "__esModule", {
 exports.default = function (WebGLRender) {
     WebGLRender.defaultLayersConfig = [{
         name: 'base',
-        subLayers: [{ name: 'edge', context: 'edge', render: WebGLRender.edge.default, check: layerCheckDefault() }, { name: 'edgeCurve', context: 'edge', render: WebGLRender.edge.curve, check: layerCheck('curve') },
+        subLayers: [{ name: 'edge', context: 'edge', render: WebGLRender.edge.default, check: layerCheckDefault() },
+        // {name:'edgeCurve',context:'edge',render:WebGLRender.edge.curve,check:layerCheck('curve')},
         //
-        { name: 'edgeLabel', context: 'edge', render: WebGLRender.edgeLabel.default, check: layerCheckDefault() }, { name: 'edgeCurveLabel', context: 'edge', render: WebGLRender.edgeLabel.curve, check: layerCheck('curve') }, { name: 'node', context: 'node', render: WebGLRender.node.default, cacheOldData: true, check: layerCheckDefault() },
+        { name: 'edgeLabel', context: 'edge', render: WebGLRender.edgeLabel.default, check: layerCheckDefault() },
+        // {name:'edgeCurveLabel',context:'edge',render:WebGLRender.edgeLabel.curve,check:layerCheck('curve')},
+
+        { name: 'node', context: 'node', render: WebGLRender.node.default, cacheOldData: true, check: layerCheckDefault() },
         // {name:'rectNode',context:'node',render:WebGLRender.node.rect,check:layerCheck('rect')},
 
-        { name: 'nodeOver', custom: true, render: nodeOverCustom }, { name: 'nodeLabel', context: 'node', render: WebGLRender.nodeLabel.default, check: constantTrue() }]
+        // {name:'nodeOver',custom:true,render:nodeOverCustom},
+
+        { name: 'nodeLabel', context: 'node', render: WebGLRender.nodeLabel.default, check: constantTrue() }]
     }];
 };
 
@@ -4981,8 +5015,8 @@ function nodeOverCustom(render) {
 
     gl.bindBuffer(gl.ARRAY_BUFFER, program.vertexBuffer);
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
-    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(indexsNode), gl.STATIC_DRAW);
-    gl.drawElements(gl.TRIANGLES, indexsNode.length, gl.UNSIGNED_SHORT, 0);
+    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint32Array(indexsNode), gl.STATIC_DRAW);
+    gl.drawElements(gl.TRIANGLES, indexsNode.length, gl.UNSIGNED_INT, 0);
 }
 
 ;
@@ -5448,10 +5482,9 @@ exports.default = {
             textureText = _ref2.textureText,
             graph = _ref2.graph;
 
-
+        // debugger
         if (!data.label) return [];
 
-        // debugger
         var str = data.label.split('');
 
         var renderData = [];
@@ -5754,6 +5787,7 @@ exports.default = {
         var isSelected = data.selected ? 1.0 : 0.0;
         var color = _util2.default.parseColor(data.color || '#62ffb7');
 
+        // debugger
         // var img = -1;
         // if (data.img && textureLoader.cache[data.img])
         //     img = textureLoader.cache[data.img];

@@ -34,6 +34,7 @@ export default {
         var isSelected = data.selected ? 1.0 : 0.0;
         var color = utils.parseColor(data.color || '#62ffb7');
 
+        // debugger
         // var img = -1;
         // if (data.img && textureLoader.cache[data.img])
         //     img = textureLoader.cache[data.img];

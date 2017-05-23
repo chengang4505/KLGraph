@@ -22,10 +22,10 @@ export default {
         }
     },
     getRenderData({data, textureLoader, textureIcon,textureText,graph}){
-
+        // debugger
         if(!data.label) return [];
 
-        // debugger
+
         var str = data.label.split('');
 
         var renderData = [];
