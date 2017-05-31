@@ -102,7 +102,12 @@ export function vertexAttribPointer(gl,activeAttributes,offsetConfig) {
     // debugger
     var config = offsetConfig.config;
     var strip = offsetConfig.strip;
+    var err = [];
     for(var attr in activeAttributes){
+        if(!config[attr]){
+            err.push(`shader need attribute: ${attr}`);
+            continue;
+        }
         gl.vertexAttribPointer(
             activeAttributes[attr].location,
             config[attr].components,
@@ -110,7 +115,7 @@ export function vertexAttribPointer(gl,activeAttributes,offsetConfig) {
         );
         gl.enableVertexAttribArray(activeAttributes[attr].location);
     }
-
+    return err.length ? err.join('\n') : null;
 }
 
 export function checkAttrValid(config,data){
@@ -160,3 +165,62 @@ export  function setUniforms(gl,activeUniforms,uniforms){
         uniformSetter[type](gl,activeUniforms[attr].location,uniforms[attr]);
     }
 }
+
+
+//webgl shader tool
+export function loadShader(gl, shaderSource, shaderType, error) {
+    var compiled,
+        shader = gl.createShader(shaderType);
+
+    // Load the shader source
+    gl.shaderSource(shader, shaderSource);
+
+    // Compile the shader
+    gl.compileShader(shader);
+
+    // Check the compile status
+    compiled = gl.getShaderParameter(shader, gl.COMPILE_STATUS);
+
+    // If something went wrong:
+    if (!compiled) {
+        if (error) {
+            error('Error compiling shader "' + shader + '":' + gl.getShaderInfoLog(shader));
+        }
+
+        console.error('Error compiling shader "' + shader + '":' + gl.getShaderInfoLog(shader));
+        gl.deleteShader(shader);
+        return null;
+    }
+
+    return shader;
+};
+export function loadProgram(gl, shaders, attribs, loc, error) {
+    var i,
+        linked,
+        program = gl.createProgram();
+
+    for (i = 0; i < shaders.length; ++i)
+        gl.attachShader(program, shaders[i]);
+
+    if (attribs)
+        for (i = 0; i < attribs.length; ++i)
+            gl.bindAttribLocation(
+                program,
+                locations ? locations[i] : i,
+                opt_attribs[i]
+            );
+
+    gl.linkProgram(program);
+
+    // Check the link status
+    linked = gl.getProgramParameter(program, gl.LINK_STATUS);
+    if (!linked) {
+        if (error)
+            error('Error in program linking: ' + gl.getProgramInfoLog(program));
+        console.error('Error in program linking: ' + gl.getProgramInfoLog(program));
+        gl.deleteProgram(program);
+        return null;
+    }
+
+    return program;
+};

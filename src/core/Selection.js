@@ -8,7 +8,7 @@ import  EventEmitter from '../base/EventEmitter'
 import  utils from '../util'
 
 export default class Selection extends EventEmitter{
-    constructor(canvas,context){
+    constructor(context,canvas){
         super();
 
         this.context = context;
@@ -18,14 +18,12 @@ export default class Selection extends EventEmitter{
 
         this.canvas.addEventListener('mousedown',this.mouseDown.bind(this));
 
-        this.rect = {
-            x:0,
-            y:0,
-            w:0,
-            h:0
-        };
+        this.rect = null;
 
-        this.data = [];
+        this.data = {
+            edges:[],
+            nodes:[]
+        };
 
         this.initGraphEvent();
     }
@@ -38,9 +36,10 @@ export default class Selection extends EventEmitter{
     renderRect(){
         var rect = this.rect;
         var ctx = this.ctx;
+        var config = this.context.config;
         ctx.clearRect(0,0,this.canvas.width,this.canvas.height);
-        ctx.fillStyle = 'rgba(58, 75, 89, 0.3)';
-        ctx.strokeStyle="#4b7598";
+        ctx.fillStyle = config.selectionFillStyle;
+        ctx.strokeStyle= config.selectionStrokeStyle;
         ctx.beginPath();
         ctx.rect(rect.x,rect.y,rect.w,rect.h);
         ctx.closePath();
@@ -55,11 +54,18 @@ export default class Selection extends EventEmitter{
 
     initGraphEvent(){
         var _this = this;
-        this.context.graph.on('remove',function (type,id) {
-            if(type == 'node'){
-                for(var i = 0;i<_this.data.length;i++){
-                    if(_this.data[i].id == id){
-                        _this.data.splice(i,1);
+        var map,dataType;
+        this.context.graph.on('remove',function (type,ids) {
+            dataType = type == 'node' ? 'nodes' : 'edges';
+            if(utils.isArray(ids) && ids.length > 1){
+                map = {};
+                ids.forEach( id =>{ map[id] = true});
+                _this.data[dataType] = _this.data[dataType].filter( id => !map[id]);
+            }else {
+                ids = utils.isArray(ids) ? ids[0] : ids;
+                for(var i = 0;i<_this.data[dataType].length;i++){
+                    if(_this.data[dataType][i] == ids){
+                        _this.data[dataType].splice(i,1);
                         break;
                     }
                 }
@@ -67,17 +73,22 @@ export default class Selection extends EventEmitter{
         });
 
         this.context.graph.on('reset',function () {
-            _this.data = [];
+            _this.data = {
+                edges:[],
+                nodes:[]
+            };
         })
     }
 
     mouseDown(e){
         var _this = this;
 
+        this.rect = {x:0, y:0, w:0, h:0};
+
         this.rect.x = e.offsetX;
         this.rect.y = e.offsetY;
 
-        _this.emit('selectstart');
+        _this.emit('selectStart',[_this]);
 
         document.addEventListener('mousemove',mouseMove);
         document.addEventListener('mouseup',mouseUp);
@@ -88,90 +99,132 @@ export default class Selection extends EventEmitter{
             _this.renderRect();
         }
         function mouseUp(e) {
+            mouseMove(e);
+
             document.removeEventListener('mousemove',mouseMove);
             document.removeEventListener('mouseup',mouseUp);
-            var data = _this.filter(_this.ctx);
+            var nodesid = _this.filterNodes(_this.ctx);
 
             _this.disable();
-            _this.select(data);
-            _this.emit('selectend',[data]);
+            _this.selectNodes(nodesid);
+            _this.emit('selectEnd',[_this]);
         }
     }
 
-    select(nodes,isAdd,sendMessage = true){
+    selectNodes(nodesid,isAdd,sendMsg = true){
         var _this = this;
 
-        if(!utils.isArray(nodes)) nodes = [nodes];
+        if(!utils.isArray(nodesid)) nodesid = [nodesid];
 
         if(isAdd){
-            nodes.forEach(function (node) {
-                _this.context.graph.setNodeData(node.id,{selected:true});
-                _this.data.push(node);
+            nodesid.forEach(function (id) {
+                _this.context.graph.setNodeData(id,{selected:true});
+                _this.data.nodes.push(id);
             });
 
         }else {
 
-            _this.data.forEach(function (e) {
-                if(_this.context.graph.nodesIndex[e.id])
-                    _this.context.graph.setNodeData(e.id,{selected:false});
+            _this.data.nodes.forEach(function (id) {
+                if(_this.context.graph.nodesIndex[id])
+                    _this.context.graph.setNodeData(id,{selected:false});
             });
 
-            nodes.forEach(function (node) {
-                _this.context.graph.setNodeData(node.id,{selected:true});
+            nodesid.forEach(function (id) {
+                _this.context.graph.setNodeData(id,{selected:true});
             });
 
-            _this.data = nodes;
+            _this.data.nodes = nodesid;
 
         }
 
-        sendMessage && _this.emit('select',[_this.getSelection()]);
+        sendMsg && _this.emit('select',['node',_this.getNodes()]);
+    }
+    selectEdges(edgesid,isAdd,sendMsg = true){
+        var _this = this;
+
+        if(!utils.isArray(edgesid)) edgesid = [edgesid];
+
+        if(isAdd){
+            edgesid.forEach(function (id) {
+                _this.context.graph.setEdgeData(id,{selected:true});
+                _this.data.edges.push(id);
+            });
+
+        }else {
+
+            _this.data.edges.forEach(function (id) {
+                if(_this.context.graph.edgesIndex[id])
+                    _this.context.graph.setEdgeData(id,{selected:false});
+            });
+
+            edgesid.forEach(function (id) {
+                _this.context.graph.setEdgeData(id,{selected:true});
+            });
+
+            _this.data.edges = edgesid;
+
+        }
+
+        sendMsg && _this.emit('select',['edge',_this.getEdges()]);
     }
 
-    unSelect(nodes){
+    unSelectNode(nodesid){
 
-        if(this.data.length == 0 || !nodes) return;
+        if(this.data.nodes.length == 0 || !nodesid) return;
 
         var _this = this;
-        if(!utils.isArray(nodes)) nodes = [nodes];
+        if(!utils.isArray(nodesid)) nodesid = [nodesid];
 
         var map = {};
 
-        nodes.forEach(function (node) {
-            map[node.id] = true;
+        nodesid.forEach(function (id) {
+            map[id] = true;
         });
 
         var newSelected = [];
-        this.data.forEach(function (node) {
-            if(map[node.id]) _this.context.graph.setNodeData(node.id,{selected:false});
-            else newSelected.push(node);
+        this.data.nodes.forEach(function (id) {
+            if(map[id]) _this.context.graph.setNodeData(id,{selected:false});
+            else newSelected.push(id);
         });
 
-        this.data = newSelected;
+        this.data.nodes = newSelected;
 
-        _this.emit('select',[_this.getSelection()]);
+        _this.emit('select',[_this.getNodes()]);
+    }
+    getNodes(){
+        return this.data.nodes.map( id => this.context.graph.nodesIndex[id]);
+    }
+    getEdges(){
+        return this.data.edges.map( id => this.context.graph.edgesIndex[id]);
     }
 
-    getSelection(){
-        return this.data.slice();
+
+    isNodeSelected(id){
+        var nodes = this.data.nodes;
+        for(var i = 0;i< nodes.length;i++){
+            if(nodes[i] == id){
+                return true
+            }
+        }
+        return false;
     }
-
-
-    isSelected(node){
-        for(var i = 0;i< this.data.length;i++){
-            if(this.data[i].id == node.id){
+    isEdgeSelected(id){
+        var edges = this.data.edges;
+        for(var i = 0;i< edges.length;i++){
+            if(edges[i] == id){
                 return true
             }
         }
         return false;
     }
 
-    filter(ctx){
+    filterNodes(ctx){
         var nodes = this.context.graph.nodes;
         var selects = [];
         var domPos;
         nodes.forEach(function (node) {
             domPos = this.context.render.graphToDomPos({x:node.x,y:node.y});
-            if(ctx.isPointInPath(domPos.x,domPos.y)) selects.push(node);
+            if(ctx.isPointInPath(domPos.x,domPos.y)) selects.push(node.id);
         }.bind(this));
 
         return selects;
@@ -179,10 +232,10 @@ export default class Selection extends EventEmitter{
 
     delete(){
         var _this = this;
-        var data = this.data;
-        this.data = [];
-        data.forEach(function (node) {
-            _this.context.graph.removeNode(node.id);
+        var nodes = this.data.nodes;
+        this.data.nodes = [];
+        nodes.forEach(function (id) {
+            _this.context.graph.removeNode(id);
         });
     }
 }

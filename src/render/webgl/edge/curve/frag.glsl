@@ -8,17 +8,19 @@ varying vec2 uv;
 varying float dis;
 varying float flag;
 varying float dashed;
+varying float size;
+varying float ratio;
 
 uniform float u_camera_scale;
 
 
 
 void main(){
-        float a = 0.8;
-        float width = a / u_camera_scale;
+        float width = size / u_camera_scale;
+        float blur = clamp(0.6,0.05,width*1.0) ;
+        width = width + blur;
+        float blur_ratio = blur / width;
         float scale = 1.0;
-        float base = 0.6;
-        float smooth_factor = 0.4;
 
         if(flag > -0.5 && flag < 0.5){//curve
                 vec2 px = dFdx(uv);
@@ -30,13 +32,13 @@ void main(){
                 float sd = (uv.x * uv.x - uv.y) / sqrt(fx * fx + fy * fy);
 
                 float alpha = 1.0 - abs(sd) / width;
-                if (alpha < 0.0 || uv.x < 0.0 || uv.x > 1.0) discard;
+                if (alpha < 0.0 || uv.x < ratio || uv.x > 1.0) discard;
 
                 float n = 800.0/dis;
                 float dot = mod(uv.x*100.0,n);
                 if(dashed > 0.5 && dot > n*0.5 && dot < n) discard;
 
-                if(alpha < 0.2) scale = smoothstep(0.0,smooth_factor,alpha);
+                if(alpha < blur_ratio) scale = smoothstep(0.0,blur_ratio,alpha);
 
                 gl_FragColor = color*scale;
 

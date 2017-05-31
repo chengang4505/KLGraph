@@ -60,7 +60,7 @@ if(flag > 0.5 && flag < 1.5) //flag =1
 
      r = smoothstep(0.6,1.0,r);
 
-      gl_FragColor = vec4(1.0,0.0,0.0,0.3)*(1.0-r);
+      gl_FragColor = vec4(borderColor.rgb,0.8)*(1.0-r);
  }
 
 

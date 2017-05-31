@@ -23,11 +23,13 @@ export default {
             u_image:10,
         }
     },
-    getRenderData({data, textureLoader, textureIcon,textureText,graph}){
+    getRenderData({data,config, textureLoader, textureIcon,textureText,graph}){
         var target = graph.nodesIndex[data.target];
         var source = graph.nodesIndex[data.source];
 
         if(!data.label) return null;
+
+        var defaultSize = config.defaultNodeSize;
 
         // debugger
         var str = data.label.split('');
@@ -35,7 +37,7 @@ export default {
         var renderData = [];
         var indices = [];
 
-        var size = data.fontSize ||  Math.max(util.getNodeSizeX(source),util.getNodeSizeY(source))/3;
+        var size = data.fontSize ||  Math.max(util.getNodeSizeX(source)||defaultSize,util.getNodeSizeY(source)||defaultSize)/3;
         var infos = textureText.textinfo.infos,
             charWidth = size,
             charHeight = size,
@@ -58,8 +60,8 @@ export default {
         var dis = util.getDistance(source.x,source.y,target.x,target.y);
         var tSize = Math.max(util.getNodeSizeX(target),util.getNodeSizeY(target));
 
-        var tX = target.x - tSize / dis * dx;
-        var tY = target.y - tSize / dis * dy;
+        var tX = target.x;
+        var tY = target.y;
 
         var ctrlP = util.getControlPos(source.x,source.y,tX,tY,data.curveCount,data.curveOrder);
 

@@ -1,7 +1,7 @@
 
 
 import EventEmitter from '../../base/EventEmitter'
-import TextSdf from './TextSdf'
+import TextSDF from './TextSDF'
 
 export default class TextureText extends EventEmitter{
     constructor(){
@@ -18,7 +18,7 @@ export default class TextureText extends EventEmitter{
 
         this.texts = [];
 
-        this.sdf = new TextSdf(this.fontSize, this.fontSize/8, this.fontSize/3,null,this.fontFamily);
+        this.sdf = new TextSDF(this.fontSize, this.fontSize/8, this.fontSize/3,null,this.fontFamily);
 
 
         // test();
@@ -35,8 +35,8 @@ export default class TextureText extends EventEmitter{
         var height = width;
         var num = Math.ceil(Math.sqrt(texts.length));
 
-        c.width  = num * (width) + 2* this.border;
-        c.height  = num * (height) + 2* this.border;
+        c.width  = (num + 1) * (width) + 2* this.border;
+        c.height  = (num +1 ) * (height) + 2* this.border;
 
 
         var ctx = c.getContext("2d");
@@ -121,24 +121,17 @@ export default class TextureText extends EventEmitter{
     }
 
     addTexts(strs){
-        var len = strs.length;
-        var char,num = 0;
+        if(strs.length == 0) return;
+
+        strs.forEach(function (e) {
+            this.texts.push(e);
+        }.bind(this));
 
         var texts = this.texts;
-        var map = {};
-        for(var i = 0;i< len;i++){
-            char = strs.charAt(i);
-            if(!this.textinfo.infos[char] && !map[char]){
-                num++;
-                map[char] = true;
-                texts.push(char);
-            }
-        }
 
-        if(num > 0) {
-           this.clear();
-            this.createCanvasImg(texts);
-        }
+       this.clear();
+        this.createCanvasImg(texts);
+
     }
 
     createTexture(gl){

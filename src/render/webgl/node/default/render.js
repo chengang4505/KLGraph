@@ -19,30 +19,36 @@ export default {
         a_showicon: {components:1,start:11},
         a_center: {components:2,start:12},
     },
-    getUniforms({matrix, camera, sampleRatio, textureLoader}){
+    getUniforms({matrix, camera,config, sampleRatio, textureLoader}){
+        var color = utils.parseColor(config.defaultNodeBorder);
         return {
             u_matrix:matrix,
             u_camera_scale:camera.scale,
             // u_textures:textureLoader.texturesIndex,
-            u_borderColor:[212, 82, 95,255.0],
+            u_borderColor: [color.r, color.g, color.b, color.a],
             u_sample_ratio:sampleRatio,
             u_icons_texture:11,
         }
     },
-    getRenderData({data, textureLoader, textureIcon,oldData,dirtyAttr}){
-        var size = data.size * 2 || 10 * 2;
+    getRenderData({data,config, textureLoader, textureIcon,oldData,dirtyAttr}){
+
+        data.size = data.size || config.defaultNodeSize;
         var isSelected = data.selected ? 1.0 : 0.0;
-        var color = utils.parseColor(data.color || '#62ffb7');
+        var color = utils.parseColor(data.color || config.defaultNodeColor);
 
         // debugger
         // var img = -1;
         // if (data.img && textureLoader.cache[data.img])
         //     img = textureLoader.cache[data.img];
 
-        if(oldData && dirtyAttr && Object.keys(dirtyAttr).length == 2 && dirtyAttr.hasOwnProperty('x') && dirtyAttr.hasOwnProperty('y')){
+        if(oldData && dirtyAttr
+            && Object.keys(dirtyAttr).length == 2
+            && dirtyAttr.hasOwnProperty('x')
+            && dirtyAttr.hasOwnProperty('y')
+        ){
             // debugger
             var offset = 14;
-            var oldVertices = oldData.data.vertices;
+            var oldVertices = oldData.vertices;
             for(var i = 0;i< oldVertices.length;i+=offset){
                 oldVertices[i+12] = data.x;
                 oldVertices[i+13] = data.y;

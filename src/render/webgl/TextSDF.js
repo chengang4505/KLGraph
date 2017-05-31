@@ -2,7 +2,7 @@
 
 var INF = 1e20;
 
-export  default  function TextSdf(fontSize, buffer, radius, cutoff, fontFamily) {
+export  default  function TextSDF(fontSize, buffer, radius, cutoff, fontFamily) {
     this.fontSize = fontSize || 24;
     this.buffer = buffer === undefined ? 3 : buffer;
     this.cutoff = cutoff || 0.25;
@@ -30,7 +30,7 @@ export  default  function TextSdf(fontSize, buffer, radius, cutoff, fontFamily) 
     this.middle = Math.round((size / 2) * (navigator.userAgent.indexOf('Gecko/') >= 0 ? 1.2 : 1));
 }
 
-TextSdf.prototype.draw = function (char) {
+TextSDF.prototype.draw = function (char) {
     this.ctx.clearRect(0, 0, this.size, this.size);
     this.ctx.fillText(char, this.buffer, this.middle);
 

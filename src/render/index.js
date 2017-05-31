@@ -14,7 +14,6 @@ WebGLRender.node.rect = rect;
 
 import NodeLabel from './webgl/label/NodeLabel'
 WebGLRender.nodeLabel.default = NodeLabel;
-WebGLRender.nodeLabel.rect = NodeLabel;
 
 import edge from './webgl/edge/render'
 import curve from './webgl/edge/curve/render'
@@ -28,11 +27,7 @@ WebGLRender.edgeLabel.default = EdgeLabel;
 WebGLRender.edgeLabel.curve = curveLabel;
 
 
-
-
-import initDefaultConfig from  './webgl/defaultLayerConfig'
+import initDefaultConfig from  './webgl/defaultConfig/index'
 initDefaultConfig(WebGLRender);
 
-export {
-    WebGLRender
-};
+export default WebGLRender

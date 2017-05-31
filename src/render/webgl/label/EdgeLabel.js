@@ -24,11 +24,13 @@ export default {
             u_image:10,
         }
     },
-    getRenderData({data, textureLoader, textureIcon,textureText,graph}){
+    getRenderData({data,config, textureLoader, textureIcon,textureText,graph}){
         var target = graph.nodesIndex[data.target];
         var source = graph.nodesIndex[data.source];
 
-        if(!data.label) return [];
+        if(!data.label) return null;
+
+        var defaultSize = config.defaultNodeSize;
 
         // debugger
         var str = data.label.split('');
@@ -36,7 +38,7 @@ export default {
         var renderData = [];
         var indices = [];
 
-        var size = data.fontSize ||  Math.max(util.getNodeSizeX(source),util.getNodeSizeY(source))/3;
+        var size = data.fontSize ||  Math.max(util.getNodeSizeX(source) || defaultSize,util.getNodeSizeY(source) || defaultSize)/3;
         var infos = textureText.textinfo.infos,
             charWidth = size,
             charHeight = size,
@@ -80,8 +82,6 @@ export default {
 
             addData(renderData,[startx,starty,x1,y1,width],centerX,centerY,angle);
             addData(renderData,[startx,starty-charHeight,x1,y2,width],centerX,centerY,angle);
-            // addData(renderData,[startx+width,starty,x2,y1,width],centerX,centerY,angle);
-            // addData(renderData,[startx,starty-charHeight,x1,y2,width],centerX,centerY,angle);
             addData(renderData,[startx+width,starty,x2,y1,width],centerX,centerY,angle);
             addData(renderData,[startx+width,starty-charHeight,x2,y2,width],centerX,centerY,angle);
 

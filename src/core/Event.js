@@ -1,10 +1,9 @@
-/**
- * Created by chengang on 17-3-29.
- */
 
 'use strict';
 
 import util from '../util'
+
+
 
 export default function initEvent() {
 
@@ -17,6 +16,7 @@ export default function initEvent() {
             currentNode:null,
             currentEdge:null,
         };
+    var config = _this.context.config;
 
     _this.context.overInfo = overInfo;
 
@@ -29,10 +29,7 @@ export default function initEvent() {
         mousewheel:handlerWrap(_wheelHandler),
         DOMMouseScroll:handlerWrap(_wheelHandler),//firfox
     };
-
-
     for(var e in events)    this.container.addEventListener(e, events[e], false);
-
     events.click = handlerWrap(_clickHandler);
 
     //some little situation maybe need the trigger function.
@@ -40,34 +37,69 @@ export default function initEvent() {
         if(events[type]) events[type](event);
     };
 
-    //function
-    function checkInNode(posx,posy,node) {
-        var isFind = false;
-        var dis,sizeX,sizeY;
+    //default check function
+    function defaultNodeCheck(posx,posy,node) {
+        var check = false;
+        var dis,sizeX,sizeY,size;
         if(node.type == 'rect'){
-            sizeX = util.getNodeSizeX(node);
-            sizeY = util.getNodeSizeY(node);
-            isFind = util.inRect(posx,posy,node.x-sizeX,node.y-sizeY,sizeX*2,sizeY*2);
+            sizeX = util.getNodeSizeX(node) || config.defaultNodeSize;
+            sizeY = util.getNodeSizeY(node) || config.defaultNodeSize;
+            check = util.inRect(posx,posy,node.x-sizeX,node.y-sizeY,sizeX*2,sizeY*2);
         }else {
             dis = util.getDistance(posx, posy, node.x, node.y);
-            isFind = dis <= node.size
+            size = node.size || config.defaultNodeSize;
+            check = dis <= size;
         }
-        return isFind;
+        return check;
+    }
+    function defaultEdgeCheck(posx,posy,edge) {
+        var check = false;
+        var source = _this.graph.nodesIndex[edge.source];
+        var target = _this.graph.nodesIndex[edge.target];
+        var ctrolP;
+
+        if(edge.curveCount == 0){
+            check = util.inLine(posx,posy,source.x,source.y,target.x,target.y,(edge.size || config.defaultEdgeSize)/2);
+        }else {
+            // debugger
+            ctrolP = util.getControlPos(source.x,source.y,target.x,target.y,edge.curveCount,edge.curveOrder);
+            check = util.isPointOnQuadraticCurve(
+                posx,posy,
+                source.x,source.y,
+                target.x,target.y,
+                ctrolP[0],ctrolP[1],
+                (edge.size || config.defaultEdgeSize) / 2
+            )
+        }
+
+        return check;
+    }
+
+    function checkInNode(posx,posy,node) {
+        if(_this.context.customNodeCheck && util.isFunction(_this.context.customNodeCheck)){
+            return _this.context.customNodeCheck(posx,posy,node,defaultNodeCheck);
+        }
+        else return defaultNodeCheck(posx,posy,node);
+    }
+    function checkInEdge(posx,posy,edge) {
+        if(_this.context.customEdgeCheck && util.isFunction(_this.context.customEdgeCheck)){
+            return _this.context.customEdgeCheck(posx,posy,edge,defaultEdgeCheck);
+        }
+        else return defaultEdgeCheck(posx,posy,edge);
     }
 
     function getNode(pos) {
-        // var nodes = _this.graph.quad.point(pos.x, pos.y);
         // console.time('getNode')
         var nodes = _this.graph.nodes;
 
         var node, dis;
         var findNode = null;
 
-        var selection = _this.context.selection.getSelection();
+        var selectNodes = _this.context.selection.getNodes();
 
-        if(selection.length > 0){
-            for(var i = selection.length-1;i >= 0;i--){
-                node = selection[i];
+        if(selectNodes.length > 0){
+            for(var i = selectNodes.length-1;i >= 0;i--){
+                node = selectNodes[i];
                 if (checkInNode(pos.x,pos.y,node)) {
                     findNode = node;
                     break;
@@ -90,16 +122,48 @@ export default function initEvent() {
         return findNode;
     }
 
+    function getEdge(pos) {
+        // console.time('getEdge')
+        var edges = _this.graph.edges;
+
+        var findEdge = null;
+        var edge;
+
+        if (edges.length > 0) {
+            for (var i = edges.length - 1; i >= 0; i--) {
+                edge = edges[i];
+                if (checkInEdge(pos.x,pos.y,edge)) {
+                    findEdge = edge;
+                    break;
+                }
+            }
+        }
+        // console.timeEnd('getEdge')
+        return findEdge;
+    }
+
 
 
     function _clickHandler(e) {
         var graphPos = _this.toGraphPos({x:e.cameraX,y:e.cameraY});
-        var node = getNode(graphPos);
-        if(node) _this.emit('nodeclick',[node,e]);
-        else _this.emit('stageclick',[e]);
+        var edge ,node;
+
+       node = getNode(graphPos);
+       if(node){
+           _this.emit('nodeClick',[node,e]);
+       }else if(config.enableEdgeEvent && (edge = getEdge(graphPos))){
+           _this.emit('edgeClick',[edge,e]);
+       }else {
+           _this.emit('stageClick',[e]);
+       }
+
     }
 
     function _downHandler(e) {
+
+        var isRight = (e.which && e.which == 3) || (e.button && e.button == 2);
+
+        if(isRight) return;
 
         mouseDown = true;
         disableMove = true;
@@ -107,10 +171,10 @@ export default function initEvent() {
         var graphPos = _this.toGraphPos({x:e.cameraX,y:e.cameraY});
         var node = getNode(graphPos);
 
-        if(node) _this.emit('nodeleftclick',[node,e]);
+        if(node) _this.emit('nodeMouseDown',[node,e]);
 
          handleDrag(!node);
-        _this.forceRender();
+        // _this.forceRender();
 
         function handleDrag(isCamera) {
             var isDown = true;
@@ -122,21 +186,22 @@ export default function initEvent() {
 
                 _this.forceRender();
 
-                var graphPos = _this.toGraphPos({x:e.cameraX,y:e.cameraY});
+                var graphPos = _this.toGraphPos({x:e.cameraX,y:e.cameraY}),temp;
                 var offsetx = graphPos.x - startx;
                 var offsety = graphPos.y - starty;
 
                 if(isCamera){
                     _this.camera.positionX -= offsetx;
                     _this.camera.positionY -= offsety;
+                    _this.setMouseType(_this.mouseType.MOVE);
                 }else {
 
-                    if(_this.context.selection.isSelected(node)){
-                        _this.context.selection.data.forEach(function (node) {
-                            _this.graph.setNodeData(node.id,{x:node.x+offsetx,y:node.y+offsety});
+                    if(_this.context.selection.isNodeSelected(node.id)){
+                        _this.context.selection.data.nodes.forEach(function (id) {
+                            temp = _this.context.graph.nodesIndex[id];
+                            _this.graph.setNodeData(id,{x:temp.x+offsetx,y:temp.y+offsety});
                         });
                     }else _this.graph.setNodeData(node.id,{x:node.x+offsetx,y:node.y+offsety});
-                    // _this.emit('drag',['node',offsetx,offsety]);
 
                     // fit(e);
                 }
@@ -172,6 +237,7 @@ export default function initEvent() {
 
             function clear() {
                 disableMove = false;
+                // _this.setMouseType(_this.mouseType.DEFAULT);
                 onmousemove&&_this.container.removeEventListener('mousemove',onmousemove);
                 onmouseup&&_this.container.removeEventListener('mouseup',onmouseup);
                 onmouseout&&_this.container.removeEventListener('mouseout',onmouseout);
@@ -196,51 +262,90 @@ export default function initEvent() {
             old = overInfo.currentNode;
             overInfo.currentNode = node;
 
-            _this.emit('overnode', [node,e]);
-           if(old) _this.emit('outnode', [old,e]);
+           if(old) _this.emit('nodeOut', [old,e]);
+           if(overInfo.currentEdge){
+               old = overInfo.currentEdge;
+               overInfo.currentEdge = null;
+               _this.emit('edgeOut',[old,e]);
+           }
+            _this.emit('nodeOver', [node,e]);
+
         }else if(!node && overInfo.currentNode){
             old = overInfo.currentNode;
             overInfo.currentNode = null;
-            _this.emit('outnode', [old,e]);
+            _this.emit('nodeOut', [old,e]);
+        }
+
+        var edge;
+        if(!node && config.enableEdgeEvent){
+            edge = getEdge(graphPos);
+            if(edge && edge !== overInfo.currentEdge){
+                old = overInfo.currentEdge;
+                overInfo.currentEdge = edge;
+
+                if(old) _this.emit('edgeOut',[old,e]);
+                _this.emit('edgeOver',[edge,e]);
+            }else if(!edge && overInfo.currentEdge){
+                old = overInfo.currentEdge;
+                overInfo.currentEdge = null;
+                _this.emit('edgeOut',[old,e]);
+            }
+        }
+
+        if(node || edge){
+            _this.setMouseType(_this.mouseType.POINTER);
+        }else {
+            _this.setMouseType(_this.mouseType.DEFAULT);
         }
 
     }
 
     function _upHandler(e) {
 
-        if(mouseDown && !mouseMove){
+        var isRight = (e.which && e.which == 3) || (e.button && e.button == 2);
+
+        if(mouseDown && !mouseMove && !isRight){
             _clickHandler(e);
         }
-        mouseDown = false;
-        mouseMove = false;
 
-        if ((e.which && e.which == 3) || (e.button && e.button == 2)){
+
+        if (isRight){
             var graphPos = _this.toGraphPos({x:e.cameraX,y:e.cameraY});
             var node = getNode(graphPos);
+            var edge;
             if(node){
-                _this.emit('rightclick',['node',node,e]);
+                _this.emit('nodeRightClick',[node,e]);
+            }else if(edge = getEdge(graphPos)) {
+                _this.emit('edgeRightClick',[edge,e]);
             }else {
-                _this.emit('rightclick',['stage',null,e]);
+                _this.emit('stageRightClick',[e]);
             }
         }
 
-
+        mouseDown = false;
+        mouseMove = false;
 
     }
 
     function _wheelHandler(e) {
-        var value = e.wheelDelta || e.detail;
+        var value = (
+            (e.wheelDelta !== undefined && e.wheelDelta) ||
+            (e.detail !== undefined && -e.detail)
+        );
 
-        if(Math.abs(value) ==  3 ) value = -1 * value;
+        if(value == 0) return; // Mac OS maybe -0;
+
 
         _this.forceRender();
         var ratio = _this.config.zoomRatio;
+
+
         if(value > 0){
             _this.zoomTo(1/ratio,e.cameraX,e.cameraY);
-            _this.emit('zoom',[1/ratio])
+            _this.emit('zoom',[1/ratio,_this.camera.scale,e])
         }else {
             _this.zoomTo(ratio,e.cameraX,e.cameraY);
-            _this.emit('zoom',[ratio])
+            _this.emit('zoom',[ratio,_this.camera.scale,e])
         }
     }
 

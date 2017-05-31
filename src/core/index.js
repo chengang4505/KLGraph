@@ -20,6 +20,8 @@ export  default  class Core {
     constructor(option) {
         option = option || {};
 
+        this.container = option.container;
+
         this.config = utils.extend(option.config || {},defaultConfig);
 
         this.graph = new Graph({
@@ -27,17 +29,12 @@ export  default  class Core {
             edges: option.edges
         });
 
-        this.container = option.container;
-
         this.canvas = {};
         this.initCanvas();
 
-        this.render = new WebGLRender(
-            this,
-            utils.extend({container: this.canvas.render}, this.config)
-        );
+        this.render = new WebGLRender(this, this.canvas.render);
 
-        this.selection = new Selection(this.canvas.mouse, this);
+        this.selection = new Selection(this,this.canvas.mouse);
 
         this.on = this.render.on.bind(this.render);
         this.off = this.render.off.bind(this.render);
@@ -55,7 +52,7 @@ export  default  class Core {
 
         this.canvas.mouse = this.createElement('canvas');
         this.canvas.mouse.style.display = 'none';
-        this.canvas.mouse.style.cursor = 'cell';
+        this.canvas.mouse.style.cursor = 'crosshair';
 
         this.container.appendChild(this.canvas.mouse);
     }
@@ -122,15 +119,16 @@ export  default  class Core {
 
     _initEvent() {
         var _this = this;
-        this.render.on('nodeleftclick', function (node, e) {
-            if (!_this.selection.isSelected(node))
-                _this.selection.select(node,e.shiftKey);
-            else if(e.shiftKey) _this.selection.unSelect(node);
+        this.render.on('nodeMouseDown', function (node, e) {
+            // debugger
+            if (!_this.selection.isNodeSelected(node.id))
+                _this.selection.selectNodes(node.id,e.shiftKey);
+            else if(e.shiftKey) _this.selection.unSelectNode(node.id);
         });
 
-        this.render.on('rightclick', function (type,node, e) {
-            if (type == 'node' && !_this.selection.isSelected(node))
-                _this.selection.select(node);
+        this.render.on('nodeRightClick', function (type,node, e) {
+            if (type == 'node' && !_this.selection.isNodeSelected(node))
+                _this.selection.selectNodes(node);
         });
     }
 
@@ -186,7 +184,7 @@ export  default  class Core {
             edges = getEdges(nodes);
         }
 
-        if (type == 'preset') {
+        if (!type || type == 'preset') {
             this.graph.nodes.forEach(function (e) {
                 if (!('x' in e)) e.x = Math.random() * _this.render.gl.clientWidth;
                 if (!('y' in e)) e.y = Math.random() * _this.render.gl.clientWidth;

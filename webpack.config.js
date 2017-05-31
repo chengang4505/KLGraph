@@ -9,7 +9,7 @@ module.exports = {
         // path: path.resolve(__dirname, '../Demo/static/js'),
         filename: 'klgraph.js',
         library: 'KLGraph',
-        libraryTarget: 'window',
+        libraryTarget: 'umd',
     },
     devtool: 'source-map',
     module: {

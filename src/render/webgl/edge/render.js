@@ -22,24 +22,35 @@ export default {
             u_matrix:matrix
         }
     },
-    getRenderData({data, textureLoader, textureIcon,graph}){
+    getRenderData({data,config, textureLoader, textureIcon,graph}){
         var target = graph.nodesIndex[data.target];
         var source = graph.nodesIndex[data.source];
         var edge = data;
         var dx = target.x - source.x;
         var dy = target.y - source.y;
 
-        data = [];
-        var size = 0.8,arrowSize =6;
+        var defaultSize = config.defaultNodeSize;
+
+        var size = (data.size || config.defaultEdgeSize)/2,
+            arrowSize = data.arrowSize || config.defaultEdgeArrowSize;
         var crossVector = util.normalize([-dy,dx]);
 
         //arrow
-        var targetSize = Math.max(util.getNodeSizeX(target),util.getNodeSizeY(target));
+        var tNodeW,tNodeH,targetSize;
+        tNodeW = util.getNodeSizeX(target);
+        tNodeH = util.getNodeSizeY(target);
+
+        if(tNodeH && tNodeW && tNodeH == tNodeW){
+            targetSize = tNodeW;
+        }else {
+            targetSize = Math.sqrt(Math.pow((tNodeW || defaultSize),2)+Math.pow((tNodeH || defaultSize),2));
+        }
+
         var dis = util.getDistance(source.x,source.y,target.x,target.y);
         var arrowX = target.x - (targetSize + arrowSize)/dis * dx;
         var arrowY = target.y - (targetSize + arrowSize)/dis * dy;
 
-        var color = util.parseColor(edge.color||source.color || '#b3d2ff');
+        var color = util.parseColor(edge.color||source.color || config.defaultEdgeColor);
 
         var renderData = [];
         var indices = [];
@@ -47,8 +58,6 @@ export default {
         addData(renderData,[source.x,source.y,crossVector[0],crossVector[1],size,color.r,color.g,color.b,color.a]);
         addData(renderData,[arrowX,arrowY,crossVector[0],crossVector[1],size,color.r,color.g,color.b,color.a]);
         addData(renderData,[source.x,source.y,-crossVector[0],-crossVector[1],size,color.r,color.g,color.b,color.a]);
-        // addData(renderData,[arrowX,arrowY,crossVector[0],crossVector[1],size,color.r,color.g,color.b,color.a]);
-        // addData(renderData,[source.x,source.y,-crossVector[0],-crossVector[1],size,color.r,color.g,color.b,color.a]);
         addData(renderData,[arrowX,arrowY,-crossVector[0],-crossVector[1],size,color.r,color.g,color.b,color.a]);
 
         addIndices(indices,[0,1,2,1,2,3]);

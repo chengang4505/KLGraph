@@ -21,17 +21,18 @@ export default {
             u_image:10,
         }
     },
-    getRenderData({data, textureLoader, textureIcon,textureText,graph}){
+    getRenderData({data,config, textureLoader, textureIcon,textureText,graph}){
         // debugger
-        if(!data.label) return [];
+        if(!data.label) return null;
 
+        var defaultSize = config.defaultNodeSize;
 
         var str = data.label.split('');
 
         var renderData = [];
         var indices = [];
 
-        var sizeX = util.getNodeSizeX(data),sizeY = util.getNodeSizeY(data);
+        var sizeX = util.getNodeSizeX(data) || defaultSize,sizeY = util.getNodeSizeY(data) || defaultSize;
         var size = Math.max(sizeX,sizeY);
         var infos = textureText.textinfo.infos,
             charWidth = size/2,
@@ -68,8 +69,6 @@ export default {
             addData(renderData,[startx,starty,x1,y1,width]);
             addData(renderData,[startx,starty-charHeight,x1,y2,width]);
             addData(renderData,[startx+width,starty,x2,y1,width]);
-            // addData(renderData,[startx,starty-charHeight,x1,y2,width]);
-            // addData(renderData,[startx+width,starty,x2,y1,width]);
             addData(renderData,[startx+width,starty-charHeight,x2,y2,width]);
 
             addIndices(indices,[

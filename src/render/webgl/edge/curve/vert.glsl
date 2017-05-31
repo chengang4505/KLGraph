@@ -6,6 +6,8 @@ attribute vec2 a_uv;
 attribute float a_dis;
 attribute float a_flag;
 attribute float a_dashed;
+attribute float a_size;
+attribute float a_ratio;
 
 uniform mat3 u_matrix;
 
@@ -14,6 +16,8 @@ varying vec2 uv;
 varying float dis;
 varying float flag;
 varying float dashed;
+varying float size;
+varying float ratio;
 
 void main() {
 
@@ -23,5 +27,8 @@ uv = a_uv;
 dis = a_dis;
 flag = a_flag;
 color = a_color/255.0;
+color = vec4(color.rgb * color.a,color.a);
 dashed = a_dashed;
+size = a_size;
+ratio = 1.0 - a_ratio;
 }

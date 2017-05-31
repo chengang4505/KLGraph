@@ -44,64 +44,6 @@ utils.isFunction =  function( obj ){
     return obj != null && typeof obj === typeoffn;
 };
 
-//webgl shader tool
-utils.loadShader = function(gl, shaderSource, shaderType, error) {
-    var compiled,
-        shader = gl.createShader(shaderType);
-
-    // Load the shader source
-    gl.shaderSource(shader, shaderSource);
-
-    // Compile the shader
-    gl.compileShader(shader);
-
-    // Check the compile status
-    compiled = gl.getShaderParameter(shader, gl.COMPILE_STATUS);
-
-    // If something went wrong:
-    if (!compiled) {
-        if (error) {
-            error('Error compiling shader "' + shader + '":' + gl.getShaderInfoLog(shader));
-        }
-
-        console.error('Error compiling shader "' + shader + '":' + gl.getShaderInfoLog(shader));
-        gl.deleteShader(shader);
-        return null;
-    }
-
-    return shader;
-};
-utils.loadProgram = function(gl, shaders, attribs, loc, error) {
-    var i,
-        linked,
-        program = gl.createProgram();
-
-    for (i = 0; i < shaders.length; ++i)
-        gl.attachShader(program, shaders[i]);
-
-    if (attribs)
-        for (i = 0; i < attribs.length; ++i)
-            gl.bindAttribLocation(
-                program,
-                locations ? locations[i] : i,
-                opt_attribs[i]
-            );
-
-    gl.linkProgram(program);
-
-    // Check the link status
-    linked = gl.getProgramParameter(program, gl.LINK_STATUS);
-    if (!linked) {
-        if (error)
-            error('Error in program linking: ' + gl.getProgramInfoLog(program));
-        console.error('Error in program linking: ' + gl.getProgramInfoLog(program));
-        gl.deleteProgram(program);
-        return null;
-    }
-
-    return program;
-};
-
 
 utils.extend = function() {
     var i,
@@ -139,6 +81,34 @@ utils.inRect = function (posx,posy,x,y,w,h) {
   return posx >= x && posx <= x+w && posy >= y && posy <= y+h;
 };
 
+utils.inLine = function (x,y,x1,y1,x2,y2,lineSize) {
+    var A = x - x1;
+    var B = y - y1;
+    var C = x2 - x1;
+    var D = y2 - y1;
+
+    var dot = A * C + B * D;
+    var len_sq = C * C + D * D;
+
+    if(dot < 0 || len_sq < 0.1) return false;
+
+    if(dot * dot  / len_sq > len_sq) return false;
+
+    var param = -1;
+    param = dot / len_sq;
+
+    var xx, yy;
+
+    xx = x1 + param * C;
+    yy = y1 + param * D;
+
+    var dx = x - xx;
+    var dy = y - yy;
+    var dis =  Math.sqrt(dx * dx + dy * dy);
+
+   return dis <= lineSize;
+};
+
 
 //color parse
 
@@ -171,14 +141,14 @@ utils.parseColor = function (format) {
 
 
 utils.getNodeSizeX = function (node) {
-    var size = node.size || 10;
+    var size = node.size ;
     if(node.type == 'rect' && node.width) size = node.width;
 
     return size;
 };
 
 utils.getNodeSizeY = function (node) {
-    var size = node.size || 10;
+    var size = node.size ;
     if(node.type == 'rect' && node.height) size = node.height;
 
     return size;
@@ -200,6 +170,8 @@ utils.getBBox = function (nodes) {
         h:y1-y0
     }
 };
+
+
 
 
 /**
@@ -230,15 +202,82 @@ utils.getPointTangentOnQuadraticCurve = function(t, x1, y1, x2, y2, xi, yi) {
     return utils.normalize([pos2[0]-pos1[0],pos2[1] - pos1[1]]);
 };
 
+/**
+ * Check if a point is on a quadratic bezier curve segment with a thickness.
+ *
+ * @param  {number} x       The X coordinate of the point to check.
+ * @param  {number} y       The Y coordinate of the point to check.
+ * @param  {number} x1      The X coordinate of the curve start point.
+ * @param  {number} y1      The Y coordinate of the curve start point.
+ * @param  {number} x2      The X coordinate of the curve end point.
+ * @param  {number} y2      The Y coordinate of the curve end point.
+ * @param  {number} cpx     The X coordinate of the curve control point.
+ * @param  {number} cpy     The Y coordinate of the curve control point.
+ * @param  {number} epsilon The precision (consider the line thickness).
+ * @return {boolean}        True if (x,y) is on the curve segment,
+ *                          false otherwise.
+ */
+utils.isPointOnQuadraticCurve = function (x, y, x1, y1, x2, y2, cpx, cpy, epsilon) {
+    // Fails if the point is too far from the extremities of the segment,
+    // preventing for more costly computation:
+    var dP1P2 = utils.getDistance(x1, y1, x2, y2);
+    if (Math.abs(x - x1) > dP1P2 || Math.abs(y - y1) > dP1P2) {
+        return false;
+    }
+
+    var dP1 = utils.getDistance(x, y, x1, y1),
+        dP2 = utils.getDistance(x, y, x2, y2),
+        t = 0.5,
+        r = (dP1 < dP2) ? -0.01 : 0.01,
+        rThreshold = 0.001,
+        i = 100,
+        pt = utils.getPointOnQuadraticCurve(t, x1, y1, x2, y2, cpx, cpy),
+        dt = utils.getDistance(x, y, pt[0], pt[1]),
+        old_dt;
+
+    // This algorithm minimizes the distance from the point to the curve. It
+    // find the optimal t value where t=0 is the start point and t=1 is the end
+    // point of the curve, starting from t=0.5.
+    // It terminates because it runs a maximum of i interations.
+    while (i-- > 0 &&
+    t >= 0 && t <= 1 &&
+    (dt > epsilon) &&
+    (r > rThreshold || r < -rThreshold)) {
+        old_dt = dt;
+        pt = utils.getPointOnQuadraticCurve(t, x1, y1, x2, y2, cpx, cpy);
+        dt = utils.getDistance(x, y, pt[0], pt[1]);
+
+        if (dt > old_dt) {
+            // not the right direction:
+            // halfstep in the opposite direction
+            r = -r / 2;
+            t += r;
+        }
+        else if (t + r < 0 || t + r > 1) {
+            // oops, we've gone too far:
+            // revert with a halfstep
+            r = r / 2;
+            dt = old_dt;
+        }
+        else {
+            // progress:
+            t += r;
+        }
+    }
+
+    return dt < epsilon;
+}
+
 
 utils.getControlPos = function(x1,y1,x2,y2,count,order) {
-    var dis = utils.getDistance(x1,y1,x2,y2);
-    var factor = dis/8;
+    // var dis = utils.getDistance(x1,y1,x2,y2);
+    // var factor = dis/8;
+    var factor = 20;
 
-    var ratio = (count+1)%2 == 1 ? 1 : -1;
+    var ratio = (count)%2 == 1 ? 1 : -1;
     ratio *= order ? 1 : -1;
 
-    factor *= ratio * ((count >> 1) + 1);
+    factor *= ratio * ((count + 1) >> 1);
 
     var norV = utils.normalize([y1-y2,x2-x1]);
     return [norV[0]*factor+(x1+x2)/2,norV[1]*factor+(y1+y2)/2];

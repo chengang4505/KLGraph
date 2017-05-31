@@ -10,6 +10,8 @@ import TextureIcon from './TextureIcon'
 import initEvent from '../../core/Event'
 import Tween from '../../animation/tween'
 import {
+    loadProgram,
+    loadShader,
     getActiveUniforms,
     getActiveAttributes,
     vertexAttribPointer,
@@ -17,15 +19,21 @@ import {
     checkAttrValid,
 } from '../../base/GLUtil'
 
+const mouseType = {
+    MOVE:'move',
+    DEFAULT:'default',
+    POINTER:'pointer'
+};
+
 
 class WebGLRender extends EventEmitter{
-    constructor(context,config) {
+    constructor(context,container) {
         super();
 
         this.context = context;
-        this.config = config;
+        this.config = this.context.config;
 
-        this.container = config.container;
+        this.container = container;
         this.graph = context.graph;
 
         this.needUpdate = true;
@@ -37,6 +45,7 @@ class WebGLRender extends EventEmitter{
         this.textureIcon = new TextureIcon(this.config);
         this.textureText = new TextureText();
 
+        this.mouseType = mouseType;
         this.initGl();
         this.initEvent();
         this.initIconTexture();
@@ -64,8 +73,9 @@ class WebGLRender extends EventEmitter{
             node:{layers:[],index:{},flag:false},
             edge:{layers:[],index:{},flag:false}
         };
+        this.clearAllFlag = true;
         this.renderLayerMap = {};
-        this.renderLayersConfig = config.renderLayersConfig || WebGLRender.defaultLayersConfig;
+        this.renderLayersConfig = this.config.renderLayersConfig || WebGLRender.defaultLayersConfig;
         this.initRenderLayer();
 
         this.updateLayerData();
@@ -95,16 +105,25 @@ class WebGLRender extends EventEmitter{
         gl.getExtension('OES_standard_derivatives');
         gl.getExtension('OES_element_index_uint');
 
+        // gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
         gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
         // gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA,gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);
         // gl.enable(gl.DEPTH_TEST);
         gl.enable(gl.BLEND);
         gl.disable(gl.DEPTH_TEST);
         gl.clearColor(1,1,1,1);
+        // gl.clearColor(0,0,0,0);
 
         
         this.gl = gl;
     }
+
+    setMouseType(type){
+        // if(mouseType[type]){
+            this.container.style.cursor = type;
+        // }
+    }
+
     initEvent(){
         var _this = this;
         this.graph.on('change',function (type,ids,dirtyAttr) {
@@ -128,41 +147,35 @@ class WebGLRender extends EventEmitter{
             if(type == 'node') objs = ids.map(function (e) {return _this.graph.nodesIndex[e]});
             else objs = ids.map(function (e) {return _this.graph.edgesIndex[e]});
 
-            _this.textureText.addTexts(getAddText(objs));
-            _this.textureText.attachGl(_this.gl);
-
+            var addtexts = getAddText(objs);
+            if(addtexts.length > 0){
+                _this.textureText.addTexts(addtexts);
+                _this.textureText.attachGl(_this.gl);
+            }
             _this.clearRenderCache();
 
-            // _this.initTextTexture();
         });
         this.graph.on('remove',function (type,ids) {
             _this.clearRenderCache();
         });
 
 
-
-        // this.textureIcon.on('load',function () {
-        //     this.forceRender();
-        //     this.textureIcon.attachGl(this.gl);
-        //     this.renderCache.node.flag = false;
-        // }.bind(this));
-
-
-        // this.textureLoader.on('load',function (url) {
-        //     var nodes = _this.graph.nodes;
-        //     nodes.forEach(function (e) {
-        //         if(e.img && e.img == url) _this.updateNodeRenderData(e.id);
-        //     });
-        // });
-
-
         function getAddText(objs) {
-            var text = '';
+            var infos = _this.textureText.textinfo.infos;
+            var char,len;
+            var texts = [];
             objs.forEach(function (e) {
-                e.label && (text += e.label);
+                if(!e.label) return;
+                len = e.label.length;
+                for(var i = 0;i< len;i++){
+                    char = e.label.charAt(i);
+                    if(!infos[char]){
+                        texts.push(char);
+                    }
+                }
             });
 
-            return text;
+            return texts;
         }
 
     }
@@ -234,20 +247,24 @@ class WebGLRender extends EventEmitter{
 
         var _this = this;
 
-        // this.textureText.attachGl(gl);
-        // this.textureIcon.attachGl(gl);
 
         this.renderLayersConfig.forEach(function (layer) {
 
             layer.subLayers.forEach(function (subLayer) {
 
-                subLayer.enable = true;
+                if(subLayer.enable == undefined) subLayer.enable = true;
+                if(subLayer.show == undefined) subLayer.show = true;
+                if(subLayer.option == undefined) subLayer.option = {};
+
+                renderLayerMap[subLayer.name] = subLayer;
 
                 if(subLayer.custom) return;
 
-                program = util.loadProgram(gl, [
-                    util.loadShader(gl, subLayer.render.shaderVert, gl.VERTEX_SHADER),
-                    util.loadShader(gl, subLayer.render.shaderFrag, gl.FRAGMENT_SHADER)
+                if(subLayer.cacheOldData == undefined) subLayer.cacheOldData = true;
+
+                program = loadProgram(gl, [
+                    loadShader(gl, subLayer.render.shaderVert, gl.VERTEX_SHADER),
+                    loadShader(gl, subLayer.render.shaderFrag, gl.FRAGMENT_SHADER)
                 ]);
 
                 program.activeAttributes = getActiveAttributes(gl,program);
@@ -270,9 +287,9 @@ class WebGLRender extends EventEmitter{
                 subLayer.tempIndex = [];
                 subLayer.index = [];
 
-                _this.renderCache[subLayer.context].layers.push(subLayer.name);
+                if(subLayer.check == undefined) subLayer.check = function () {return true};
 
-                renderLayerMap[subLayer.name] = subLayer;
+                _this.renderCache[subLayer.context].layers.push(subLayer.name);
 
             })
         }.bind(this));
@@ -291,31 +308,22 @@ class WebGLRender extends EventEmitter{
         // console.timeEnd('updateLayerUniformData');
 
         // console.time('draw');
-        this.draw();
+        try {
+            this.draw();
+        }catch (e) {
+            console.error(e);
+        }
+
         // console.timeEnd('draw');
         // console.timeEnd('render');
 
         this.needUpdate = false;
 
-        // debugger
-        // return;
-        //
-        // if(!this.initTexture){
-        //     var imgs = {};
-        //     var nodes = this.graph.nodes;
-        //     nodes.forEach(function (node) {
-        //         node.img && (imgs[node.img] = true);
-        //     });
-        //
-        //     this.textureLoader.loadImgs(Object.keys(imgs));
-        //     this.initTexture = true;
-        // }
-
     }
     draw(){
 
         var num = 0;
-        var mainLayer, subLayers, layer, gl,
+        var mainLayer, subLayers, layer, gl,err,
             renderLayerMap, program, layerIndex, data, uniforms;
         renderLayerMap = this.renderLayerMap;
 
@@ -331,11 +339,11 @@ class WebGLRender extends EventEmitter{
 
             for (var j = 0; j < subLayers.length; j++) {
 
-                if(!subLayers[j].enable) continue;
+                if(!subLayers[j].enable || !subLayers[j].show) continue;
 
                 //custom render
                 if(subLayers[j].custom && subLayers[j].render){
-                    subLayers[j].render.call(subLayers[j],this);
+                    subLayers[j].render.call(subLayers[j],this,subLayers[j].option);
                     continue;
                 }
 
@@ -352,7 +360,9 @@ class WebGLRender extends EventEmitter{
 
                 layerIndex = renderLayerMap[layer].index;
 
-                vertexAttribPointer(gl, program.activeAttributes, program.offsetConfig);
+                if(err = vertexAttribPointer(gl, program.activeAttributes, program.offsetConfig)){
+                    throw new Error(`render layer[ ${layer} ] err:\n ${err}`);
+                }
                 setUniforms(gl, program.activeUniforms, renderLayerMap[layer].uniforms);
 
                 gl.drawElements(gl.TRIANGLES, program.indexN, gl.UNSIGNED_INT, 0);
@@ -377,14 +387,15 @@ class WebGLRender extends EventEmitter{
         // debugger
         contextRelativeLayers.forEach(function(layer) {
 
-            if(!renderLayerMap[layer].enable || !renderLayerMap[layer].check(data)) return;
+            if(!renderLayerMap[layer].check(data) || !renderLayerMap[layer].enable) return;
 
             if (!forceUpdate && renderLayerMap[layer].cache) return;
 
             temp = renderLayerMap[layer].render.getRenderData({
                 dirtyAttr:dirtyAttr,
-                oldData:cacheIndex[layer],
+                oldData:cacheIndex[layer] ? cacheIndex[layer].data : null,
                 data: data,
+                config:this.config,
                 graph: this.graph,
                 textureText: this.textureText,
                 // textureLoader: this.textureLoader,
@@ -434,9 +445,7 @@ class WebGLRender extends EventEmitter{
 
             contextRelativeLayers.forEach(function (layer) {
 
-                renderLayerMap[layer].cache = true;
-
-                if(renderLayerMap[layer].initBuffer) return;
+                if(!renderLayerMap[layer].enable || renderLayerMap[layer].initBuffer) return;
 
                 if(renderLayerMap[layer].tempVertex.length == 0) return;
 
@@ -448,6 +457,7 @@ class WebGLRender extends EventEmitter{
 
                 renderLayerMap[layer].program.indexN = renderLayerMap[layer].tempIndex.length;
                 renderLayerMap[layer].initBuffer = true;
+                renderLayerMap[layer].cache = true;
 
                 renderLayerMap[layer].tempVertex = [];
                 renderLayerMap[layer].tempIndex = [];
@@ -465,6 +475,8 @@ class WebGLRender extends EventEmitter{
         this.updateContextCache('edge');
         // console.timeEnd('updateContextCacheEdge');
 
+        this.clearAllFlag = false;
+
 
     }
     updateLayerUniformData(){
@@ -472,9 +484,11 @@ class WebGLRender extends EventEmitter{
         var renderLayerMap = this.renderLayerMap;
 
         for(var layer in renderLayerMap){
+            if(renderLayerMap[layer].custom) continue;
             uniforms = renderLayerMap[layer].render.getUniforms({
                 matrix: mat3.multiMatrix([this.getCameraMatrix(true), this.projectMatrix]),
                 camera: this.camera,
+                config: this.config,
                 sampleRatio: this.sampleRatio,
                 // textureLoader: this.textureLoader,
             });
@@ -489,16 +503,12 @@ class WebGLRender extends EventEmitter{
     updateNodeRenderData(id,dirtyAttr){
         // debugger
         this.forceRender();
-        // if(!Array.isArray(ids)) ids = [ids];
-        // ids.forEach(function (id) {
-        if(!this.renderCache.node.flag) return;
+        if(this.clearAllFlag) return;
         this.updateCacheByData('node',this.graph.nodesIndex[id],dirtyAttr,true);
-        // }.bind(this));
-
     }
     updateEdgeRenderData(ids,dirtyAttr){
         this.forceRender();
-        if(!this.renderCache.edge.flag) return;
+        if(this.clearAllFlag) return;
         if(!Array.isArray(ids)) ids = [ids];
         ids.forEach(function (id) {
             this.updateCacheByData('edge',this.graph.edgesIndex[id],dirtyAttr,true);
@@ -521,11 +531,16 @@ class WebGLRender extends EventEmitter{
                 _this.renderLayerMap[layer].cache = false;
             }
             _this.renderCache.graph.flag = false;
+            _this.renderCache.graph.index = {};
             _this.renderCache.node.flag = false;
+            _this.renderCache.node.index = {};
             _this.renderCache.edge.flag = false;
+            _this.renderCache.edge.index = {};
+            _this.clearAllFlag = true;
         }
     }
     disableRenderLayer(layers){
+        this.forceRender();
 
         var renderLayerMap = this.renderLayerMap;
 
@@ -537,7 +552,8 @@ class WebGLRender extends EventEmitter{
             }
         });
     }
-    enableRenderLayer(layers){
+    enableRenderLayer(layers,updateCache = true){
+        this.forceRender();
 
         var renderLayerMap = this.renderLayerMap;
         var renderCache = this.renderCache;
@@ -547,9 +563,48 @@ class WebGLRender extends EventEmitter{
         layers.forEach(function (layer) {
             if(renderLayerMap[layer])
             {
-                renderCache[renderLayerMap[layer].context].flag = false;
                 renderLayerMap[layer].enable = true;
-                renderLayerMap[layer].cache = false;
+                if(updateCache){
+                    renderCache[renderLayerMap[layer].context].flag = false;
+                    renderLayerMap[layer].cache = false;
+                }
+            }
+        });
+    }
+    hideRenderLayer(layers){
+        this.forceRender();
+
+        var renderLayerMap = this.renderLayerMap;
+
+        if(!util.isArray(layers)) layers = [layers];
+        layers.forEach(function (layer) {
+            if(renderLayerMap[layer]){
+                renderLayerMap[layer].show = false;
+            }
+        });
+    }
+
+    setLayerOption(layer,option){
+        var renderLayerMap = this.renderLayerMap;
+        if(!renderLayerMap[layer]) return;
+
+        this.forceRender();
+
+        for(var attr in option){
+            renderLayerMap[layer].option[attr] = option[attr];
+        }
+    }
+
+
+    showRenderLayer(layers){
+        this.forceRender();
+
+        var renderLayerMap = this.renderLayerMap;
+
+        if(!util.isArray(layers)) layers = [layers];
+        layers.forEach(function (layer) {
+            if(renderLayerMap[layer]){
+                renderLayerMap[layer].show = true;
             }
         });
     }
@@ -597,6 +652,7 @@ class WebGLRender extends EventEmitter{
         this.needUpdate = true;
     }
     zoomTo(ratio,x,y,animation){
+        // debugger
 
         var scale = this.camera.scale;
         var positionX,positionY;

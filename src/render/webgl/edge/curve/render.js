@@ -18,6 +18,8 @@ export default {
         a_flag: {components:1,start:5},
         a_color: {components:4,start:6},
         a_dashed:{components:1,start:10},
+        a_size:{components:1,start:11},
+        a_ratio:{components:1,start:12},
     },
     getUniforms({matrix, camera, sampleRatio, textureLoader}){
         return {
@@ -25,9 +27,11 @@ export default {
             u_camera_scale:camera.scale
         }
     },
-    getRenderData({data, textureLoader, textureIcon,graph}){
+    getRenderData({data,config, textureLoader, textureIcon,graph}){
         var target = graph.nodesIndex[data.target];
         var source = graph.nodesIndex[data.source];
+
+        var defaultSize = config.defaultNodeSize;
 
         var renderData = [];
         var indices = [];
@@ -36,47 +40,61 @@ export default {
         var dy = target.y - source.y;
 
         var dis = util.getDistance(source.x,source.y,target.x,target.y);
-        var tSize = Math.max(util.getNodeSizeX(target),util.getNodeSizeY(target));
+        var tNodeW,tNodeH,tSize;
+        tNodeW = util.getNodeSizeX(target);
+        tNodeH = util.getNodeSizeY(target);
 
-        var aSize = 3, vX, vY;
+        if(tNodeH && tNodeW && tNodeH == tNodeW){
+            tSize = tNodeW;
+        }else {
+            tSize = Math.sqrt(Math.pow((tNodeW || defaultSize),2)+Math.pow((tNodeH || defaultSize),2));
+        }
 
-        var tX = target.x - tSize / dis * dx;
-        var tY = target.y - tSize / dis * dy;
+        var size = (data.size || config.defaultEdgeSize)/2;
+        var aSize = data.arrowSize || config.defaultEdgeArrowSize;
+        var vX, vY;
+
+        // var tX = target.x - tSize / dis * dx;
+        // var tY = target.y - tSize / dis * dy;
+        var tX = target.x;
+        var tY = target.y;
 
 
         var ctrlP = util.getControlPos(source.x,source.y,tX,tY,data.curveCount,data.curveOrder);
 
         //arrow
-        var dx1 = tX - ctrlP[0],dy1 = tY - ctrlP[1];
         var dis1 = util.getDistance(tX,tY,ctrlP[0],ctrlP[1]);
+        var arrowPosRatio = (1 - (tSize + aSize)/dis1)*0.5 + 0.5;
+        var arrowPos = util.getPointOnQuadraticCurve(arrowPosRatio,source.x,source.y,tX,tY,ctrlP[0],ctrlP[1]);
+        var aTangent = util.getPointTangentOnQuadraticCurve(arrowPosRatio,source.x,source.y,tX,tY,ctrlP[0],ctrlP[1]);
 
-        vX = aSize/dis1 * dx1;
-        vY = aSize/dis1 * dy1;
+        vX =aTangent[0]*aSize;
+        vY =aTangent[1]*aSize;
 
-        var arrowX = tX - vX,
-            arrowY = tY - vY;
+        var arrowX = arrowPos[0],
+            arrowY = arrowPos[1];
 
 
         //curve
-        var color = util.parseColor(data.color||source.color || '#b3d2ff');
+        var color = util.parseColor(data.color||source.color || config.defaultEdgeColor);
 
-        var scalePos = scaleTrangles([source.x,source.y,ctrlP[0],ctrlP[1],tX-vX,tY-vY]);
+        var scalePos = scaleTrangles([source.x,source.y,ctrlP[0],ctrlP[1],tX,tY]);
         var scaleUV = scaleTrangles([1,1,0.5,0,0,0]);
 
 
         var dashed = data.dashed ? 1:0;
         // debugger
         //curve
-        addData(renderData,[scalePos[0],scalePos[1],scaleUV[0],scaleUV[1],dis,0,color.r,color.g,color.b,color.a,dashed]);
-        addData(renderData,[scalePos[2],scalePos[3],scaleUV[2],scaleUV[3],dis,0,color.r,color.g,color.b,color.a,dashed]);
-        addData(renderData,[scalePos[4],scalePos[5],scaleUV[4],scaleUV[5],dis,0,color.r,color.g,color.b,color.a,dashed]);
+        addData(renderData,[scalePos[0],scalePos[1],scaleUV[0],scaleUV[1],dis,0,color.r,color.g,color.b,color.a,dashed,size,arrowPosRatio]);
+        addData(renderData,[scalePos[2],scalePos[3],scaleUV[2],scaleUV[3],dis,0,color.r,color.g,color.b,color.a,dashed,size,arrowPosRatio]);
+        addData(renderData,[scalePos[4],scalePos[5],scaleUV[4],scaleUV[5],dis,0,color.r,color.g,color.b,color.a,dashed,size,arrowPosRatio]);
 
         addIndices(indices,[0,1,2]);
 
         //arrow
-        addData(renderData,[arrowX+vX,arrowY+vY,0,0,0,1,color.r,color.g,color.b,color.a,dashed]);
-        addData(renderData,[arrowX + vY * 0.6,arrowY - vX * 0.6,0,0,0,1,color.r,color.g,color.b,color.a,dashed]);
-        addData(renderData,[arrowX - vY * 0.6,arrowY + vX * 0.6,0,0,0,1,color.r,color.g,color.b,color.a,dashed]);
+        addData(renderData,[arrowX+vX,arrowY+vY,0,0,0,1,color.r,color.g,color.b,color.a,dashed,size,arrowPosRatio]);
+        addData(renderData,[arrowX + vY * 0.6,arrowY - vX * 0.6,0,0,0,1,color.r,color.g,color.b,color.a,dashed,size,arrowPosRatio]);
+        addData(renderData,[arrowX - vY * 0.6,arrowY + vX * 0.6,0,0,0,1,color.r,color.g,color.b,color.a,dashed,size,arrowPosRatio]);
 
         addIndices(indices,[3,4,5]);
 
@@ -102,7 +120,7 @@ function addIndices(indices,attrIndex) {
 
 
 function scaleTrangles(points, scale) {
-    scale = scale || 1.4;
+    scale = scale || 1.6;
     var p1_x = points[0],
         p1_y = points[1],
         p2_x = points[2],

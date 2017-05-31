@@ -16,7 +16,7 @@ class Graph extends EventEmitter{
 
         // this.quad = new Quad();
 
-        if (options.nodes || options.edges) this.read(options);
+        this.read(options);
 
     }
 
@@ -38,6 +38,8 @@ class Graph extends EventEmitter{
          */
         this.inEdgesIndex = {};
         this.outEdgesIndex = {};
+        
+        this.curveGroup = null;
     }
 
     /**
@@ -60,12 +62,12 @@ class Graph extends EventEmitter{
 
             if (!e.source || !this.nodesIndex[e.source + ''])
             {
-                console.log(e);
+                // console.log(e);
                 console.error('some edge has not source id or not a node of the id') ;
                 return
             }
             if (!e.target || !this.nodesIndex[e.target + '']){
-                console.log(e);
+                // console.log(e);
                 console.error('some edge has not target id or not a node of the id');
                 return
             }
@@ -85,7 +87,7 @@ class Graph extends EventEmitter{
 
         }.bind(this));
 
-        this.updateEdgeCount();
+        this.createEdgeCurveCount();
 
         this.emit('reset');
 
@@ -93,13 +95,18 @@ class Graph extends EventEmitter{
 
     }
 
-    updateEdgeCount(){
-        var source,target,attr,map = {};
+    createEdgeCurveCount(){
+        
+        var map = this.curveGroup = {};
+        
+        var source,target,attr;
         this.edges.forEach(function (edge) {
             source = this.nodesIndex[edge.source];
             target = this.nodesIndex[edge.target];
             attr = edge.source+edge.target;
             if(!map[attr]) map[attr] = map[edge.target+edge.source] = {counter:0,source:edge.source};
+
+            edge._curveGroup = map[attr];
 
             edge.curveCount = map[attr].counter;
             map[attr].counter++;
@@ -283,6 +290,15 @@ class Graph extends EventEmitter{
         }
         // console.timeEnd('setNodeData')
 
+    }
+
+    setEdgeData(id,obj){
+        var edge = this.edgesIndex[id];
+        for(var attr in obj){
+            edge[attr] = obj[attr];
+            obj[attr] = true;
+        }
+        this.emit('change',['edge',id,obj])
     }
 
     updateNodeQuad(id,oldpos){
