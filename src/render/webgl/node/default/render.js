@@ -70,6 +70,7 @@ export default {
 
         // debugger
 
+        //background
         addData(vertices,[-1*data.size*bgScale,+1*data.size*bgScale,color.r,color.g,color.b,color.a,0,0,isSelected,0,data.size,hasIcon,data.x,data.y]);
         addData(vertices,[+1*data.size*bgScale,+1*data.size*bgScale,color.r,color.g,color.b,color.a,1,0,isSelected,0,data.size,hasIcon,data.x,data.y]);
         addData(vertices,[-1*data.size*bgScale,-1*data.size*bgScale,color.r,color.g,color.b,color.a,0,1,isSelected,0,data.size,hasIcon,data.x,data.y]);
@@ -82,7 +83,7 @@ export default {
         points += 4;
 
 
-
+        //base
         addData(vertices,[-1*data.size,+1*data.size,color.r,color.g,color.b,color.a,0,0,isSelected,1,data.size,hasIcon,data.x,data.y]);
         addData(vertices,[+1*data.size,+1*data.size,color.r,color.g,color.b,color.a,1,0,isSelected,1,data.size,hasIcon,data.x,data.y]);
         addData(vertices,[-1*data.size,-1*data.size,color.r,color.g,color.b,color.a,0,1,isSelected,1,data.size,hasIcon,data.x,data.y]);
@@ -97,7 +98,7 @@ export default {
 
         var scale = 0.7;
 
-
+        //icon
         addData(vertices,[-1*data.size*scale,+1*data.size*scale,color.r,color.g,color.b,color.a,uvs[0],uvs[1],isSelected,2,data.size,hasIcon,data.x,data.y]);
         addData(vertices,[+1*data.size*scale,+1*data.size*scale,color.r,color.g,color.b,color.a,uvs[2],uvs[1],isSelected,2,data.size,hasIcon,data.x,data.y]);
         addData(vertices,[-1*data.size*scale,-1*data.size*scale,color.r,color.g,color.b,color.a,uvs[0],uvs[3],isSelected,2,data.size,hasIcon,data.x,data.y]);

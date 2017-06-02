@@ -2,7 +2,7 @@
     - [KLGraph介绍](zh-cn/README.md)
     - [基本用法](zh-cn/general/usage.md)
     - [Node/节点](zh-cn/general/node.md)
-    - [Edge/边](zh-cn/started.md)
+    - [Edge/边](zh-cn/general/edge.md)
     - [Event/事件](zh-cn/started.md)
     - [Layout/布局](zh-cn/started.md)
     - [Animation/动画](zh-cn/started.md)
@@ -16,7 +16,6 @@
     - [EventEmitter](zh-cn/started.md)
     - [TextureIcon](zh-cn/started.md)
     - [TextureText](zh-cn/started.md)
-    - [TextureSDF](zh-cn/started.md)
     - [TextureImage](zh-cn/started.md)
     - [config](zh-cn/started.md)
     - **工具类/tools**

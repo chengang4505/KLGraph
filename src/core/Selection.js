@@ -189,7 +189,7 @@ export default class Selection extends EventEmitter{
 
         this.data.nodes = newSelected;
 
-        _this.emit('select',[_this.getNodes()]);
+        _this.emit('select',['node',_this.getNodes()]);
     }
     getNodes(){
         return this.data.nodes.map( id => this.context.graph.nodesIndex[id]);

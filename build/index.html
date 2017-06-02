@@ -62,76 +62,76 @@
 
     var icons = ['\uf19c', '\uf1a7', '\uf19e', '\uf1a0'];
 
-    testData.data.nodes.forEach(function (e) {
-        g.nodes.push({
-//            img:Math.random() > 0.5 ? null : './img/eye-icon.png',
-            type:Math.random() > 0.5 ?'default':'rect',
-            flag: Math.random() > 0.5,
-            id: e[0],
-            label: e[1],
-            x: (Math.random() * 2 - 1) * 500,
-            y: (Math.random() * 2 - 1) * 400,
-            size: 16,
-            width: 16,
-            height: 10,
-            color: colors[(Math.random() * colors.length) | 0],
-            icon: icons[(Math.random() * icons.length) | 0],
-        });
-    })
-
-    testData.data.relationships.forEach(function (e) {
-        g.edges.push({
-//            type:Math.random() > 0.5 ?'default':'curve',
-//            type:'curve',
-            dashed: Math.random() > 0.5,
-            label: e[2],
-            source: e[0],
-            target: e[1],
-            size:1.2,
-//            size:Math.random() * 0.5 + 1.0,
-//            color: colors1[(Math.random() * colors1.length) | 0],
-            color: 'rgba(31, 73, 107, 0.3)',
-            arrowSize:6
-
-        });
-    })
-
-
+//    testData.data.nodes.forEach(function (e) {
+//        g.nodes.push({
+////            img:Math.random() > 0.5 ? null : './img/eye-icon.png',
+//            type:Math.random() > 0.5 ?'default':'rect',
+//            flag: Math.random() > 0.5,
+//            id: e[0],
+//            label: e[1],
+//            x: (Math.random() * 2 - 1) * 500,
+//            y: (Math.random() * 2 - 1) * 400,
+//            size: 16,
+//            width: 16,
+//            height: 10,
+//            color: colors[(Math.random() * colors.length) | 0],
+//            icon: icons[(Math.random() * icons.length) | 0],
+//        });
+//    })
 //
-//        for (var i = 0; i < N; i++) {
-//            g.nodes.push({
-//    //            img:Math.random() > 0.5 ? null : './img/eye-icon.png',
-//    //            img:'./img/eye-icon.png',
-//                type:Math.random() > 0.5 ?'default':'rect',
-//                id:'node'+i,
-//                label:'node'+i,
-//                x: (Math.random() * 2-1)*1000,
-//                y: (Math.random() * 2-1)*1000,
-//                size:(Math.random())*10+5,
-//                width: 16,
-//                height: 10,
-//                color:colors[(Math.random()*colors.length)|0],
-//                icon:icons[(Math.random()*icons.length)|0],
-//            });
-//        }
+//    testData.data.relationships.forEach(function (e) {
+//        g.edges.push({
+////            type:Math.random() > 0.5 ?'default':'curve',
+////            type:'curve',
+//            dashed: Math.random() > 0.5,
+//            label: e[2],
+//            source: e[0],
+//            target: e[1],
+//            size:1.2,
+////            size:Math.random() * 0.5 + 1.0,
+////            color: colors1[(Math.random() * colors1.length) | 0],
+//            color: 'rgba(31, 73, 107, 0.3)',
+//            arrowSize:6
 //
-//        for (var i = 0; i < N*2; i++) {
-//            var sourceid =  (Math.random() * N) | 0;
-//            var targetid =  (Math.random() * N) | 0;
-//            if(sourceid != targetid){
-//                g.edges.push({
-//                    id:'edge'+i,
-//    //                type:Math.random() > 0.5 ?'default':'curve',
-//                    label:'edge'+i,
-//                    source:'node'+sourceid,
-//                    target:'node'+targetid,
-//                    size:Math.random() * 0.5 + 1.0,
-//                    color: 'rgba(31, 73, 107, 0.3)',
-//                    arrowSize:6
-//                });
-//            }
-//
-//        }
+//        });
+//    })
+
+
+
+        for (var i = 0; i < N; i++) {
+            g.nodes.push({
+    //            img:Math.random() > 0.5 ? null : './img/eye-icon.png',
+    //            img:'./img/eye-icon.png',
+                type:Math.random() > 0.5 ?'default':'rect',
+                id:'node'+i,
+                label:'node'+i,
+                x: (Math.random() * 2-1)*1000,
+                y: (Math.random() * 2-1)*1000,
+                size:(Math.random())*10+5,
+                width: 16,
+                height: 10,
+                color:colors[(Math.random()*colors.length)|0],
+                icon:icons[(Math.random()*icons.length)|0],
+            });
+        }
+
+        for (var i = 0; i < N*2; i++) {
+            var sourceid =  (Math.random() * N) | 0;
+            var targetid =  (Math.random() * N) | 0;
+            if(sourceid != targetid){
+                g.edges.push({
+                    id:'edge'+i,
+    //                type:Math.random() > 0.5 ?'default':'curve',
+                    label:'edge'+i,
+                    source:'node'+sourceid,
+                    target:'node'+targetid,
+                    size:Math.random() * 0.5 + 1.0,
+                    color: 'rgba(31, 73, 107, 0.3)',
+                    arrowSize:6
+                });
+            }
+
+        }
 
 //        g.nodes = [
 //            {id:'node1',label:'节点１', x:-200, y:0, size:15},
@@ -166,8 +166,9 @@
 
     function main() {
 
-        var c = JSON.parse(JSON.stringify(g));
+//        var c = JSON.parse(JSON.stringify(g));
 //        var c = test();
+        var c = g;
 
         gview = new KLGraph.GraphView({
 //        layout:'circular',
@@ -183,7 +184,7 @@
         });
 
         function makeLayout(name) {
-            var layers = ['edge', 'edgeCurve', 'edgeLabel', 'nodeLabel']
+            var layers = ['edge', 'edgeCurve','edgeCurveLabel', 'edgeLabel', 'nodeLabel'];
             gview.render.disableRenderLayer(layers);
             gview.makeLayout(name || 'circular', null, function () {
                 gview.render.enableRenderLayer(layers);
@@ -192,7 +193,7 @@
 
         window.makeLayout = makeLayout;
 
-        makeLayout();
+//        makeLayout();
 
 
         var events = ['nodeClick','edgeClick','stageClick','nodeMouseDown','edgeOver','edgeOut',

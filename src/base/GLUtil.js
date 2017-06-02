@@ -57,6 +57,7 @@ export  function getActiveAttributes (gl,program) {
     }
     return shaderAttrInfos;
 }
+
 export function getActiveUniforms (gl,program) {
     var shaderUniformInfos = {};
     var numUniforms = gl.getProgramParameter(program, gl.ACTIVE_UNIFORMS);
@@ -142,6 +143,14 @@ export function checkAttrValid(config,data){
     return err.length ? err : null;
 }
 
+export function calculateStrip(attributes) {
+    var strip = 0;
+    for(var attr in attributes){
+        strip += attributes[attr].components;
+    }
+    return strip;
+}
+
 
 var uniformSetter = {
     FLOAT:function (gl,location,v) {gl.uniform1f(location, v);} ,
@@ -156,8 +165,6 @@ var uniformSetter = {
         else gl.uniform1i(location, v);
     } ,
 };
-
-
 export  function setUniforms(gl,activeUniforms,uniforms){
     var type;
     for(var attr in activeUniforms){
@@ -165,7 +172,6 @@ export  function setUniforms(gl,activeUniforms,uniforms){
         uniformSetter[type](gl,activeUniforms[attr].location,uniforms[attr]);
     }
 }
-
 
 //webgl shader tool
 export function loadShader(gl, shaderSource, shaderType, error) {
@@ -194,6 +200,7 @@ export function loadShader(gl, shaderSource, shaderType, error) {
 
     return shader;
 };
+
 export function loadProgram(gl, shaders, attribs, loc, error) {
     var i,
         linked,

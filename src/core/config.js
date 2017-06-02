@@ -1,7 +1,3 @@
-/**
- * Created by chengang on 17-4-12.
- */
-
 'use strict';
 
 export default {

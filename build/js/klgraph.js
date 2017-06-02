@@ -641,6 +641,7 @@ exports.getActiveUniforms = getActiveUniforms;
 exports.calTypeOffset = calTypeOffset;
 exports.vertexAttribPointer = vertexAttribPointer;
 exports.checkAttrValid = checkAttrValid;
+exports.calculateStrip = calculateStrip;
 exports.setUniforms = setUniforms;
 exports.loadShader = loadShader;
 exports.loadProgram = loadProgram;
@@ -704,6 +705,7 @@ function getActiveAttributes(gl, program) {
     }
     return shaderAttrInfos;
 }
+
 function getActiveUniforms(gl, program) {
     var shaderUniformInfos = {};
     var numUniforms = gl.getProgramParameter(program, gl.ACTIVE_UNIFORMS);
@@ -786,6 +788,14 @@ function checkAttrValid(config, data) {
     return err.length ? err : null;
 }
 
+function calculateStrip(attributes) {
+    var strip = 0;
+    for (var attr in attributes) {
+        strip += attributes[attr].components;
+    }
+    return strip;
+}
+
 var uniformSetter = {
     FLOAT: function FLOAT(gl, location, v) {
         gl.uniform1f(location, v);
@@ -812,7 +822,6 @@ var uniformSetter = {
         if (v.length) gl.uniform1iv(location, v);else gl.uniform1i(location, v);
     }
 };
-
 function setUniforms(gl, activeUniforms, uniforms) {
     var type;
     for (var attr in activeUniforms) {
@@ -848,6 +857,7 @@ function loadShader(gl, shaderSource, shaderType, error) {
 
     return shader;
 };
+
 function loadProgram(gl, shaders, attribs, loc, error) {
     var i,
         linked,
@@ -1446,6 +1456,7 @@ var WebGLRender = function (_EventEmitter) {
         _this2.mouseType = mouseType;
         _this2.initGl();
         _this2.initEvent();
+
         _this2.initIconTexture();
         _this2.initTextTexture();
 
@@ -1477,6 +1488,7 @@ var WebGLRender = function (_EventEmitter) {
         _this2.initRenderLayer();
 
         _this2.updateLayerData();
+
         // debugger
         _Event2.default.call(_this2);
 
@@ -1498,10 +1510,8 @@ var WebGLRender = function (_EventEmitter) {
 
             gl = canvas.getContext('experimental-webgl', option) || canvas.getContext('webgl', option);
 
-            // canvas.style.background = 'black';
-
             if (!gl) {
-                throw '浏览器不支持webGl';
+                throw 'browser not support webGl!';
             }
 
             gl.getExtension('OES_standard_derivatives');
@@ -1673,10 +1683,10 @@ var WebGLRender = function (_EventEmitter) {
                     program.activeAttributes = (0, _GLUtil.getActiveAttributes)(gl, program);
                     program.activeUniforms = (0, _GLUtil.getActiveUniforms)(gl, program);
 
-                    strip = 0;
-                    for (var attr in subLayer.render.attributes) {
-                        strip += subLayer.render.attributes[attr].components;
-                    }
+                    strip = subLayer.render.strip;
+
+                    if (!subLayer.render.strip) strip = (0, _GLUtil.calculateStrip)(subLayer.render.attributes);
+
                     program.offsetConfig = { config: subLayer.render.attributes, strip: strip };
                     program.vertexBuffer = gl.createBuffer();
                     program.indexBuffer = gl.createBuffer();
@@ -1706,7 +1716,7 @@ var WebGLRender = function (_EventEmitter) {
             // debugger
             this.resizeCanvas();
             // setTimeout(this.render2.bind(this),500);
-            // console.time('render');
+            console.time('render');
 
             this.updateLayerData();
 
@@ -1722,7 +1732,7 @@ var WebGLRender = function (_EventEmitter) {
             }
 
             // console.timeEnd('draw');
-            // console.timeEnd('render');
+            console.timeEnd('render');
 
             this.needUpdate = false;
         }
@@ -3375,10 +3385,6 @@ exports.default = Selection;
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
-/**
- * Created by chengang on 17-4-12.
- */
-
 
 
 Object.defineProperty(exports, "__esModule", {
@@ -4644,7 +4650,126 @@ exports.default = {
 };
 
 /***/ }),
-/* 22 */,
+/* 22 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+exports.default = TextSDF;
+var INF = 1e20;
+
+function TextSDF(fontSize, buffer, radius, cutoff, fontFamily) {
+    this.fontSize = fontSize || 24;
+    this.buffer = buffer === undefined ? 3 : buffer;
+    this.cutoff = cutoff || 0.25;
+    this.fontFamily = fontFamily || 'sans-serif';
+    this.radius = radius || 8;
+    var size = this.size = this.fontSize + this.buffer * 2;
+
+    this.canvas = document.createElement('canvas');
+    this.canvas.width = this.canvas.height = size;
+
+    this.ctx = this.canvas.getContext('2d');
+    this.ctx.font = fontSize + 'px ' + this.fontFamily;
+    this.ctx.textBaseline = 'middle';
+    this.ctx.fillStyle = 'black';
+
+    // temporary arrays for the distance transform
+    this.gridOuter = new Float64Array(size * size);
+    this.gridInner = new Float64Array(size * size);
+    this.f = new Float64Array(size);
+    this.d = new Float64Array(size);
+    this.z = new Float64Array(size + 1);
+    this.v = new Int16Array(size);
+
+    // hack around https://bugzilla.mozilla.org/show_bug.cgi?id=737852
+    this.middle = Math.round(size / 2 * (navigator.userAgent.indexOf('Gecko/') >= 0 ? 1.2 : 1));
+}
+
+TextSDF.prototype.draw = function (char) {
+    this.ctx.clearRect(0, 0, this.size, this.size);
+    this.ctx.fillText(char, this.buffer, this.middle);
+
+    var charSize = this.ctx.measureText(char).width + 1 | 0;
+    var imgData = this.ctx.getImageData(0, 0, this.size, this.size);
+    var data = imgData.data;
+
+    for (var i = 0; i < this.size * this.size; i++) {
+        var a = data[i * 4 + 3] / 255; // alpha value
+        this.gridOuter[i] = a === 1 ? 0 : a === 0 ? INF : Math.pow(Math.max(0, 0.5 - a), 2);
+        this.gridInner[i] = a === 1 ? INF : a === 0 ? 0 : Math.pow(Math.max(0, a - 0.5), 2);
+    }
+
+    edt(this.gridOuter, this.size, this.size, this.f, this.d, this.v, this.z);
+    edt(this.gridInner, this.size, this.size, this.f, this.d, this.v, this.z);
+
+    for (i = 0; i < this.size * this.size; i++) {
+        var d = this.gridOuter[i] - this.gridInner[i];
+        var c = Math.max(0, Math.min(255, Math.round(255 - 255 * (d / this.radius + this.cutoff))));
+        data[4 * i + 0] = c;
+        data[4 * i + 1] = c;
+        data[4 * i + 2] = c;
+        data[4 * i + 3] = 255;
+    }
+
+    return {
+        data: imgData,
+        charWidth: charSize + this.buffer * 2
+    };
+};
+
+// 2D Euclidean distance transform by Felzenszwalb & Huttenlocher https://cs.brown.edu/~pff/dt/
+function edt(data, width, height, f, d, v, z) {
+    for (var x = 0; x < width; x++) {
+        for (var y = 0; y < height; y++) {
+            f[y] = data[y * width + x];
+        }
+        edt1d(f, d, v, z, height);
+        for (y = 0; y < height; y++) {
+            data[y * width + x] = d[y];
+        }
+    }
+    for (y = 0; y < height; y++) {
+        for (x = 0; x < width; x++) {
+            f[x] = data[y * width + x];
+        }
+        edt1d(f, d, v, z, width);
+        for (x = 0; x < width; x++) {
+            data[y * width + x] = Math.sqrt(d[x]);
+        }
+    }
+}
+
+// 1D squared distance transform
+function edt1d(f, d, v, z, n) {
+    v[0] = 0;
+    z[0] = -INF;
+    z[1] = +INF;
+
+    for (var q = 1, k = 0; q < n; q++) {
+        var s = (f[q] + q * q - (f[v[k]] + v[k] * v[k])) / (2 * q - 2 * v[k]);
+        while (s <= z[k]) {
+            k--;
+            s = (f[q] + q * q - (f[v[k]] + v[k] * v[k])) / (2 * q - 2 * v[k]);
+        }
+        k++;
+        v[k] = q;
+        z[k] = s;
+        z[k + 1] = +INF;
+    }
+
+    for (q = 0, k = 0; q < n; q++) {
+        while (z[k + 1] < q) {
+            k++;
+        }d[q] = (q - v[k]) * (q - v[k]) + f[v[k]];
+    }
+}
+
+/***/ }),
 /* 23 */
 /***/ (function(module, exports, __webpack_require__) {
 
@@ -4999,7 +5124,7 @@ var _EventEmitter2 = __webpack_require__(1);
 
 var _EventEmitter3 = _interopRequireDefault(_EventEmitter2);
 
-var _TextSDF = __webpack_require__(47);
+var _TextSDF = __webpack_require__(22);
 
 var _TextSDF2 = _interopRequireDefault(_TextSDF);
 
@@ -6237,6 +6362,7 @@ exports.default = {
 
         // debugger
 
+        //background
         addData(vertices, [-1 * data.size * bgScale, +1 * data.size * bgScale, color.r, color.g, color.b, color.a, 0, 0, isSelected, 0, data.size, hasIcon, data.x, data.y]);
         addData(vertices, [+1 * data.size * bgScale, +1 * data.size * bgScale, color.r, color.g, color.b, color.a, 1, 0, isSelected, 0, data.size, hasIcon, data.x, data.y]);
         addData(vertices, [-1 * data.size * bgScale, -1 * data.size * bgScale, color.r, color.g, color.b, color.a, 0, 1, isSelected, 0, data.size, hasIcon, data.x, data.y]);
@@ -6245,6 +6371,7 @@ exports.default = {
         addIndices(indices, [points + 0, points + 1, points + 2, points + 1, points + 2, points + 3]);
         points += 4;
 
+        //base
         addData(vertices, [-1 * data.size, +1 * data.size, color.r, color.g, color.b, color.a, 0, 0, isSelected, 1, data.size, hasIcon, data.x, data.y]);
         addData(vertices, [+1 * data.size, +1 * data.size, color.r, color.g, color.b, color.a, 1, 0, isSelected, 1, data.size, hasIcon, data.x, data.y]);
         addData(vertices, [-1 * data.size, -1 * data.size, color.r, color.g, color.b, color.a, 0, 1, isSelected, 1, data.size, hasIcon, data.x, data.y]);
@@ -6255,6 +6382,7 @@ exports.default = {
 
         var scale = 0.7;
 
+        //icon
         addData(vertices, [-1 * data.size * scale, +1 * data.size * scale, color.r, color.g, color.b, color.a, uvs[0], uvs[1], isSelected, 2, data.size, hasIcon, data.x, data.y]);
         addData(vertices, [+1 * data.size * scale, +1 * data.size * scale, color.r, color.g, color.b, color.a, uvs[2], uvs[1], isSelected, 2, data.size, hasIcon, data.x, data.y]);
         addData(vertices, [-1 * data.size * scale, -1 * data.size * scale, color.r, color.g, color.b, color.a, uvs[0], uvs[3], isSelected, 2, data.size, hasIcon, data.x, data.y]);
@@ -6550,126 +6678,6 @@ function _interopRequireWildcard(obj) { if (obj && obj.__esModule) { return obj;
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 exports.GLUtil = _GLUtil;
-
-/***/ }),
-/* 47 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", {
-    value: true
-});
-exports.default = TextSDF;
-var INF = 1e20;
-
-function TextSDF(fontSize, buffer, radius, cutoff, fontFamily) {
-    this.fontSize = fontSize || 24;
-    this.buffer = buffer === undefined ? 3 : buffer;
-    this.cutoff = cutoff || 0.25;
-    this.fontFamily = fontFamily || 'sans-serif';
-    this.radius = radius || 8;
-    var size = this.size = this.fontSize + this.buffer * 2;
-
-    this.canvas = document.createElement('canvas');
-    this.canvas.width = this.canvas.height = size;
-
-    this.ctx = this.canvas.getContext('2d');
-    this.ctx.font = fontSize + 'px ' + this.fontFamily;
-    this.ctx.textBaseline = 'middle';
-    this.ctx.fillStyle = 'black';
-
-    // temporary arrays for the distance transform
-    this.gridOuter = new Float64Array(size * size);
-    this.gridInner = new Float64Array(size * size);
-    this.f = new Float64Array(size);
-    this.d = new Float64Array(size);
-    this.z = new Float64Array(size + 1);
-    this.v = new Int16Array(size);
-
-    // hack around https://bugzilla.mozilla.org/show_bug.cgi?id=737852
-    this.middle = Math.round(size / 2 * (navigator.userAgent.indexOf('Gecko/') >= 0 ? 1.2 : 1));
-}
-
-TextSDF.prototype.draw = function (char) {
-    this.ctx.clearRect(0, 0, this.size, this.size);
-    this.ctx.fillText(char, this.buffer, this.middle);
-
-    var charSize = this.ctx.measureText(char).width + 1 | 0;
-    var imgData = this.ctx.getImageData(0, 0, this.size, this.size);
-    var data = imgData.data;
-
-    for (var i = 0; i < this.size * this.size; i++) {
-        var a = data[i * 4 + 3] / 255; // alpha value
-        this.gridOuter[i] = a === 1 ? 0 : a === 0 ? INF : Math.pow(Math.max(0, 0.5 - a), 2);
-        this.gridInner[i] = a === 1 ? INF : a === 0 ? 0 : Math.pow(Math.max(0, a - 0.5), 2);
-    }
-
-    edt(this.gridOuter, this.size, this.size, this.f, this.d, this.v, this.z);
-    edt(this.gridInner, this.size, this.size, this.f, this.d, this.v, this.z);
-
-    for (i = 0; i < this.size * this.size; i++) {
-        var d = this.gridOuter[i] - this.gridInner[i];
-        var c = Math.max(0, Math.min(255, Math.round(255 - 255 * (d / this.radius + this.cutoff))));
-        data[4 * i + 0] = c;
-        data[4 * i + 1] = c;
-        data[4 * i + 2] = c;
-        data[4 * i + 3] = 255;
-    }
-
-    return {
-        data: imgData,
-        charWidth: charSize + this.buffer * 2
-    };
-};
-
-// 2D Euclidean distance transform by Felzenszwalb & Huttenlocher https://cs.brown.edu/~pff/dt/
-function edt(data, width, height, f, d, v, z) {
-    for (var x = 0; x < width; x++) {
-        for (var y = 0; y < height; y++) {
-            f[y] = data[y * width + x];
-        }
-        edt1d(f, d, v, z, height);
-        for (y = 0; y < height; y++) {
-            data[y * width + x] = d[y];
-        }
-    }
-    for (y = 0; y < height; y++) {
-        for (x = 0; x < width; x++) {
-            f[x] = data[y * width + x];
-        }
-        edt1d(f, d, v, z, width);
-        for (x = 0; x < width; x++) {
-            data[y * width + x] = Math.sqrt(d[x]);
-        }
-    }
-}
-
-// 1D squared distance transform
-function edt1d(f, d, v, z, n) {
-    v[0] = 0;
-    z[0] = -INF;
-    z[1] = +INF;
-
-    for (var q = 1, k = 0; q < n; q++) {
-        var s = (f[q] + q * q - (f[v[k]] + v[k] * v[k])) / (2 * q - 2 * v[k]);
-        while (s <= z[k]) {
-            k--;
-            s = (f[q] + q * q - (f[v[k]] + v[k] * v[k])) / (2 * q - 2 * v[k]);
-        }
-        k++;
-        v[k] = q;
-        z[k] = s;
-        z[k + 1] = +INF;
-    }
-
-    for (q = 0, k = 0; q < n; q++) {
-        while (z[k + 1] < q) {
-            k++;
-        }d[q] = (q - v[k]) * (q - v[k]) + f[v[k]];
-    }
-}
 
 /***/ })
 /******/ ]);

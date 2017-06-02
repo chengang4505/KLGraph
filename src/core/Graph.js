@@ -222,6 +222,8 @@ class Graph extends EventEmitter{
             this.outEdgesIndex[edge.source].push(edge.id);
         }
 
+        this.createEdgeCurveCount();
+
         var ids = edges.map(function (e) {return e.id});
         this.emit('add',['edge',ids]);
     }

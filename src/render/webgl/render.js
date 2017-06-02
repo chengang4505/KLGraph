@@ -17,6 +17,7 @@ import {
     vertexAttribPointer,
     setUniforms,
     checkAttrValid,
+    calculateStrip
 } from '../../base/GLUtil'
 
 const mouseType = {
@@ -48,6 +49,7 @@ class WebGLRender extends EventEmitter{
         this.mouseType = mouseType;
         this.initGl();
         this.initEvent();
+
         this.initIconTexture();
         this.initTextTexture();
 
@@ -79,6 +81,7 @@ class WebGLRender extends EventEmitter{
         this.initRenderLayer();
 
         this.updateLayerData();
+
         // debugger
         initEvent.call(this);
 
@@ -96,10 +99,9 @@ class WebGLRender extends EventEmitter{
         
         gl = canvas.getContext('experimental-webgl',option) || canvas.getContext('webgl',option);
 
-        // canvas.style.background = 'black';
 
         if (!gl) {
-            throw '浏览器不支持webGl';
+            throw 'browser not support webGl!';
         }
 
         gl.getExtension('OES_standard_derivatives');
@@ -270,10 +272,10 @@ class WebGLRender extends EventEmitter{
                 program.activeAttributes = getActiveAttributes(gl,program);
                 program.activeUniforms = getActiveUniforms(gl,program);
 
-                strip = 0;
-                for(var attr in subLayer.render.attributes){
-                    strip += subLayer.render.attributes[attr].components;
-                }
+                strip = subLayer.render.strip;
+
+                if(!subLayer.render.strip) strip = calculateStrip(subLayer.render.attributes);
+
                 program.offsetConfig = {config:subLayer.render.attributes,strip:strip};
                 program.vertexBuffer = gl.createBuffer();
                 program.indexBuffer = gl.createBuffer();
@@ -299,7 +301,7 @@ class WebGLRender extends EventEmitter{
         // debugger
         this.resizeCanvas();
         // setTimeout(this.render2.bind(this),500);
-        // console.time('render');
+        console.time('render');
 
         this.updateLayerData();
 
@@ -315,7 +317,7 @@ class WebGLRender extends EventEmitter{
         }
 
         // console.timeEnd('draw');
-        // console.timeEnd('render');
+        console.timeEnd('render');
 
         this.needUpdate = false;
 
@@ -521,14 +523,20 @@ class WebGLRender extends EventEmitter{
         if(layers){
             if(!util.isArray(layers)) layers = [layers];
             layers.forEach(function (layer) {
+                if(_this.renderLayerMap[layer].custom) return;
+
                 _this.renderLayerMap[layer].initBuffer = false;
                 _this.renderLayerMap[layer].cache = false;
+                _this.renderLayerMap[layer].program.indexN = 0;
                 _this.renderCache[_this.renderLayerMap[layer].context].flag = false
             });
         }else {
             for(var layer in _this.renderLayerMap){
+                if(_this.renderLayerMap[layer].custom) continue;
+
                 _this.renderLayerMap[layer].initBuffer = false;
                 _this.renderLayerMap[layer].cache = false;
+                _this.renderLayerMap[layer].program.indexN = 0;
             }
             _this.renderCache.graph.flag = false;
             _this.renderCache.graph.index = {};
