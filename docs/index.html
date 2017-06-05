@@ -12,9 +12,44 @@
 </body>
 <script>
   window.$docsify = {
+      alias: {
+          '/': '/zh-cn/',
+      },
+      auto2top: true,
+//      coverpage: true,
+//      executeScript: true,
       loadSidebar: true,
       loadNavbar: true,
+//      mergeNavbar: true,
+      maxLevel: 4,
+      subMaxLevel: 4,
+      plugins: [
+          function (hook,vm) {
+
+              var exampleUrl = null;
+              function getIframe(url) {
+                  return '<iframe scrolling="no" style="height: 300px;width: 100%;box-shadow: 0px 0px 2px 0px #ccc;border: none"  src="'+url+'"></iframe>'
+              }
+
+              hook.afterEach(function (html) {
+                  return exampleUrl ? getIframe(exampleUrl)+html : html;
+              })
+
+              hook.beforeEach(function(content) {
+                  var example = content.match(/<!--iframe\[(.+)\]-->/);
+                  if(example){
+                      exampleUrl = example[1];
+                  }else exampleUrl = null;
+                  return content
+              })
+
+              hook.doneEach(function() {
+              })
+
+          }
+      ],
   }
 </script>
+<script src="./assert/klgraph.js"></script>
 <script src="./assert/docsify.min.js"></script>
 </html>

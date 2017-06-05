@@ -17,11 +17,11 @@ export default {
         a_uv:{components:2,start:2},
         a_size: {components:1,start:4},
     },
-    getUniforms({matrix, camera, sampleRatio, textureLoader}){
+    getUniforms({matrix, camera, sampleRatio, textureLoader,textureText}){
         return {
             u_matrix:matrix,
             u_camera_scale:camera.scale,
-            u_image:10,
+            u_image:textureText.unit,
         }
     },
     getRenderData({data,config, textureLoader, textureIcon,textureText,graph}){

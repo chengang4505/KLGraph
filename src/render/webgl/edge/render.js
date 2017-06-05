@@ -16,6 +16,10 @@ export default {
         a_normal:{components:2,start:2},
         a_size: {components:1,start:4},
         a_color: {components:4,start:5},
+        a_dis: {components:1,start:9},
+        a_dashed: {components:1,start:10},
+        a_flag: {components:1,start:11},
+        a_u: {components:1,start:12},
     },
     getUniforms({matrix, camera, sampleRatio, textureLoader}){
         return {
@@ -28,6 +32,9 @@ export default {
         var edge = data;
         var dx = target.x - source.x;
         var dy = target.y - source.y;
+        // var dis = util.getDistance(source.x,source.y,target.x,target.y);
+        var dashed = data.dashed ? 1:0;
+
 
         var defaultSize = config.defaultNodeSize;
 
@@ -55,16 +62,16 @@ export default {
         var renderData = [];
         var indices = [];
 
-        addData(renderData,[source.x,source.y,crossVector[0],crossVector[1],size,color.r,color.g,color.b,color.a]);
-        addData(renderData,[arrowX,arrowY,crossVector[0],crossVector[1],size,color.r,color.g,color.b,color.a]);
-        addData(renderData,[source.x,source.y,-crossVector[0],-crossVector[1],size,color.r,color.g,color.b,color.a]);
-        addData(renderData,[arrowX,arrowY,-crossVector[0],-crossVector[1],size,color.r,color.g,color.b,color.a]);
+        addData(renderData,[source.x,source.y,crossVector[0],crossVector[1],size,color.r,color.g,color.b,color.a,dis,dashed,0,0]);
+        addData(renderData,[source.x,source.y,-crossVector[0],-crossVector[1],size,color.r,color.g,color.b,color.a,dis,dashed,0,0]);
+        addData(renderData,[arrowX,arrowY,crossVector[0],crossVector[1],size,color.r,color.g,color.b,color.a,dis,dashed,0,1]);
+        addData(renderData,[arrowX,arrowY,-crossVector[0],-crossVector[1],size,color.r,color.g,color.b,color.a,dis,dashed,0,1]);
 
         addIndices(indices,[0,1,2,1,2,3]);
         //arrow
-        addData(renderData,[arrowX,arrowY,crossVector[0],crossVector[1],arrowSize/2,color.r,color.g,color.b,color.a]);
-        addData(renderData,[arrowX,arrowY,-crossVector[0],-crossVector[1],arrowSize/2,color.r,color.g,color.b,color.a]);
-        addData(renderData,[arrowX,arrowY,arrowSize/dis * dx,arrowSize/dis * dy,1,color.r,color.g,color.b,color.a]);
+        addData(renderData,[arrowX,arrowY,crossVector[0],crossVector[1],arrowSize/2,color.r,color.g,color.b,color.a,dis,dashed,1,0]);
+        addData(renderData,[arrowX,arrowY,-crossVector[0],-crossVector[1],arrowSize/2,color.r,color.g,color.b,color.a,dis,dashed,1,0]);
+        addData(renderData,[arrowX,arrowY,arrowSize/dis * dx,arrowSize/dis * dy,1,color.r,color.g,color.b,color.a,dis,dashed,1,0]);
 
         addIndices(indices,[4,5,6]);
 

@@ -8,7 +8,7 @@ export default {
     defaultNodeSize:10,
     defaultNodeColor:"#3a82a8",
     //edge
-    defaultEdgeColor:"#69a2a8",
+    defaultEdgeColor:"rgba(100,100,100,0.3)",
     defaultEdgeSize:1.6,
     defaultEdgeArrowSize:5,
 
@@ -18,6 +18,9 @@ export default {
 
     textureIconWidth:1024,
     textureIconHeight:1024,
+    textureIconFontFamily:'FontAwesome',
+
+    textureTextFontFamily:'Arial',
 
     enableOverEvent:true,
     enableEdgeEvent:true,

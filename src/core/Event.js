@@ -92,14 +92,19 @@ export default function initEvent() {
         // console.time('getNode')
         var nodes = _this.graph.nodes;
 
-        var node, dis;
+        var node, dis,check;
         var findNode = null;
 
         var selectNodes = _this.context.selection.getNodes();
 
+        var context  = _this.renderCache.node;
+
         if(selectNodes.length > 0){
             for(var i = selectNodes.length-1;i >= 0;i--){
                 node = selectNodes[i];
+
+                if(node.filter)continue;
+
                 if (checkInNode(pos.x,pos.y,node)) {
                     findNode = node;
                     break;
@@ -111,7 +116,9 @@ export default function initEvent() {
         if (!findNode && nodes.length > 0) {
             for (var i = nodes.length - 1; i >= 0; i--) {
                 node = nodes[i];
-                // node = _this.graph.nodesIndex[node.id];
+
+                if(node.filter)continue;
+
                 if (checkInNode(pos.x,pos.y,node)) {
                     findNode = node;
                     break;
@@ -127,11 +134,17 @@ export default function initEvent() {
         var edges = _this.graph.edges;
 
         var findEdge = null;
-        var edge;
+        var edge,check;
+
+        var context  = _this.renderCache.edge;
+
 
         if (edges.length > 0) {
             for (var i = edges.length - 1; i >= 0; i--) {
                 edge = edges[i];
+
+                if(edge.filter)continue;
+
                 if (checkInEdge(pos.x,pos.y,edge)) {
                     findEdge = edge;
                     break;
@@ -145,7 +158,7 @@ export default function initEvent() {
 
 
     function _clickHandler(e) {
-        var graphPos = _this.toGraphPos({x:e.cameraX,y:e.cameraY});
+        var graphPos = _this.cameraToGraphPos({x:e.cameraX,y:e.cameraY});
         var edge ,node;
 
        node = getNode(graphPos);
@@ -168,7 +181,7 @@ export default function initEvent() {
         mouseDown = true;
         disableMove = true;
 
-        var graphPos = _this.toGraphPos({x:e.cameraX,y:e.cameraY});
+        var graphPos = _this.cameraToGraphPos({x:e.cameraX,y:e.cameraY});
         var node = getNode(graphPos);
 
         if(node) _this.emit('nodeMouseDown',[node,e]);
@@ -186,7 +199,7 @@ export default function initEvent() {
 
                 _this.forceRender();
 
-                var graphPos = _this.toGraphPos({x:e.cameraX,y:e.cameraY}),temp;
+                var graphPos = _this.cameraToGraphPos({x:e.cameraX,y:e.cameraY}),temp;
                 var offsetx = graphPos.x - startx;
                 var offsety = graphPos.y - starty;
 
@@ -208,7 +221,7 @@ export default function initEvent() {
 
 
                 if(isCamera){
-                    var newgraphPos = _this.toGraphPos({x:e.cameraX,y:e.cameraY});
+                    var newgraphPos = _this.cameraToGraphPos({x:e.cameraX,y:e.cameraY});
                     startx = newgraphPos.x;
                     starty = newgraphPos.y;
                 }else {
@@ -230,18 +243,23 @@ export default function initEvent() {
             });
 
 
+            _this.container.removeEventListener('mousemove',onmousemove);
+            _this.container.removeEventListener('mouseup',onmouseup);
+            _this.container.removeEventListener('mouseout',onmouseout);
+
             _this.container.addEventListener('mousemove',onmousemove);
             _this.container.addEventListener('mouseup',onmouseup);
             _this.container.addEventListener('mouseout',onmouseout);
 
 
             function clear() {
-                disableMove = false;
                 // _this.setMouseType(_this.mouseType.DEFAULT);
                 onmousemove&&_this.container.removeEventListener('mousemove',onmousemove);
                 onmouseup&&_this.container.removeEventListener('mouseup',onmouseup);
                 onmouseout&&_this.container.removeEventListener('mouseout',onmouseout);
                 onmousemove = onmouseup = onmouseout= null;
+
+                disableMove = false;
             }
 
 
@@ -254,7 +272,7 @@ export default function initEvent() {
         
         if(disableMove || !_this.config.enableOverEvent) return;
 
-        var graphPos = _this.toGraphPos({x:e.cameraX,y:e.cameraY});
+        var graphPos = _this.cameraToGraphPos({x:e.cameraX,y:e.cameraY});
         var node = getNode(graphPos);
         var old;
 
@@ -310,7 +328,7 @@ export default function initEvent() {
 
 
         if (isRight){
-            var graphPos = _this.toGraphPos({x:e.cameraX,y:e.cameraY});
+            var graphPos = _this.cameraToGraphPos({x:e.cameraX,y:e.cameraY});
             var node = getNode(graphPos);
             var edge;
             if(node){
@@ -341,10 +359,10 @@ export default function initEvent() {
 
 
         if(value > 0){
-            _this.zoomTo(1/ratio,e.cameraX,e.cameraY);
+            _this.zoomFromPostion(1/ratio,e.cameraX,e.cameraY);
             _this.emit('zoom',[1/ratio,_this.camera.scale,e])
         }else {
-            _this.zoomTo(ratio,e.cameraX,e.cameraY);
+            _this.zoomFromPostion(ratio,e.cameraX,e.cameraY);
             _this.emit('zoom',[ratio,_this.camera.scale,e])
         }
     }
@@ -353,7 +371,7 @@ export default function initEvent() {
 
     function handlerWrap(handle) {
         return function (e) {
-            var pos = _this.toCameraPos({x: e.offsetX, y: e.offsetY});
+            var pos = _this.domToCameraPos({x: e.offsetX, y: e.offsetY});
             e.cameraX = pos.x;
             e.cameraY = pos.y;
             handle(e);

@@ -1,4 +1,6 @@
-# usage
+# usage {docsify-ignore-all}
+
+<!--iframe[./examples/base.html]-->
 
 添加js文件
 ```html
@@ -30,5 +32,6 @@ var gview = new KLGraph.GraphView({
     edges: edges,
     container: graph,
 });
+
 
 ```

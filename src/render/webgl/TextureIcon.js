@@ -5,17 +5,18 @@
 import EventEmitter from '../../base/EventEmitter'
 
 export default class TextureIcon extends EventEmitter{
-    constructor(option){
+    constructor(config,unit){
         super();
 
         // this.gl = gl;
         this.texture = null;
+        this.unit = unit || 0;
 
-        this.textureIconWidth = option.textureIconWidth;
-        this.textureIconHeight = option.textureIconHeight;
+        this.textureIconWidth = config.textureIconWidth;
+        this.textureIconHeight = config.textureIconHeight;
 
         this.fontSize = 60;
-        this.fontFamily = 'FontAwesome';
+        this.fontFamily = config.textureIconFontFamily;
 
         this.border = 2;
         this.width = 70;//char width
@@ -31,22 +32,6 @@ export default class TextureIcon extends EventEmitter{
         this.fontLoaded  = true;
 
         this._init();
-
-        // this.updateGPUTexture(true);
-
-        // var _this = this;
-        // if (document.fonts) {
-        //     debugger
-        //     var fontsReady = document.fonts.ready;
-        //     if (typeof(fontsReady) == "function") {
-        //         fontsReady = document.fonts.ready();
-        //     }
-        //     fontsReady.then(function () {
-        //         _this.fontLoaded  = true;
-        //         _this.createIcons();
-        //         _this.emit('load')
-        //     });
-        // }
     }
 
     _init(){
@@ -144,9 +129,10 @@ export default class TextureIcon extends EventEmitter{
         ctx.putImageData(imgData,0,0);
     }
 
-    attachGl(gl){
-        gl.activeTexture(gl.TEXTURE11);
-        gl.bindTexture(gl.TEXTURE_2D, this.createTexture(this.icons.length == 0,gl));
+    attachGl(gl,unit){
+        if(unit !== undefined && unit !== null)  this.unit = unit;
+        gl.activeTexture(gl.TEXTURE0+this.unit);
+        gl.bindTexture(gl.TEXTURE_2D, this.createTexture(gl,this.icons.length == 0));
     }
 
     addIcons(icons){
@@ -166,10 +152,10 @@ export default class TextureIcon extends EventEmitter{
         this.updateGPUTexture();
     }
 
-    createTexture(empty,gl){
+    createTexture(gl,empty){
 
         var texture = gl.createTexture();
-        gl.activeTexture(gl.TEXTURE11);
+        gl.activeTexture(gl.TEXTURE0+ this.unit);
         gl.bindTexture(gl.TEXTURE_2D, texture);
 
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);

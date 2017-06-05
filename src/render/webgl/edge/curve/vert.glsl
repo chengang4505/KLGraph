@@ -4,8 +4,8 @@ attribute vec4 a_color;
 //attribute float a_size;
 attribute vec2 a_uv;
 attribute float a_dis;
-attribute float a_flag;
 attribute float a_dashed;
+attribute float a_flag;
 attribute float a_size;
 attribute float a_ratio;
 
@@ -14,8 +14,8 @@ uniform mat3 u_matrix;
 varying vec4 color;
 varying vec2 uv;
 varying float dis;
-varying float flag;
 varying float dashed;
+varying float flag;
 varying float size;
 varying float ratio;
 

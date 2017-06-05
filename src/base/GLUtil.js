@@ -105,7 +105,7 @@ export function vertexAttribPointer(gl,activeAttributes,offsetConfig) {
     var strip = offsetConfig.strip;
     var err = [];
     for(var attr in activeAttributes){
-        if(!config[attr]){
+        if(!(attr in config) || config[attr] == undefined){
             err.push(`shader need attribute: ${attr}`);
             continue;
         }
@@ -167,10 +167,16 @@ var uniformSetter = {
 };
 export  function setUniforms(gl,activeUniforms,uniforms){
     var type;
+    var err = [];
     for(var attr in activeUniforms){
+        if(!(attr in uniforms) || uniforms[attr] == undefined){
+            err.push(`shader need uniform: ${attr}`);
+            continue;
+        }
         type = activeUniforms[attr].type;
         uniformSetter[type](gl,activeUniforms[attr].location,uniforms[attr]);
     }
+    return err.length ? err.join('\n') : null;
 }
 
 //webgl shader tool

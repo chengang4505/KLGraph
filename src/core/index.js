@@ -1,6 +1,3 @@
-/**
- * Created by chengang on 17-4-6.
- */
 
 'use strict';
 
@@ -56,7 +53,6 @@ export  default  class Core {
 
         this.container.appendChild(this.canvas.mouse);
     }
-
     createElement(tag) {
         var ele = document.createElement(tag);
         ele.style.position = 'absolute';
@@ -75,7 +71,6 @@ export  default  class Core {
 
         return ele;
     }
-
     _start() {
         var _this = this;
         var frames = state();
@@ -102,7 +97,6 @@ export  default  class Core {
 
         requestAnimationFrame(render);
     }
-
     _render() {
         this.resize();
 
@@ -115,8 +109,6 @@ export  default  class Core {
 
 
     }
-
-
     _initEvent() {
         var _this = this;
         this.render.on('nodeMouseDown', function (node, e) {
@@ -131,7 +123,6 @@ export  default  class Core {
                 _this.selection.selectNodes(node);
         });
     }
-
     resize() {
         if (this.canvas.mouse.width != this.container.clientWidth || this.canvas.mouse.height != this.container.clientHeight) {
             this.canvas.mouse.width = this.container.clientWidth;
@@ -139,8 +130,6 @@ export  default  class Core {
             this.render.forceRender();
         }
     }
-
-
     getFitOptions(nodes) {
         var x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
         nodes.forEach(function (e) {
@@ -158,21 +147,21 @@ export  default  class Core {
     }
 
     fit(duration,option){
-        var _this = this;
         Tween.removeByType('camera');
-        duration = duration || 1000;
         option = option || this.getFitOptions(this.graph.nodes);
-        new Tween(this.render.camera,'camera').to(option).duration(duration).on('change',function () {
-            _this.render.forceRender();
-        });
+        this.render.zoomTo(option,duration);
     }
-
-
-    makeLayout(type,nodes,cb) {
+    makeLayout(type,option,cb) {
+        option = option || {};
 
         var _this = this;
         var layout, data;
         var layoutConfig = Core.layout;
+
+        var nodes = option.nodes;
+        var duration = option.duration;
+        var center = option.center;
+        var fit = option.fit;
 
         Tween.removeByType('layout');
 
@@ -193,23 +182,10 @@ export  default  class Core {
         } else if (layout = layoutConfig[type]) {
 
             layout = new layoutConfig[type]();
-            data = layout.layout(nodes,edges);
+            data = layout.layout(nodes,edges,option);
 
-            if(data.length > this.graph.nodes.length * 4/5){
-                new Tween(nodes, 'layout').to(data).duration(1000)
-                    .on('change', function (t) {
-                        // console.time('layout')
-                        nodes.forEach(function (node) {
-                            // debugger
-                            _this.graph.setNodeData(node.id, {x: node.x, y: node.y});
-                        });
-                        // console.timeEnd('layout')
-                    })
-                    .on('end', cb);
 
-                this.fit(1000,this.getFitOptions(data));
-            }else {
-
+            if(center){
                 var bbox = utils.getBBox(nodes);
                 var bbox1 = utils.getBBox(data);
 
@@ -220,15 +196,26 @@ export  default  class Core {
                     e.x += offsetX;
                     e.y += offsetY;
                 });
+            }
 
-                new Tween(nodes, 'layout').to(data).duration(1000)
+            if(duration){
+                new Tween(nodes, 'layout').to(data).duration(duration)
                     .on('change', function (t) {
                         nodes.forEach(function (node) {
                             _this.graph.setNodeData(node.id, {x: node.x, y: node.y});
                         });
                     })
                     .on('end', cb);
+
+                fit && this.fit(duration,this.getFitOptions(data));
+            }else {
+                data.forEach(function (node,i) {
+                    _this.graph.setNodeData(nodes[i].id, {x: node.x, y: node.y});
+                });
+                fit && this.fit(null,this.getFitOptions(data));
+                cb&&cb();
             }
+
 
         }
 

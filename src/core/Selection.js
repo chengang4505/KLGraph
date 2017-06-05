@@ -1,6 +1,3 @@
-/**
- * Created by chengang on 17-4-19.
- */
 
 'use strict';
 
@@ -32,7 +29,6 @@ export default class Selection extends EventEmitter{
         this.canvas.style.display = 'block';
         this.ctx.clearRect(0,0,this.canvas.width,this.canvas.height);
     }
-
     renderRect(){
         var rect = this.rect;
         var ctx = this.ctx;
@@ -46,12 +42,10 @@ export default class Selection extends EventEmitter{
         ctx.fill();
         ctx.stroke();
     }
-
     disable(){
         this.canvas.style.display = 'none';
         this.ctx.clearRect(0,0,this.canvas.width,this.canvas.height);
     }
-
     initGraphEvent(){
         var _this = this;
         var map,dataType;
@@ -79,7 +73,6 @@ export default class Selection extends EventEmitter{
             };
         })
     }
-
     mouseDown(e){
         var _this = this;
 
@@ -198,7 +191,6 @@ export default class Selection extends EventEmitter{
         return this.data.edges.map( id => this.context.graph.edgesIndex[id]);
     }
 
-
     isNodeSelected(id){
         var nodes = this.data.nodes;
         for(var i = 0;i< nodes.length;i++){
@@ -229,7 +221,6 @@ export default class Selection extends EventEmitter{
 
         return selects;
     }
-
     delete(){
         var _this = this;
         var nodes = this.data.nodes;

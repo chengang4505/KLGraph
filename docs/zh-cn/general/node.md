@@ -1,4 +1,20 @@
-# Node/节点
+# Node/节点 {docsify-ignore-all}
+
+<!--iframe[./examples/node.html]-->
+
+## node add/remove
+
+```javascript
+//add
+gview.graph.addNode(node)
+```
+
+```javascript
+//remove
+gview.graph.removeNode(nodeid)
+```
+
+## node属性
 
 ```javascript
 var nodes = [];
@@ -27,7 +43,6 @@ nodes.push({
 })
 
 ```
-## 属性
 
 - `type` : 支持两中node 类型: `default` `rect`;`default` node 是圆形，`rect` node 是矩形， default:`default`。
 - `id`: node 的 id，没有会自动生成一个uuid.

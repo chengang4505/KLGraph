@@ -529,8 +529,7 @@ var Tween = function (_EventEmitter) {
             this.emit('change', [t]);
 
             if (elapsed >= this._duration) {
-                this.stop();
-                this.emit('end');
+                this.stop(true);
             }
         }
     }, {
@@ -572,24 +571,26 @@ var Tween = function (_EventEmitter) {
         }
     }, {
         key: 'stop',
-        value: function stop() {
+        value: function stop(emitEnd) {
             if (this.timer) {
                 this.timer.stop();
                 this.timer = null;
                 this.objs = null;
                 this.interpolates = null;
 
+                if (emitEnd) this.emit('end');
+
                 Tween.remove(this.objs);
             }
         }
     }], [{
         key: 'remove',
-        value: function remove(obj) {
+        value: function remove(obj, emitEnd) {
             var list = Tween.list;
             Tween.list = [];
             list.forEach(function (e) {
                 if (e.objs == obj) {
-                    e.stop();
+                    e.stop(emitEnd);
                 } else {
                     Tween.list.push(e);
                 }
@@ -597,12 +598,12 @@ var Tween = function (_EventEmitter) {
         }
     }, {
         key: 'removeByType',
-        value: function removeByType(type) {
+        value: function removeByType(type, emitEnd) {
             var list = Tween.list;
             Tween.list = [];
             list.forEach(function (e) {
                 if (e.type === type) {
-                    e.stop();
+                    e.stop(emitEnd);
                 } else {
                     Tween.list.push(e);
                 }
@@ -610,9 +611,9 @@ var Tween = function (_EventEmitter) {
         }
     }, {
         key: 'removeAll',
-        value: function removeAll() {
+        value: function removeAll(emitEnd) {
             Tween.list.forEach(function (e) {
-                e.stop();
+                e.stop(emitEnd);
             });
 
             Tween.list = [];
@@ -754,7 +755,7 @@ function vertexAttribPointer(gl, activeAttributes, offsetConfig) {
     var strip = offsetConfig.strip;
     var err = [];
     for (var attr in activeAttributes) {
-        if (!config[attr]) {
+        if (!(attr in config) || config[attr] == undefined) {
             err.push('shader need attribute: ' + attr);
             continue;
         }
@@ -824,10 +825,16 @@ var uniformSetter = {
 };
 function setUniforms(gl, activeUniforms, uniforms) {
     var type;
+    var err = [];
     for (var attr in activeUniforms) {
+        if (!(attr in uniforms) || uniforms[attr] == undefined) {
+            err.push('shader need uniform: ' + attr);
+            continue;
+        }
         type = activeUniforms[attr].type;
         uniformSetter[type](gl, activeUniforms[attr].location, uniforms[attr]);
     }
+    return err.length ? err.join('\n') : null;
 }
 
 //webgl shader tool
@@ -1267,6 +1274,8 @@ var Graph = function (_EventEmitter) {
                 this.outEdgesIndex[edge.source].push(edge.id);
             }
 
+            this.createEdgeCurveCount();
+
             var ids = edges.map(function (e) {
                 return e.id;
             });
@@ -1450,8 +1459,8 @@ var WebGLRender = function (_EventEmitter) {
 
         // this.initTexture = false;
         // this.textureLoader = new TextureLoader();
-        _this2.textureIcon = new _TextureIcon2.default(_this2.config);
-        _this2.textureText = new _TextureText2.default();
+        _this2.textureIcon = new _TextureIcon2.default(_this2.config, 0);
+        _this2.textureText = new _TextureText2.default(_this2.config, 1);
 
         _this2.mouseType = mouseType;
         _this2.initGl();
@@ -1478,11 +1487,11 @@ var WebGLRender = function (_EventEmitter) {
          * flag:
          */
         _this2.renderCache = {
-            graph: { layers: [], index: {}, flag: false },
-            node: { layers: [], index: {}, flag: false },
-            edge: { layers: [], index: {}, flag: false }
+            graph: { layers: [], index: {}, flag: false, filters: [] },
+            node: { layers: [], index: {}, flag: false, filters: [] },
+            edge: { layers: [], index: {}, flag: false, filters: [] }
         };
-        _this2.clearAllFlag = true;
+        // this.clearAllFlag = true;
         _this2.renderLayerMap = {};
         _this2.renderLayersConfig = _this2.config.renderLayersConfig || WebGLRender.defaultLayersConfig;
         _this2.initRenderLayer();
@@ -1517,24 +1526,7 @@ var WebGLRender = function (_EventEmitter) {
             gl.getExtension('OES_standard_derivatives');
             gl.getExtension('OES_element_index_uint');
 
-            // gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-            gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
-            // gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA,gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);
-            // gl.enable(gl.DEPTH_TEST);
-            gl.enable(gl.BLEND);
-            gl.disable(gl.DEPTH_TEST);
-            gl.clearColor(1, 1, 1, 1);
-            // gl.clearColor(0,0,0,0);
-
-
             this.gl = gl;
-        }
-    }, {
-        key: 'setMouseType',
-        value: function setMouseType(type) {
-            // if(mouseType[type]){
-            this.container.style.cursor = type;
-            // }
         }
     }, {
         key: 'initEvent',
@@ -1571,7 +1563,13 @@ var WebGLRender = function (_EventEmitter) {
                 _this.clearRenderCache();
             });
             this.graph.on('remove', function (type, ids) {
-                _this.clearRenderCache();
+                _this.forceRender();
+                var contextRelativeLayers = _this.renderCache[type].layers;
+                var renderLayerMap = _this.renderLayerMap;
+
+                contextRelativeLayers.forEach(function (layer) {
+                    renderLayerMap[layer].indexCache = false;
+                });
             });
 
             function getAddText(objs) {
@@ -1671,12 +1669,11 @@ var WebGLRender = function (_EventEmitter) {
                     if (subLayer.enable == undefined) subLayer.enable = true;
                     if (subLayer.show == undefined) subLayer.show = true;
                     if (subLayer.option == undefined) subLayer.option = {};
+                    if (subLayer.filters == undefined) subLayer.filters = [];
 
                     renderLayerMap[subLayer.name] = subLayer;
 
                     if (subLayer.custom) return;
-
-                    if (subLayer.cacheOldData == undefined) subLayer.cacheOldData = true;
 
                     program = (0, _GLUtil.loadProgram)(gl, [(0, _GLUtil.loadShader)(gl, subLayer.render.shaderVert, gl.VERTEX_SHADER), (0, _GLUtil.loadShader)(gl, subLayer.render.shaderFrag, gl.FRAGMENT_SHADER)]);
 
@@ -1688,17 +1685,18 @@ var WebGLRender = function (_EventEmitter) {
                     if (!subLayer.render.strip) strip = (0, _GLUtil.calculateStrip)(subLayer.render.attributes);
 
                     program.offsetConfig = { config: subLayer.render.attributes, strip: strip };
+                    program.uniforms = null;
                     program.vertexBuffer = gl.createBuffer();
                     program.indexBuffer = gl.createBuffer();
                     program.indexN = 0;
 
                     subLayer.mainLayer = layer.name;
                     subLayer.program = program;
-                    subLayer.uniforms = null;
                     subLayer.initBuffer = false;
                     subLayer.tempVertex = [];
                     subLayer.tempIndex = [];
                     subLayer.index = [];
+                    subLayer.indexCache = false;
 
                     if (subLayer.check == undefined) subLayer.check = function () {
                         return true;
@@ -1716,13 +1714,16 @@ var WebGLRender = function (_EventEmitter) {
             // debugger
             this.resizeCanvas();
             // setTimeout(this.render2.bind(this),500);
-            console.time('render');
+            // console.time('render');
 
             this.updateLayerData();
 
             // console.time('updateLayerUniformData');
             this.updateLayerUniformData();
             // console.timeEnd('updateLayerUniformData');
+
+            this.updateLayerIndex('node'); //node first
+            this.updateLayerIndex('edge');
 
             // console.time('draw');
             try {
@@ -1732,23 +1733,34 @@ var WebGLRender = function (_EventEmitter) {
             }
 
             // console.timeEnd('draw');
-            console.timeEnd('render');
+            // console.timeEnd('render');
 
             this.needUpdate = false;
+        }
+    }, {
+        key: 'setDefaultRenderFlag',
+        value: function setDefaultRenderFlag() {
+            var gl = this.gl;
+            // gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+            gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+            // gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA,gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);
+            gl.enable(gl.BLEND);
+            gl.disable(gl.DEPTH_TEST);
+            gl.clearColor(1, 1, 1, 1);
         }
     }, {
         key: 'draw',
         value: function draw() {
 
             var num = 0;
-            var mainLayer, subLayers, layer, gl, err, renderLayerMap, program, layerIndex, data, uniforms;
+            var mainLayer, subLayers, layer, gl, err, renderLayerMap, program;
             renderLayerMap = this.renderLayerMap;
 
             gl = this.gl;
             gl.clear(gl.COLOR_BUFFER_BIT);
-            // gl.enable(gl.DEPTH_TEST);
-            // gl.depthFunc(gl.LEQUAL);
-            // gl.depthMask(true);
+            this.setDefaultRenderFlag();
+
+            this.emit('renderBefore', [this]);
 
             for (var i = 0; i < this.renderLayersConfig.length; i++) {
                 mainLayer = this.renderLayersConfig[i];
@@ -1764,6 +1776,10 @@ var WebGLRender = function (_EventEmitter) {
                         continue;
                     }
 
+                    if (subLayers[j].render.renderBefore && _util2.default.isFunction(subLayers[j].render.renderBefore)) {
+                        subLayers[j].renderBefore.render.call(subLayers[j], this, subLayers[j].option);
+                    }
+
                     layer = subLayers[j].name;
 
                     program = renderLayerMap[layer].program;
@@ -1775,24 +1791,32 @@ var WebGLRender = function (_EventEmitter) {
                     gl.bindBuffer(gl.ARRAY_BUFFER, program.vertexBuffer);
                     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, program.indexBuffer);
 
-                    layerIndex = renderLayerMap[layer].index;
-
                     if (err = (0, _GLUtil.vertexAttribPointer)(gl, program.activeAttributes, program.offsetConfig)) {
                         throw new Error('render layer[ ' + layer + ' ] err:\n ' + err);
                     }
-                    (0, _GLUtil.setUniforms)(gl, program.activeUniforms, renderLayerMap[layer].uniforms);
+
+                    if (err = (0, _GLUtil.setUniforms)(gl, program.activeUniforms, program.uniforms)) {
+                        throw new Error('render layer[ ' + layer + ' ] err:\n ' + err);
+                    }
 
                     gl.drawElements(gl.TRIANGLES, program.indexN, gl.UNSIGNED_INT, 0);
+
+                    if (subLayers[j].render.renderAfter && _util2.default.isFunction(subLayers[j].render.renderAfter)) {
+                        subLayers[j].render.renderAfter.call(subLayers[j], this, subLayers[j].option);
+                    }
 
                     gl.bindBuffer(gl.ARRAY_BUFFER, null);
                     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
                 }
             }
+
+            this.emit('renderAfter', [this]);
+
             // console.log('render count:',num);
         }
     }, {
         key: 'updateCacheByData',
-        value: function updateCacheByData(context, data, dirtyAttr, forceUpdate) {
+        value: function updateCacheByData(context, data, dirtyAttr, needUpdateLayers) {
 
             var cacheIndex, temp, points;
             var contextRelativeLayers = this.renderCache[context].layers;
@@ -1801,12 +1825,15 @@ var WebGLRender = function (_EventEmitter) {
 
             cacheIndex = this.renderCache[context].index[data.id] = this.renderCache[context].index[data.id] || {};
 
+            needUpdateLayers = needUpdateLayers || contextRelativeLayers;
+
             // debugger
-            contextRelativeLayers.forEach(function (layer) {
+            needUpdateLayers.forEach(function (layer) {
 
                 if (!renderLayerMap[layer].check(data) || !renderLayerMap[layer].enable) return;
 
-                if (!forceUpdate && renderLayerMap[layer].cache) return;
+                //dirtyAttr setData update
+                if (dirtyAttr && !renderLayerMap[layer].cache) return;
 
                 temp = renderLayerMap[layer].render.getRenderData({
                     dirtyAttr: dirtyAttr,
@@ -1815,21 +1842,24 @@ var WebGLRender = function (_EventEmitter) {
                     config: this.config,
                     graph: this.graph,
                     textureText: this.textureText,
+                    option: renderLayerMap[layer].option,
                     // textureLoader: this.textureLoader,
                     textureIcon: this.textureIcon
                 });
 
-                if (renderLayerMap[layer].initBuffer) {
+                if (!temp) return;
+
+                if (renderLayerMap[layer].cache) {
                     gl.bindBuffer(gl.ARRAY_BUFFER, renderLayerMap[layer].program.vertexBuffer);
                     gl.bufferSubData(gl.ARRAY_BUFFER, cacheIndex[layer].vertexStart, new Float32Array(temp.vertices));
 
-                    renderLayerMap[layer].cacheOldData && (cacheIndex[layer].data.vertices = temp.vertices); //cache old data
+                    cacheIndex[layer].data.vertices = temp.vertices; //cache old data
                 } else {
                     points = renderLayerMap[layer].tempVertex.length / renderLayerMap[layer].program.offsetConfig.strip;
 
-                    cacheIndex[layer] = cacheIndex[layer] || { vertexStart: 0, data: null };
+                    cacheIndex[layer] = cacheIndex[layer] || { vertexStart: -1, data: null };
 
-                    renderLayerMap[layer].cacheOldData && (cacheIndex[layer].data = temp); //cache old data
+                    cacheIndex[layer].data = temp; //cache old data
 
                     cacheIndex[layer].vertexStart = renderLayerMap[layer].tempVertex.length * 4;
                     temp.vertices.forEach(function (e) {
@@ -1837,7 +1867,7 @@ var WebGLRender = function (_EventEmitter) {
                     });
                     temp.indices.forEach(function (e, i) {
                         temp.indices[i] = e + points;
-                        renderLayerMap[layer].tempIndex.push(temp.indices[i]);
+                        // renderLayerMap[layer].tempIndex.push(temp.indices[i])
                     });
                 }
             }.bind(this));
@@ -1847,42 +1877,39 @@ var WebGLRender = function (_EventEmitter) {
         value: function updateContextCache(context) {
             if (context != 'node' && context != 'edge' && context != 'graph') return;
 
-            if (this.renderCache[context].flag) return;
-
-            var datas, contextRelativeLayers;
+            var datas, contextRelativeLayers, needUpdateLayers;
             var gl = this.gl;
             var renderLayerMap = this.renderLayerMap;
 
             if (context === 'graph') {} else {
+
+                needUpdateLayers = [];
+                contextRelativeLayers = this.renderCache[context].layers;
+                contextRelativeLayers.forEach(function (layer) {
+                    if (!renderLayerMap[layer].cache && renderLayerMap[layer].enable) needUpdateLayers.push(layer);
+                });
+
+                if (needUpdateLayers.length < 1) return;
+
                 datas = context == 'node' ? this.graph.nodes : this.graph.edges;
                 for (var i = 0, len = datas.length; i < len; i++) {
-                    this.updateCacheByData(context, datas[i]);
+                    this.updateCacheByData(context, datas[i], null, needUpdateLayers);
                 }
 
-                contextRelativeLayers = this.renderCache[context].layers;
-
-                contextRelativeLayers.forEach(function (layer) {
-
-                    if (!renderLayerMap[layer].enable || renderLayerMap[layer].initBuffer) return;
-
-                    if (renderLayerMap[layer].tempVertex.length == 0) return;
+                needUpdateLayers.forEach(function (layer) {
 
                     gl.bindBuffer(gl.ARRAY_BUFFER, renderLayerMap[layer].program.vertexBuffer);
-                    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, renderLayerMap[layer].program.indexBuffer);
+                    // gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, renderLayerMap[layer].program.indexBuffer);
 
                     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(renderLayerMap[layer].tempVertex), gl.DYNAMIC_DRAW);
-                    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint32Array(renderLayerMap[layer].tempIndex), gl.STATIC_DRAW);
+                    // gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint32Array(renderLayerMap[layer].tempIndex), gl.STATIC_DRAW);
 
-                    renderLayerMap[layer].program.indexN = renderLayerMap[layer].tempIndex.length;
-                    renderLayerMap[layer].initBuffer = true;
                     renderLayerMap[layer].cache = true;
 
                     renderLayerMap[layer].tempVertex = [];
                     renderLayerMap[layer].tempIndex = [];
                 });
             }
-
-            this.renderCache[context].flag = true;
         }
     }, {
         key: 'updateLayerData',
@@ -1898,6 +1925,66 @@ var WebGLRender = function (_EventEmitter) {
             this.clearAllFlag = false;
         }
     }, {
+        key: 'updateLayerIndex',
+        value: function updateLayerIndex(context) {
+            if (context != 'node' && context != 'edge' && context != 'graph') return;
+
+            var datas, contextRelativeLayers, cacheIndex, data, needUpdateLayer, check;
+            var gl = this.gl;
+            var renderLayerMap = this.renderLayerMap;
+
+            if (context === 'graph') {} else {
+                datas = context == 'node' ? this.graph.nodes : this.graph.edges;
+                contextRelativeLayers = this.renderCache[context].layers;
+
+                //find need update layers
+                needUpdateLayer = [];
+                contextRelativeLayers.forEach(function (layer) {
+                    if (!renderLayerMap[layer].indexCache) needUpdateLayer.push(layer);
+                });
+
+                if (needUpdateLayer.length > 0) {
+                    for (var i = 0, len = datas.length; i < len; i++) {
+                        data = datas[i];
+
+                        if (context == 'edge') {
+                            if (this.graph.nodesIndex[data.source].filter || this.graph.nodesIndex[data.target].filter) {
+                                data.filter = true;
+                                continue;
+                            }
+                        }
+
+                        //context filters
+                        if (this.renderCache[context].filters && this.renderCache[context].filters.length) {
+                            if (data.filter = this._checkFilters(this.renderCache[context].filters, data)) continue;
+                        } else data.filter = false;
+
+                        cacheIndex = this.renderCache[context].index[data.id];
+                        for (var layer in cacheIndex) {
+                            if (renderLayerMap[layer].indexCache) continue;
+
+                            //layer filters
+                            if (renderLayerMap[layer].filters && renderLayerMap[layer].filters.length) {
+                                if (check = this._checkFilters(renderLayerMap[layer].filters, data)) continue;
+                            }
+
+                            cacheIndex[layer].data.indices.forEach(function (id) {
+                                renderLayerMap[layer].index.push(id);
+                            });
+                        }
+                    }
+
+                    needUpdateLayer.forEach(function (layer) {
+                        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, renderLayerMap[layer].program.indexBuffer);
+                        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint32Array(renderLayerMap[layer].index), gl.STATIC_DRAW);
+                        renderLayerMap[layer].program.indexN = renderLayerMap[layer].index.length;
+                        renderLayerMap[layer].index = [];
+                        renderLayerMap[layer].indexCache = true;
+                    });
+                }
+            }
+        }
+    }, {
         key: 'updateLayerUniformData',
         value: function updateLayerUniformData() {
             var uniforms, err;
@@ -1909,14 +1996,18 @@ var WebGLRender = function (_EventEmitter) {
                     matrix: _Matrix2.default.multiMatrix([this.getCameraMatrix(true), this.projectMatrix]),
                     camera: this.camera,
                     config: this.config,
-                    sampleRatio: this.sampleRatio
+                    option: renderLayerMap[layer].option,
+                    sampleRatio: this.sampleRatio,
+                    textureText: this.textureText,
+                    textureIcon: this.textureIcon
+                    // textureLoader: this.textureLoader,
                 });
 
                 if (err = (0, _GLUtil.checkAttrValid)(renderLayerMap[layer].program.activeUniforms, uniforms)) {
                     throw err.join('\n');
                 }
 
-                renderLayerMap[layer].uniforms = uniforms;
+                renderLayerMap[layer].program.uniforms = uniforms;
             }
         }
     }, {
@@ -1924,17 +2015,17 @@ var WebGLRender = function (_EventEmitter) {
         value: function updateNodeRenderData(id, dirtyAttr) {
             // debugger
             this.forceRender();
-            if (this.clearAllFlag) return;
-            this.updateCacheByData('node', this.graph.nodesIndex[id], dirtyAttr, true);
+            // if(this.clearAllFlag) return;
+            this.updateCacheByData('node', this.graph.nodesIndex[id], dirtyAttr);
         }
     }, {
         key: 'updateEdgeRenderData',
         value: function updateEdgeRenderData(ids, dirtyAttr) {
             this.forceRender();
-            if (this.clearAllFlag) return;
+            // if(this.clearAllFlag) return;
             if (!Array.isArray(ids)) ids = [ids];
             ids.forEach(function (id) {
-                this.updateCacheByData('edge', this.graph.edgesIndex[id], dirtyAttr, true);
+                this.updateCacheByData('edge', this.graph.edgesIndex[id], dirtyAttr);
             }.bind(this));
         }
         //cache update
@@ -1947,22 +2038,23 @@ var WebGLRender = function (_EventEmitter) {
             if (layers) {
                 if (!_util2.default.isArray(layers)) layers = [layers];
                 layers.forEach(function (layer) {
-                    _this.renderLayerMap[layer].initBuffer = false;
+                    if (_this.renderLayerMap[layer].custom) return;
+
                     _this.renderLayerMap[layer].cache = false;
-                    _this.renderCache[_this.renderLayerMap[layer].context].flag = false;
+                    _this.renderLayerMap[layer].indexCache = false;
+                    _this.renderLayerMap[layer].program.indexN = 0;
                 });
             } else {
                 for (var layer in _this.renderLayerMap) {
-                    _this.renderLayerMap[layer].initBuffer = false;
+                    if (_this.renderLayerMap[layer].custom) continue;
+
                     _this.renderLayerMap[layer].cache = false;
+                    _this.renderLayerMap[layer].indexCache = false;
+                    _this.renderLayerMap[layer].program.indexN = 0;
                 }
-                _this.renderCache.graph.flag = false;
                 _this.renderCache.graph.index = {};
-                _this.renderCache.node.flag = false;
                 _this.renderCache.node.index = {};
-                _this.renderCache.edge.flag = false;
                 _this.renderCache.edge.index = {};
-                _this.clearAllFlag = true;
             }
         }
     }, {
@@ -1988,7 +2080,6 @@ var WebGLRender = function (_EventEmitter) {
             this.forceRender();
 
             var renderLayerMap = this.renderLayerMap;
-            var renderCache = this.renderCache;
 
             if (!_util2.default.isArray(layers)) layers = [layers];
 
@@ -1996,11 +2087,99 @@ var WebGLRender = function (_EventEmitter) {
                 if (renderLayerMap[layer]) {
                     renderLayerMap[layer].enable = true;
                     if (updateCache) {
-                        renderCache[renderLayerMap[layer].context].flag = false;
                         renderLayerMap[layer].cache = false;
+                        renderLayerMap[layer].indexCache = false;
+                        renderLayerMap[layer].program.indexN = 0;
                     }
                 }
             });
+        }
+    }, {
+        key: 'updateByLayerFilter',
+        value: function updateByLayerFilter(layers) {
+            if (!layers) return;
+
+            this.forceRender();
+
+            var renderLayerMap = this.renderLayerMap;
+            if (!_util2.default.isArray(layers)) layers = [layers];
+
+            layers.forEach(function (layer) {
+                if (!renderLayerMap[layer]) return;
+                renderLayerMap[layer].indexCache = false;
+            });
+        }
+    }, {
+        key: 'updateByContextFilter',
+        value: function updateByContextFilter(context) {
+            var contextRelativeLayers = this.renderCache[context].layers;
+            var renderLayerMap = this.renderLayerMap;
+
+            this.forceRender();
+
+            contextRelativeLayers.forEach(function (layer) {
+                renderLayerMap[layer].indexCache = false;
+            });
+        }
+    }, {
+        key: 'setLayerFilters',
+        value: function setLayerFilters(layer, filters) {
+            var renderLayerMap = this.renderLayerMap;
+            if (!renderLayerMap[layer]) return;
+
+            this.forceRender();
+            filters = filters || [];
+
+            if (!_util2.default.isArray(filters)) filters = [filters];
+
+            renderLayerMap[layer].indexCache = false;
+            renderLayerMap[layer].filters = filters;
+        }
+    }, {
+        key: 'getLayerFilters',
+        value: function getLayerFilters(layer) {
+            return this.renderLayerMap[layer] ? this.renderLayerMap[layer].filters : null;
+        }
+    }, {
+        key: 'setContextFilters',
+        value: function setContextFilters(context, filters) {
+            this.forceRender();
+            filters = filters || [];
+
+            if (!_util2.default.isArray(filters)) filters = [filters];
+
+            var renderLayerMap = this.renderLayerMap;
+            var contextRelativeLayers = this.renderCache[context].layers;
+
+            contextRelativeLayers.forEach(function (layer) {
+                renderLayerMap[layer].indexCache = false;
+            });
+
+            this.renderCache[context].filters = filters;
+        }
+    }, {
+        key: 'getContextFilters',
+        value: function getContextFilters(context) {
+            return this.renderCache[context] ? this.renderCache[context].filters : null;
+        }
+    }, {
+        key: 'setLayerOption',
+        value: function setLayerOption(layer, option) {
+            var renderLayerMap = this.renderLayerMap;
+            if (!renderLayerMap[layer]) return;
+
+            this.forceRender();
+
+            for (var attr in option) {
+                renderLayerMap[layer].option[attr] = option[attr];
+            }
+        }
+    }, {
+        key: 'setMouseType',
+        value: function setMouseType(type) {
+            // if(mouseType[type]){
+            this.container.style.cursor = type;
+            // }
         }
     }, {
         key: 'hideRenderLayer',
@@ -2015,18 +2194,6 @@ var WebGLRender = function (_EventEmitter) {
                     renderLayerMap[layer].show = false;
                 }
             });
-        }
-    }, {
-        key: 'setLayerOption',
-        value: function setLayerOption(layer, option) {
-            var renderLayerMap = this.renderLayerMap;
-            if (!renderLayerMap[layer]) return;
-
-            this.forceRender();
-
-            for (var attr in option) {
-                renderLayerMap[layer].option[attr] = option[attr];
-            }
         }
     }, {
         key: 'showRenderLayer',
@@ -2063,6 +2230,13 @@ var WebGLRender = function (_EventEmitter) {
             }
             this.projectMatrix = _Matrix2.default.matrixFromScale(2 / this.container.clientWidth, 2 / this.container.clientHeight);
         }
+
+        /**
+         * translate point from graph to camera
+         * @param pos obj {x:number,y:number}
+         * @returns {{x: number, y: number}}
+         */
+
     }, {
         key: 'graphToDomPos',
         value: function graphToDomPos(pos) {
@@ -2070,15 +2244,29 @@ var WebGLRender = function (_EventEmitter) {
             var camPos = _Matrix2.default.transformPoint([pos.x, pos.y], this.getCameraMatrix(true));
             return { x: camPos[0] + container.clientWidth / 2, y: container.clientHeight / 2 - camPos[1] };
         }
+
+        /**
+         * translate point from dom to camera
+         * @param pos obj {x:number,y:number}
+         * @returns {{x: number, y: number}}
+         */
+
     }, {
-        key: 'toCameraPos',
-        value: function toCameraPos(pos) {
+        key: 'domToCameraPos',
+        value: function domToCameraPos(pos) {
             var container = this.container;
             return { x: pos.x - container.clientWidth / 2, y: container.clientHeight / 2 - pos.y };
         }
+
+        /**
+         * translate point from dom to camera
+         * @param pos obj {x:number,y:number}
+         * @returns {{x: number, y: number}}
+         */
+
     }, {
-        key: 'toGraphPos',
-        value: function toGraphPos(pos, isVector) {
+        key: 'cameraToGraphPos',
+        value: function cameraToGraphPos(pos, isVector) {
             var p = isVector ? _Matrix2.default.rotateVector([pos.x, pos.y], this.getCameraMatrix()) : _Matrix2.default.transformPoint([pos.x, pos.y], this.getCameraMatrix());
             return { x: p[0], y: p[1] };
         }
@@ -2088,8 +2276,8 @@ var WebGLRender = function (_EventEmitter) {
             this.needUpdate = true;
         }
     }, {
-        key: 'zoomTo',
-        value: function zoomTo(ratio, x, y, animation) {
+        key: 'zoomFromPostion',
+        value: function zoomFromPostion(ratio, x, y, animation) {
             // debugger
 
             var scale = this.camera.scale;
@@ -2127,6 +2315,22 @@ var WebGLRender = function (_EventEmitter) {
             new _tween2.default(this.camera, 'camera').to(option).duration(time).on('change', function () {
                 _this.forceRender();
             });
+        }
+    }, {
+        key: 'zoomTo',
+        value: function zoomTo(option, duration) {
+            _tween2.default.removeByType('camera');
+
+            var _this = this;
+            if (duration) {
+                new _tween2.default(this.camera, 'camera').to(option).duration(duration).on('change', function () {
+                    _this.forceRender();
+                });
+            } else {
+                for (var attr in option) {
+                    this.camera[attr] = option[attr];
+                }this.forceRender();
+            }
         }
     }, {
         key: 'saveData',
@@ -2175,6 +2379,15 @@ var WebGLRender = function (_EventEmitter) {
                 saveAs(blob, "test.png");
             });
         }
+    }, {
+        key: '_checkFilters',
+        value: function _checkFilters(filters, data) {
+            var filter = false;
+            for (var i = 0; i < filters.length; i++) {
+                if (filter = filters[i](data)) break;
+            }
+            return filter;
+        }
     }]);
 
     return WebGLRender;
@@ -2193,9 +2406,6 @@ module.exports = "attribute vec2 a_position;\nattribute vec2 a_uv;\nattribute fl
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
-/**
- * Created by chengang on 17-4-6.
- */
 
 
 
@@ -2386,21 +2596,23 @@ var Core = function () {
     }, {
         key: 'fit',
         value: function fit(duration, option) {
-            var _this = this;
             _tween2.default.removeByType('camera');
-            duration = duration || 1000;
             option = option || this.getFitOptions(this.graph.nodes);
-            new _tween2.default(this.render.camera, 'camera').to(option).duration(duration).on('change', function () {
-                _this.render.forceRender();
-            });
+            this.render.zoomTo(option, duration);
         }
     }, {
         key: 'makeLayout',
-        value: function makeLayout(type, nodes, cb) {
+        value: function makeLayout(type, option, cb) {
+            option = option || {};
 
             var _this = this;
             var layout, data;
             var layoutConfig = Core.layout;
+
+            var nodes = option.nodes;
+            var duration = option.duration;
+            var center = option.center;
+            var fit = option.fit;
 
             _tween2.default.removeByType('layout');
 
@@ -2421,21 +2633,9 @@ var Core = function () {
             } else if (layout = layoutConfig[type]) {
 
                 layout = new layoutConfig[type]();
-                data = layout.layout(nodes, edges);
+                data = layout.layout(nodes, edges, option);
 
-                if (data.length > this.graph.nodes.length * 4 / 5) {
-                    new _tween2.default(nodes, 'layout').to(data).duration(1000).on('change', function (t) {
-                        // console.time('layout')
-                        nodes.forEach(function (node) {
-                            // debugger
-                            _this.graph.setNodeData(node.id, { x: node.x, y: node.y });
-                        });
-                        // console.timeEnd('layout')
-                    }).on('end', cb);
-
-                    this.fit(1000, this.getFitOptions(data));
-                } else {
-
+                if (center) {
                     var bbox = _util2.default.getBBox(nodes);
                     var bbox1 = _util2.default.getBBox(data);
 
@@ -2446,12 +2646,22 @@ var Core = function () {
                         e.x += offsetX;
                         e.y += offsetY;
                     });
+                }
 
-                    new _tween2.default(nodes, 'layout').to(data).duration(1000).on('change', function (t) {
+                if (duration) {
+                    new _tween2.default(nodes, 'layout').to(data).duration(duration).on('change', function (t) {
                         nodes.forEach(function (node) {
                             _this.graph.setNodeData(node.id, { x: node.x, y: node.y });
                         });
                     }).on('end', cb);
+
+                    fit && this.fit(duration, this.getFitOptions(data));
+                } else {
+                    data.forEach(function (node, i) {
+                        _this.graph.setNodeData(nodes[i].id, { x: node.x, y: node.y });
+                    });
+                    fit && this.fit(null, this.getFitOptions(data));
+                    cb && cb();
                 }
             }
 
@@ -2785,14 +2995,19 @@ function initEvent() {
         // console.time('getNode')
         var nodes = _this.graph.nodes;
 
-        var node, dis;
+        var node, dis, check;
         var findNode = null;
 
         var selectNodes = _this.context.selection.getNodes();
 
+        var context = _this.renderCache.node;
+
         if (selectNodes.length > 0) {
             for (var i = selectNodes.length - 1; i >= 0; i--) {
                 node = selectNodes[i];
+
+                if (node.filter) continue;
+
                 if (checkInNode(pos.x, pos.y, node)) {
                     findNode = node;
                     break;
@@ -2803,7 +3018,9 @@ function initEvent() {
         if (!findNode && nodes.length > 0) {
             for (var i = nodes.length - 1; i >= 0; i--) {
                 node = nodes[i];
-                // node = _this.graph.nodesIndex[node.id];
+
+                if (node.filter) continue;
+
                 if (checkInNode(pos.x, pos.y, node)) {
                     findNode = node;
                     break;
@@ -2819,11 +3036,16 @@ function initEvent() {
         var edges = _this.graph.edges;
 
         var findEdge = null;
-        var edge;
+        var edge, check;
+
+        var context = _this.renderCache.edge;
 
         if (edges.length > 0) {
             for (var i = edges.length - 1; i >= 0; i--) {
                 edge = edges[i];
+
+                if (edge.filter) continue;
+
                 if (checkInEdge(pos.x, pos.y, edge)) {
                     findEdge = edge;
                     break;
@@ -2835,7 +3057,7 @@ function initEvent() {
     }
 
     function _clickHandler(e) {
-        var graphPos = _this.toGraphPos({ x: e.cameraX, y: e.cameraY });
+        var graphPos = _this.cameraToGraphPos({ x: e.cameraX, y: e.cameraY });
         var edge, node;
 
         node = getNode(graphPos);
@@ -2857,7 +3079,7 @@ function initEvent() {
         mouseDown = true;
         disableMove = true;
 
-        var graphPos = _this.toGraphPos({ x: e.cameraX, y: e.cameraY });
+        var graphPos = _this.cameraToGraphPos({ x: e.cameraX, y: e.cameraY });
         var node = getNode(graphPos);
 
         if (node) _this.emit('nodeMouseDown', [node, e]);
@@ -2876,7 +3098,7 @@ function initEvent() {
 
                 _this.forceRender();
 
-                var graphPos = _this.toGraphPos({ x: e.cameraX, y: e.cameraY }),
+                var graphPos = _this.cameraToGraphPos({ x: e.cameraX, y: e.cameraY }),
                     temp;
                 var offsetx = graphPos.x - startx;
                 var offsety = graphPos.y - starty;
@@ -2898,7 +3120,7 @@ function initEvent() {
                 }
 
                 if (isCamera) {
-                    var newgraphPos = _this.toGraphPos({ x: e.cameraX, y: e.cameraY });
+                    var newgraphPos = _this.cameraToGraphPos({ x: e.cameraX, y: e.cameraY });
                     startx = newgraphPos.x;
                     starty = newgraphPos.y;
                 } else {
@@ -2912,19 +3134,21 @@ function initEvent() {
                 e.preventDefault();
                 isDown = false;
                 clear();
+                disableMove = false;
             });
 
             var onmouseout = handlerWrap(function (e) {
                 isDown = false;
                 clear();
+                disableMove = false;
             });
 
+            clear();
             _this.container.addEventListener('mousemove', onmousemove);
             _this.container.addEventListener('mouseup', onmouseup);
             _this.container.addEventListener('mouseout', onmouseout);
 
             function clear() {
-                disableMove = false;
                 // _this.setMouseType(_this.mouseType.DEFAULT);
                 onmousemove && _this.container.removeEventListener('mousemove', onmousemove);
                 onmouseup && _this.container.removeEventListener('mouseup', onmouseup);
@@ -2939,7 +3163,7 @@ function initEvent() {
 
         if (disableMove || !_this.config.enableOverEvent) return;
 
-        var graphPos = _this.toGraphPos({ x: e.cameraX, y: e.cameraY });
+        var graphPos = _this.cameraToGraphPos({ x: e.cameraX, y: e.cameraY });
         var node = getNode(graphPos);
         var old;
 
@@ -2992,7 +3216,7 @@ function initEvent() {
         }
 
         if (isRight) {
-            var graphPos = _this.toGraphPos({ x: e.cameraX, y: e.cameraY });
+            var graphPos = _this.cameraToGraphPos({ x: e.cameraX, y: e.cameraY });
             var node = getNode(graphPos);
             var edge;
             if (node) {
@@ -3018,10 +3242,10 @@ function initEvent() {
         var ratio = _this.config.zoomRatio;
 
         if (value > 0) {
-            _this.zoomTo(1 / ratio, e.cameraX, e.cameraY);
+            _this.zoomFromPostion(1 / ratio, e.cameraX, e.cameraY);
             _this.emit('zoom', [1 / ratio, _this.camera.scale, e]);
         } else {
-            _this.zoomTo(ratio, e.cameraX, e.cameraY);
+            _this.zoomFromPostion(ratio, e.cameraX, e.cameraY);
             _this.emit('zoom', [ratio, _this.camera.scale, e]);
         }
     }
@@ -3030,7 +3254,7 @@ function initEvent() {
 
     function handlerWrap(handle) {
         return function (e) {
-            var pos = _this.toCameraPos({ x: e.offsetX, y: e.offsetY });
+            var pos = _this.domToCameraPos({ x: e.offsetX, y: e.offsetY });
             e.cameraX = pos.x;
             e.cameraY = pos.y;
             handle(e);
@@ -3082,9 +3306,6 @@ function initEvent() {
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
-/**
- * Created by chengang on 17-4-19.
- */
 
 
 
@@ -3308,7 +3529,7 @@ var Selection = function (_EventEmitter) {
 
             this.data.nodes = newSelected;
 
-            _this.emit('select', [_this.getNodes()]);
+            _this.emit('select', ['node', _this.getNodes()]);
         }
     }, {
         key: 'getNodes',
@@ -3398,7 +3619,7 @@ exports.default = {
     defaultNodeSize: 10,
     defaultNodeColor: "#3a82a8",
     //edge
-    defaultEdgeColor: "#69a2a8",
+    defaultEdgeColor: "rgba(100,100,100,0.3)",
     defaultEdgeSize: 1.6,
     defaultEdgeArrowSize: 5,
 
@@ -3408,6 +3629,9 @@ exports.default = {
 
     textureIconWidth: 1024,
     textureIconHeight: 1024,
+    textureIconFontFamily: 'FontAwesome',
+
+    textureTextFontFamily: 'Arial',
 
     enableOverEvent: true,
     enableEdgeEvent: true,
@@ -4799,19 +5023,20 @@ function _inherits(subClass, superClass) { if (typeof superClass !== "function" 
 var TextureIcon = function (_EventEmitter) {
     _inherits(TextureIcon, _EventEmitter);
 
-    function TextureIcon(option) {
+    function TextureIcon(config, unit) {
         _classCallCheck(this, TextureIcon);
 
         // this.gl = gl;
         var _this = _possibleConstructorReturn(this, (TextureIcon.__proto__ || Object.getPrototypeOf(TextureIcon)).call(this));
 
         _this.texture = null;
+        _this.unit = unit || 0;
 
-        _this.textureIconWidth = option.textureIconWidth;
-        _this.textureIconHeight = option.textureIconHeight;
+        _this.textureIconWidth = config.textureIconWidth;
+        _this.textureIconHeight = config.textureIconHeight;
 
         _this.fontSize = 60;
-        _this.fontFamily = 'FontAwesome';
+        _this.fontFamily = config.textureIconFontFamily;
 
         _this.border = 2;
         _this.width = 70; //char width
@@ -4827,22 +5052,6 @@ var TextureIcon = function (_EventEmitter) {
         _this.fontLoaded = true;
 
         _this._init();
-
-        // this.updateGPUTexture(true);
-
-        // var _this = this;
-        // if (document.fonts) {
-        //     debugger
-        //     var fontsReady = document.fonts.ready;
-        //     if (typeof(fontsReady) == "function") {
-        //         fontsReady = document.fonts.ready();
-        //     }
-        //     fontsReady.then(function () {
-        //         _this.fontLoaded  = true;
-        //         _this.createIcons();
-        //         _this.emit('load')
-        //     });
-        // }
         return _this;
     }
 
@@ -4940,9 +5149,10 @@ var TextureIcon = function (_EventEmitter) {
         }
     }, {
         key: 'attachGl',
-        value: function attachGl(gl) {
-            gl.activeTexture(gl.TEXTURE11);
-            gl.bindTexture(gl.TEXTURE_2D, this.createTexture(this.icons.length == 0, gl));
+        value: function attachGl(gl, unit) {
+            if (unit !== undefined && unit !== null) this.unit = unit;
+            gl.activeTexture(gl.TEXTURE0 + this.unit);
+            gl.bindTexture(gl.TEXTURE_2D, this.createTexture(gl, this.icons.length == 0));
         }
     }, {
         key: 'addIcons',
@@ -4964,10 +5174,10 @@ var TextureIcon = function (_EventEmitter) {
         }
     }, {
         key: 'createTexture',
-        value: function createTexture(empty, gl) {
+        value: function createTexture(gl, empty) {
 
             var texture = gl.createTexture();
-            gl.activeTexture(gl.TEXTURE11);
+            gl.activeTexture(gl.TEXTURE0 + this.unit);
             gl.bindTexture(gl.TEXTURE_2D, texture);
 
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
@@ -5139,15 +5349,16 @@ function _inherits(subClass, superClass) { if (typeof superClass !== "function" 
 var TextureText = function (_EventEmitter) {
     _inherits(TextureText, _EventEmitter);
 
-    function TextureText() {
+    function TextureText(config, unit) {
         _classCallCheck(this, TextureText);
 
         var _this = _possibleConstructorReturn(this, (TextureText.__proto__ || Object.getPrototypeOf(TextureText)).call(this));
 
         _this.border = 2;
 
+        _this.unit = unit || 1;
         _this.fontSize = 48;
-        _this.fontFamily = 'Arial';
+        _this.fontFamily = config.textureTextFontFamily;
 
         _this.canvas = null;
 
@@ -5252,9 +5463,9 @@ var TextureText = function (_EventEmitter) {
         }
     }, {
         key: 'attachGl',
-        value: function attachGl(gl) {
-
-            gl.activeTexture(gl.TEXTURE10);
+        value: function attachGl(gl, unit) {
+            if (unit !== undefined && unit !== null) this.unit = unit;
+            gl.activeTexture(gl.TEXTURE0 + this.unit);
             gl.bindTexture(gl.TEXTURE_2D, this.createTexture(gl));
         }
     }, {
@@ -5277,7 +5488,7 @@ var TextureText = function (_EventEmitter) {
 
             var texture = gl.createTexture();
 
-            gl.activeTexture(gl.TEXTURE10);
+            gl.activeTexture(gl.TEXTURE0 + this.unit);
             gl.bindTexture(gl.TEXTURE_2D, texture);
 
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
@@ -5343,6 +5554,7 @@ function renderLayerData(_ref) {
     var _this = this;
 
     data.forEach(function (e) {
+        if (e.filter) return;
         layers.forEach(function (layer) {
             if (!cacheIndex[e.id][layer] || !renderLayerMap[layer].enable || !renderLayerMap[layer].show) return;
 
@@ -5365,7 +5577,7 @@ function renderLayerData(_ref) {
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, _this.indexBuffer);
 
         (0, _GLUtil.vertexAttribPointer)(gl, program.activeAttributes, program.offsetConfig);
-        (0, _GLUtil.setUniforms)(gl, program.activeUniforms, renderLayerMap[layer].uniforms);
+        (0, _GLUtil.setUniforms)(gl, program.activeUniforms, program.uniforms);
 
         gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint32Array(layerIndexMap[layer]), gl.STATIC_DRAW);
         gl.drawElements(gl.TRIANGLES, layerIndexMap[layer].length, gl.UNSIGNED_INT, 0);
@@ -5729,7 +5941,11 @@ exports.default = {
         a_position: { components: 2, start: 0 },
         a_normal: { components: 2, start: 2 },
         a_size: { components: 1, start: 4 },
-        a_color: { components: 4, start: 5 }
+        a_color: { components: 4, start: 5 },
+        a_dis: { components: 1, start: 9 },
+        a_dashed: { components: 1, start: 10 },
+        a_flag: { components: 1, start: 11 },
+        a_u: { components: 1, start: 12 }
     },
     getUniforms: function getUniforms(_ref) {
         var matrix = _ref.matrix,
@@ -5753,6 +5969,8 @@ exports.default = {
         var edge = data;
         var dx = target.x - source.x;
         var dy = target.y - source.y;
+        // var dis = util.getDistance(source.x,source.y,target.x,target.y);
+        var dashed = data.dashed ? 1 : 0;
 
         var defaultSize = config.defaultNodeSize;
 
@@ -5780,16 +5998,16 @@ exports.default = {
         var renderData = [];
         var indices = [];
 
-        addData(renderData, [source.x, source.y, crossVector[0], crossVector[1], size, color.r, color.g, color.b, color.a]);
-        addData(renderData, [arrowX, arrowY, crossVector[0], crossVector[1], size, color.r, color.g, color.b, color.a]);
-        addData(renderData, [source.x, source.y, -crossVector[0], -crossVector[1], size, color.r, color.g, color.b, color.a]);
-        addData(renderData, [arrowX, arrowY, -crossVector[0], -crossVector[1], size, color.r, color.g, color.b, color.a]);
+        addData(renderData, [source.x, source.y, crossVector[0], crossVector[1], size, color.r, color.g, color.b, color.a, dis, dashed, 0, 0]);
+        addData(renderData, [source.x, source.y, -crossVector[0], -crossVector[1], size, color.r, color.g, color.b, color.a, dis, dashed, 0, 0]);
+        addData(renderData, [arrowX, arrowY, crossVector[0], crossVector[1], size, color.r, color.g, color.b, color.a, dis, dashed, 0, 1]);
+        addData(renderData, [arrowX, arrowY, -crossVector[0], -crossVector[1], size, color.r, color.g, color.b, color.a, dis, dashed, 0, 1]);
 
         addIndices(indices, [0, 1, 2, 1, 2, 3]);
         //arrow
-        addData(renderData, [arrowX, arrowY, crossVector[0], crossVector[1], arrowSize / 2, color.r, color.g, color.b, color.a]);
-        addData(renderData, [arrowX, arrowY, -crossVector[0], -crossVector[1], arrowSize / 2, color.r, color.g, color.b, color.a]);
-        addData(renderData, [arrowX, arrowY, arrowSize / dis * dx, arrowSize / dis * dy, 1, color.r, color.g, color.b, color.a]);
+        addData(renderData, [arrowX, arrowY, crossVector[0], crossVector[1], arrowSize / 2, color.r, color.g, color.b, color.a, dis, dashed, 1, 0]);
+        addData(renderData, [arrowX, arrowY, -crossVector[0], -crossVector[1], arrowSize / 2, color.r, color.g, color.b, color.a, dis, dashed, 1, 0]);
+        addData(renderData, [arrowX, arrowY, arrowSize / dis * dx, arrowSize / dis * dy, 1, color.r, color.g, color.b, color.a, dis, dashed, 1, 0]);
 
         addIndices(indices, [4, 5, 6]);
 
@@ -5859,12 +6077,13 @@ exports.default = {
         var matrix = _ref.matrix,
             camera = _ref.camera,
             sampleRatio = _ref.sampleRatio,
-            textureLoader = _ref.textureLoader;
+            textureLoader = _ref.textureLoader,
+            textureText = _ref.textureText;
 
         return {
             u_matrix: matrix,
             u_camera_scale: camera.scale,
-            u_image: 10
+            u_image: textureText.unit
         };
     },
     getRenderData: function getRenderData(_ref2) {
@@ -6003,12 +6222,13 @@ exports.default = {
         var matrix = _ref.matrix,
             camera = _ref.camera,
             sampleRatio = _ref.sampleRatio,
-            textureLoader = _ref.textureLoader;
+            textureLoader = _ref.textureLoader,
+            textureText = _ref.textureText;
 
         return {
             u_matrix: matrix,
             u_camera_scale: camera.scale,
-            u_image: 10
+            u_image: textureText.unit
         };
     },
     getRenderData: function getRenderData(_ref2) {
@@ -6141,12 +6361,13 @@ exports.default = {
         var matrix = _ref.matrix,
             camera = _ref.camera,
             sampleRatio = _ref.sampleRatio,
-            textureLoader = _ref.textureLoader;
+            textureLoader = _ref.textureLoader,
+            textureText = _ref.textureText;
 
         return {
             u_matrix: matrix,
             u_camera_scale: camera.scale,
-            u_image: 10
+            u_image: textureText.unit
         };
     },
     getRenderData: function getRenderData(_ref2) {
@@ -6306,7 +6527,8 @@ exports.default = {
             camera = _ref.camera,
             config = _ref.config,
             sampleRatio = _ref.sampleRatio,
-            textureLoader = _ref.textureLoader;
+            textureLoader = _ref.textureLoader,
+            textureIcon = _ref.textureIcon;
 
         var color = _util2.default.parseColor(config.defaultNodeBorder);
         return {
@@ -6315,7 +6537,7 @@ exports.default = {
             // u_textures:textureLoader.texturesIndex,
             u_borderColor: [color.r, color.g, color.b, color.a],
             u_sample_ratio: sampleRatio,
-            u_icons_texture: 11
+            u_icons_texture: textureIcon.unit
         };
     },
     getRenderData: function getRenderData(_ref2) {
@@ -6454,7 +6676,8 @@ exports.default = {
             camera = _ref.camera,
             config = _ref.config,
             sampleRatio = _ref.sampleRatio,
-            textureLoader = _ref.textureLoader;
+            textureLoader = _ref.textureLoader,
+            textureIcon = _ref.textureIcon;
 
         var color = _util2.default.parseColor(config.defaultNodeBorder);
         return {
@@ -6463,7 +6686,7 @@ exports.default = {
             // u_textures:textureLoader.texturesIndex,
             u_borderColor: [color.r, color.g, color.b, color.a],
             u_sample_ratio: sampleRatio,
-            u_icons_texture: 11
+            u_icons_texture: textureIcon.unit
         };
     },
     getRenderData: function getRenderData(_ref2) {
@@ -6568,19 +6791,19 @@ module.exports = "#ifdef GL_OES_standard_derivatives\n#extension GL_OES_standard
 /* 38 */
 /***/ (function(module, exports) {
 
-module.exports = "attribute vec2 a_position;\n//attribute vec2 a_normal;\nattribute vec4 a_color;\n//attribute float a_size;\nattribute vec2 a_uv;\nattribute float a_dis;\nattribute float a_flag;\nattribute float a_dashed;\nattribute float a_size;\nattribute float a_ratio;\n\nuniform mat3 u_matrix;\n\nvarying vec4 color;\nvarying vec2 uv;\nvarying float dis;\nvarying float flag;\nvarying float dashed;\nvarying float size;\nvarying float ratio;\n\nvoid main() {\n\n//vec2 pos  = a_position + a_normal * a_size;\ngl_Position = vec4((u_matrix*vec3(a_position,1)).xy,0,1);\nuv = a_uv;\ndis = a_dis;\nflag = a_flag;\ncolor = a_color/255.0;\ncolor = vec4(color.rgb * color.a,color.a);\ndashed = a_dashed;\nsize = a_size;\nratio = 1.0 - a_ratio;\n}\n"
+module.exports = "attribute vec2 a_position;\n//attribute vec2 a_normal;\nattribute vec4 a_color;\n//attribute float a_size;\nattribute vec2 a_uv;\nattribute float a_dis;\nattribute float a_dashed;\nattribute float a_flag;\nattribute float a_size;\nattribute float a_ratio;\n\nuniform mat3 u_matrix;\n\nvarying vec4 color;\nvarying vec2 uv;\nvarying float dis;\nvarying float dashed;\nvarying float flag;\nvarying float size;\nvarying float ratio;\n\nvoid main() {\n\n//vec2 pos  = a_position + a_normal * a_size;\ngl_Position = vec4((u_matrix*vec3(a_position,1)).xy,0,1);\nuv = a_uv;\ndis = a_dis;\nflag = a_flag;\ncolor = a_color/255.0;\ncolor = vec4(color.rgb * color.a,color.a);\ndashed = a_dashed;\nsize = a_size;\nratio = 1.0 - a_ratio;\n}\n"
 
 /***/ }),
 /* 39 */
 /***/ (function(module, exports) {
 
-module.exports = "precision mediump float;\nvarying vec4 color;\nvoid main(){\ngl_FragColor = vec4(color.rgb * color.a,color.a);\n//gl_FragColor = color;\n}"
+module.exports = "precision mediump float;\nvarying vec4 color;\nvarying float dis;\nvarying float dashed;\nvarying float flag;\nvarying float u;\n\n\nvoid main(){\n\nif(flag > -0.5 && flag < 0.5){//edge\n    float n = 800.0/dis;\n    float dot = mod(u*100.0,n);\n    if(dashed > 0.5 && dot > n*0.5 && dot < n) discard;\n}\n\n//gl_FragColor = vec4(u,u,u,1)*0.5;\ngl_FragColor = vec4(color.rgb * color.a,color.a);\n\n}"
 
 /***/ }),
 /* 40 */
 /***/ (function(module, exports) {
 
-module.exports = "attribute vec2 a_position;\nattribute vec2 a_normal;\nattribute vec4 a_color;\nattribute float a_size;\n\nuniform mat3 u_matrix;\n\nvarying vec4 color;\n\nvoid main() {\n\nvec2 pos  = a_position + a_normal * a_size;\ngl_Position = vec4((u_matrix*vec3(pos,1)).xy,0,1);\n\ncolor = a_color/255.0;\n}\n"
+module.exports = "attribute vec2 a_position;\nattribute vec2 a_normal;\nattribute vec4 a_color;\nattribute float a_size;\nattribute float a_dis;\nattribute float a_dashed;\nattribute float a_flag;\nattribute float a_u;\n\nuniform mat3 u_matrix;\n\nvarying vec4 color;\nvarying float dis;\nvarying float dashed;\nvarying float flag;\nvarying float u;\n\nvoid main() {\n\nvec2 pos  = a_position + a_normal * a_size;\ngl_Position = vec4((u_matrix*vec3(pos,1)).xy,0,1);\ndis = a_dis;\ndashed = a_dashed;\nflag = a_flag;\ncolor = a_color/255.0;\nu = a_u;\n}\n"
 
 /***/ }),
 /* 41 */

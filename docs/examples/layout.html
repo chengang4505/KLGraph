@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>Title</title>
+	<link rel="stylesheet" href="../assert/example.css">
+
+	<script src="../assert/d3.min.js"></script>
+	<script src="../assert/cola.min.js"></script>
+	<script src="../assert/dagre.js"></script>
+
+
+	<script src="../assert/klgraph.js"></script>
+	<script src="../assert/data.js"></script>
+</head>
+<body>
+<div class="container">
+	<div id="graph" style="height: 100%"></div>
+	<a class="title" target="_blank" href="./layout.html">open layout.html</a>
+	<div class="left-top">
+		<div id="layout">
+			<button name="circular">circular</button>
+			<button name="d3force">d3force</button>
+			<button name="cola">cola</button>
+			<button name="flow">flow</button>
+			<button name="darge">darge</button>
+			<button name="grid">grid</button>
+		</div>
+		<input id="animation" type="checkbox" checked/>animation
+		<input id="fit" type="checkbox" checked/>fit
+	</div>
+</div>
+<script>
+    var graph = document.getElementById('graph');
+
+    var colors = ["#1f77b4","#ff7f0e","#2ca02c","#d62728","#9467bd","#8c564b","#e377c2","#7f7f7f","#bcbd22","#17becf"];
+
+    testData.nodes.forEach(function (e,i) {
+	  e.x = Math.random()*600-300;
+	  e.y = Math.random()*600-300;
+	  e.label = 'Node'+i;
+	  e.color = colors[(Math.random()*colors.length)|0]
+    })
+    
+    testData.edges.forEach(function (e,i) {
+	  e.label = 'edge'+i;
+        e.color = 'rgba(100,100,100,0.3)'
+//        e.color = colors[(Math.random()*colors.length)|0]
+    })
+
+    var gview = new KLGraph.GraphView({
+        nodes: testData.nodes,
+        edges: testData.edges,
+        container: graph,
+    });
+
+    var layout = document.getElementById('layout');
+    var animation = document.getElementById('animation');
+    var fit = document.getElementById('fit');
+    layout.addEventListener('click', function (e) {
+        var type = e.target.getAttribute('name');
+        gview.makeLayout(type,
+		{
+		    fit: fit.checked,
+		    duration: animation.checked ?  1000 : null,
+		},
+            function () {
+                // end callback
+            });
+    })
+
+</script>
+</body>
+</html>

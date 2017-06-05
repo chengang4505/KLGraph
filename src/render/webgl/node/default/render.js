@@ -19,7 +19,7 @@ export default {
         a_showicon: {components:1,start:11},
         a_center: {components:2,start:12},
     },
-    getUniforms({matrix, camera,config, sampleRatio, textureLoader}){
+    getUniforms({matrix, camera,config, sampleRatio, textureLoader,textureIcon}){
         var color = utils.parseColor(config.defaultNodeBorder);
         return {
             u_matrix:matrix,
@@ -27,7 +27,7 @@ export default {
             // u_textures:textureLoader.texturesIndex,
             u_borderColor: [color.r, color.g, color.b, color.a],
             u_sample_ratio:sampleRatio,
-            u_icons_texture:11,
+            u_icons_texture:textureIcon.unit,
         }
     },
     getRenderData({data,config, textureLoader, textureIcon,oldData,dirtyAttr}){

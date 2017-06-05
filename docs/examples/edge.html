@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>Title</title>
+	<link rel="stylesheet" href="../assert/example.css">
+
+	<script src="../assert/klgraph.js"></script>
+	<script src="../assert/data.js"></script>
+</head>
+<body>
+<div class="container">
+	<div id="graph" style="height: 100%"></div>
+	<a class="title" target="_blank" href="./edge.html">open edge.html</a>
+	<div class="left-top">
+		<button id="add">addEdge</button>
+		<button id="remove">removeEdge</button>
+	</div>
+</div>
+<script>
+    var graph = document.getElementById('graph');
+
+    var nodes = [
+        {id: 'node1', label: 'node1', x: -200, y: 0, size: 15},
+        {id: 'node2', label: 'node2', x: 0, y: 0, size: 15},
+    ]
+
+    var edges = [
+        {source:'node1',target:'node2',label:'edge'}
+    ]
+
+    var gview = new KLGraph.GraphView({
+        nodes: nodes,
+        edges: edges,
+        container: graph,
+    });
+
+    var add = document.getElementById('add');
+    var remove = document.getElementById('remove');
+
+    add.addEventListener('click',function () {
+	  gview.graph.addEdge({source:'node1',target:'node2',label:'edge'})
+    })
+
+    remove.addEventListener('click',function () {
+        var edges = gview.graph.edges;
+        if(edges.length < 1) return
+        gview.graph.removeEdge(edges[edges.length-1].id);
+    })
+
+
+</script>
+</body>
+</html>

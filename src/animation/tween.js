@@ -63,8 +63,7 @@ export  default class Tween extends  EventEmitter{
         this.emit('change',[t]);
 
         if(elapsed >=this._duration){
-            this.stop();
-            this.emit('end');
+            this.stop(true);
         }
 
     }
@@ -106,44 +105,46 @@ export  default class Tween extends  EventEmitter{
 
     };
 
-    stop() {
+    stop(emitEnd) {
         if(this.timer){
             this.timer.stop();
             this.timer = null;
             this.objs = null;
             this.interpolates = null;
 
+            if(emitEnd) this.emit('end');
+
             Tween.remove(this.objs);
         }
     }
 
-    static remove(obj){
+    static remove(obj,emitEnd){
         var list = Tween.list;
         Tween.list = [];
         list.forEach(function (e) {
             if(e.objs == obj){
-                e.stop();
+                e.stop(emitEnd);
             }else {
                 Tween.list.push(e);
             }
         })
     }
 
-    static removeByType(type){
+    static removeByType(type,emitEnd){
         var list = Tween.list;
         Tween.list = [];
         list.forEach(function (e) {
             if(e.type === type){
-                e.stop();
+                e.stop(emitEnd);
             }else {
                 Tween.list.push(e);
             }
         })
     }
 
-    static removeAll(){
+    static removeAll(emitEnd){
         Tween.list.forEach(function (e) {
-            e.stop();
+            e.stop(emitEnd);
         })
 
         Tween.list = [];

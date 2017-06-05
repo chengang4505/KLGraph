@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>Title</title>
+	<link rel="stylesheet" href="../assert/example.css">
+	<link rel="stylesheet" href="../assert/font-awesome-4.7.0/css/font-awesome.css">
+
+	<script src="../assert/klgraph.js"></script>
+	<script src="../assert/data.js"></script>
+</head>
+<body>
+<i class="fa fa-university" style="transform: scale(0)"></i>
+<div class="container">
+	<div id="graph" style="height: 100%"></div>
+	<a class="title" target="_blank" href="./icon.html">open icon.html</a>
+</div>
+<script>
+    var graph = document.getElementById('graph');
+
+    var colors = ["#1f77b4","#ff7f0e","#2ca02c","#d62728","#9467bd","#8c564b","#e377c2","#7f7f7f","#bcbd22","#17becf"];
+
+    var icons = ['\uf19c', '\uf1a7', '\uf19e', '\uf1a0'];
+
+
+    testData.nodes.forEach(function (e,i) {
+        e.x = Math.random()*600-300;
+        e.y = Math.random()*600-300;
+        e.label = 'Node'+i;
+        e.color = colors[(Math.random()*colors.length)|0]
+	  e.icon = icons[(Math.random()*icons.length)|0]
+    })
+
+    testData.edges.forEach(function (e,i) {
+        e.label = 'edge'+i;
+        e.color = 'rgba(100,100,100,0.3)'
+    })
+
+    //等待字体加载完成
+    if (document.fonts) {
+        var fontsReady = document.fonts.ready;
+        if (typeof(fontsReady) == "function") {
+            fontsReady = document.fonts.ready();
+        }
+        fontsReady.then(function () {
+            main();
+        });
+    }
+
+    function main() {
+        var gview = new KLGraph.GraphView({
+            nodes: testData.nodes,
+            edges: testData.edges,
+            container: graph,
+        });
+    }
+
+
+
+
+</script>
+</body>
+</html>

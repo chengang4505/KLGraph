@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>Title</title>
+	<link rel="stylesheet" href="../assert/example.css">
+
+	<script src="../assert/klgraph.js"></script>
+	<script src="../assert/data.js"></script>
+
+</head>
+<body>
+<div class="container">
+	<div id="graph" style="height: 100%"></div>
+	<a class="title" target="_blank" href="./event.html">open event.html</a>
+	<textarea class="event"></textarea>
+</div>
+<script>
+	var eventList = document.getElementsByClassName('event')[0];
+    var graph = document.getElementById('graph');
+      var nodes = [
+          {id: 'node1', label: '节点１', x: -200, y: 0, size: 15},
+          {id: 'node2', label: '节点2', x: 0, y: 0, size: 15},
+      ]
+
+      var edges = [
+          {source:'node1',target:'node2',label:'edge1'}
+      ]
+
+      var gview = new KLGraph.GraphView({
+          nodes: nodes,
+          edges: edges,
+          container: graph,
+      });
+
+    var events = ['nodeClick','nodeOver','nodeOut','edgeClick','stageClick','nodeMouseDown','edgeOver','edgeOut',
+        'nodeRightClick','edgeRightClick','stageRightClick','zoom'];
+
+    var list = [];
+
+	events.forEach(function (event) {
+	    gview.on(event,function (data) {
+              list.push(event);
+              eventList.textContent = list.join('\n');
+              if(list.length > 10) list = [];
+	    });
+	});
+</script>
+</body>
+</html>

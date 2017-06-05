@@ -6,7 +6,8 @@ module.exports = {
     entry: './src/index.js',
     output: {
         // path: 'build/js',
-        path: path.resolve(__dirname, '../Demo/static/js'),
+        path: 'docs/assert',
+        // path: path.resolve(__dirname, '../Demo/static/js'),
         filename: 'klgraph.js',
         library: 'KLGraph',
         libraryTarget: 'umd',

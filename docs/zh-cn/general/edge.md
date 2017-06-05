@@ -1,4 +1,20 @@
-# Edge/边
+# Edge/边 {docsify-ignore-all}
+
+<!--iframe[./examples/edge.html]-->
+
+## edge add/remove
+
+```javascript
+//add
+gview.graph.addEdge(edge)
+```
+
+```javascript
+//remove
+gview.graph.removeEdge(edgeid)
+```
+
+## 属性 
 
 ```javascript
 var edges = [];
@@ -15,7 +31,6 @@ edges.push({
 
 
 ```
-## 属性
 
 - `label`:edge 的label.
 - `source`:edge 的　source node id.

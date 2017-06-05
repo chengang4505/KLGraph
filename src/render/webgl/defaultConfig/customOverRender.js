@@ -20,6 +20,7 @@ function renderLayerData({data,cacheIndex,gl,layers,renderLayerMap}) {
     var _this = this;
 
     data.forEach(function (e) {
+        if(e.filter) return;
         layers.forEach(function (layer) {
             if(!cacheIndex[e.id][layer] || !renderLayerMap[layer].enable || !renderLayerMap[layer].show) return;
 
@@ -42,7 +43,7 @@ function renderLayerData({data,cacheIndex,gl,layers,renderLayerMap}) {
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, _this.indexBuffer);
 
         vertexAttribPointer(gl, program.activeAttributes, program.offsetConfig);
-        setUniforms(gl, program.activeUniforms, renderLayerMap[layer].uniforms);
+        setUniforms(gl, program.activeUniforms,program.uniforms);
 
         gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint32Array(layerIndexMap[layer]), gl.STATIC_DRAW);
         gl.drawElements(gl.TRIANGLES, layerIndexMap[layer].length, gl.UNSIGNED_INT, 0);

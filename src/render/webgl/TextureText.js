@@ -4,13 +4,14 @@ import EventEmitter from '../../base/EventEmitter'
 import TextSDF from './TextSDF'
 
 export default class TextureText extends EventEmitter{
-    constructor(){
+    constructor(config,unit){
         super();
 
         this.border = 2;
 
+        this.unit = unit || 1;
         this.fontSize = 48;
-        this.fontFamily = 'Arial';
+        this.fontFamily = config.textureTextFontFamily;
 
         this.canvas = null;
 
@@ -114,9 +115,9 @@ export default class TextureText extends EventEmitter{
 
     }
 
-    attachGl(gl){
-
-        gl.activeTexture(gl.TEXTURE10);
+    attachGl(gl,unit){
+        if(unit !== undefined && unit !== null)  this.unit = unit;
+        gl.activeTexture(gl.TEXTURE0+this.unit);
         gl.bindTexture(gl.TEXTURE_2D, this.createTexture(gl));
     }
 
@@ -139,7 +140,7 @@ export default class TextureText extends EventEmitter{
 
         var texture = gl.createTexture();
 
-        gl.activeTexture(gl.TEXTURE10);
+        gl.activeTexture(gl.TEXTURE0+this.unit);
         gl.bindTexture(gl.TEXTURE_2D, texture);
 
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
