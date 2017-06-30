@@ -1,19 +1,32 @@
-/**
- * Created by chengang on 17-4-12.
- */
+'use strict';
+
+import util from '../util'
+
+var defaultConfig = {
+    BBox:[1000, 1000],
+    linkDistance:30,
+    initIterations:20,
+    userIterations:0,
+    allIterations:2,
+};
 
 export default class ColaLayout{
-    layout(nodes,edges){
+    layout(nodes,edges,option){
         if(!cola || !cola.Layout) throw 'please add cola lib first';
+
+        option = option || {};
+
+        this.option = util.extend(option,defaultConfig);
+
         this.cola = new cola.Layout().convergenceThreshold(1e-4)
-            .size([1000, 1000]);
+            .size(this.option.BBox);
 
         var data = this._init(nodes,edges);
 
         this.cola.nodes(data.nodes)
             .links(data.edges)
-            .symmetricDiffLinkLengths(30)
-            .start(60,0,0,0,false);
+            .symmetricDiffLinkLengths(this.option.linkDistance)
+            .start(this.option.initIterations,this.option.userIterations,this.option.allIterations,0,false);
 
         return data.nodes.map(function (e) {
             return {x:e.x,y:e.y};

@@ -21,7 +21,7 @@
     - [TextureImage](zh-cn/started.md)
     - [config](zh-cn/started.md)
     - **工具类/tools**
-    - [Matrix](zh-cn/started.md)
+    - [Matrix](zh-cn/api/matrix.md)
     - [GLUtil](zh-cn/started.md)
     - [util](zh-cn/started.md)
     - [Quad](zh-cn/started.md)

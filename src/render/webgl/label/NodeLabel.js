@@ -13,6 +13,7 @@ export default {
         a_position: {components:2,start:0},
         a_uv:{components:2,start:2},
         a_size: {components:1,start:4},
+        a_color: {components:4,start:5},
     },
     getUniforms({matrix, camera, sampleRatio, textureLoader,textureText}){
         return {
@@ -26,65 +27,83 @@ export default {
         if(!data.label) return null;
 
         var defaultSize = config.defaultNodeSize;
+        var labelColor = util.parseColor(data.labelColor || config.defaultNodeLabelColor);
 
         var str = data.label.split('');
 
         var renderData = [];
         var indices = [];
 
+        var labelSizeRatio = 0.35;
         var sizeX = util.getNodeSizeX(data) || defaultSize,sizeY = util.getNodeSizeY(data) || defaultSize;
         var size = Math.max(sizeX,sizeY);
         var infos = textureText.textinfo.infos,
-            charWidth = size/2,
-            charHeight = size/2,
+            charWidth = size * labelSizeRatio,
+            charHeight = size * labelSizeRatio,
             char,uv,width;
 
-        var totalWidht = 0;
-        for(var i = 0;i< str.length;i++) {
-            char = str[i];
-            if (!infos[char]) {
-                // console.log(1);
-                continue;
-            }
-            totalWidht +=infos[char].width * charWidth
-        }
+        var lines = getLines(str,7,infos,charWidth);
 
-
-        var startx = totalWidht/2 * -1 + data.x;
-        var starty =  data.y - sizeY;
-        var x1,y1,x2,y2;
-
+        var x1,y1,x2,y2,startx,starty;
         var points = 0;
-        for(var i = 0;i< str.length;i++){
-            char = str[i];
-            if(!infos[char]){
-                // console.log(1);
-                continue;
-            }
 
-            width = infos[char].width * charWidth;
-            uv = infos[char].uvs;
-            x1 = uv[0],y1 = uv[1],x2 = uv[2],y2 = uv[3];
+        lines.forEach(function (line,i) {
+            startx = line.lineWidth/2 * -1 + data.x;
+            starty = data.y - sizeY - i * charHeight * 7/8;
+            line.forEach(function (char) {
+                if(!infos[char]) return;
 
-            addData(renderData,[startx,starty,x1,y1,width]);
-            addData(renderData,[startx,starty-charHeight,x1,y2,width]);
-            addData(renderData,[startx+width,starty,x2,y1,width]);
-            addData(renderData,[startx+width,starty-charHeight,x2,y2,width]);
+                width = infos[char].width * charWidth;
+                uv = infos[char].uvs;
+                x1 = uv[0],y1 = uv[1],x2 = uv[2],y2 = uv[3];
 
-            addIndices(indices,[
-                points+0,points+1,points+2,
-                points+1,points+2,points+3
-            ]);
+                addData(renderData,[startx,starty,x1,y1,width,labelColor.r,labelColor.g,labelColor.b,labelColor.a]);
+                addData(renderData,[startx,starty-charHeight,x1,y2,width,labelColor.r,labelColor.g,labelColor.b,labelColor.a]);
+                addData(renderData,[startx+width,starty,x2,y1,width,labelColor.r,labelColor.g,labelColor.b,labelColor.a]);
+                addData(renderData,[startx+width,starty-charHeight,x2,y2,width,labelColor.r,labelColor.g,labelColor.b,labelColor.a]);
 
-            startx += width*7/8;
-            points += 4;
-        }
-        return {
-            vertices:renderData,
-            indices:indices,
-        };
+                addIndices(indices,[
+                    points+0,points+1,points+2,
+                    points+1,points+2,points+3
+                ]);
+
+                startx += width*7/8;
+                points += 4;
+            });
+        });
+
+        return renderData.length > 0 ? {vertices:renderData, indices:indices} : null;
     }
 
+}
+
+
+function getLines(str,lineChars,infos,charWidth) {
+    var lines = [];
+    var line = [];
+    var lineWidth = 0;
+    str.forEach(function (char) {
+        if(line.length >= lineChars){
+
+            line.lineWidth = lineWidth;
+            lines.push(line);
+
+            line = [];
+            lineWidth = 0;
+        }
+
+        if (!infos[char]) return;
+
+        lineWidth +=infos[char].width * charWidth * 7/8;
+        line.push(char);
+    });
+
+    if(lineWidth > 0){
+        line.lineWidth = lineWidth;
+        lines.push(line);
+    }
+
+    return lines;
 }
 
 

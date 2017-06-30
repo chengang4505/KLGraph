@@ -23,11 +23,11 @@ varying float showicon;
 void main() {
 
 
-gl_Position = vec4((u_matrix*vec3(a_position,1)).xy,0,1);
-color = a_color/255.0;
-img = a_img;
-selected = a_selected;
-uv = a_uv;
-flag = a_flag;
-showicon = a_showicon;
+    gl_Position = vec4((u_matrix*vec3(a_position,1)).xy,0,1);
+    color = a_color/255.0;
+    img = a_img;
+    selected = a_selected;
+    uv = a_uv;
+    flag = a_flag;
+    showicon = a_showicon;
 }

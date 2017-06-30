@@ -44,6 +44,27 @@ utils.isFunction =  function( obj ){
     return obj != null && typeof obj === typeoffn;
 };
 
+utils.isInteger = Number.isInteger || function(value) {
+        return typeof value === "number" &&
+            isFinite(value) &&
+            Math.floor(value) === value;
+};
+
+utils.nextPow2 = function (n) {
+    // var num = 1;
+    // while(num < n) num <<= 1;
+    // return num;
+
+    n = n -1;
+    var i = 1;
+    var offset;
+    while((offset = n>>i) > 0){
+        n |= offset;
+        i *= 2;
+    }
+    return n+1;
+};
+
 
 utils.extend = function() {
     var i,

@@ -30,63 +30,139 @@ class WebGLRender extends EventEmitter{
     constructor(context,container) {
         super();
 
+        //graphView obj
         this.context = context;
+        //config
         this.config = this.context.config;
 
+        //dom canvas
         this.container = container;
+        //graph
         this.graph = context.graph;
 
+        //render flag, render when  needUpdate is true;
         this.needUpdate = true;
+        //sample Ratio,
         this.sampleRatio = 1;
 
-
-        // this.initTexture = false;
         // this.textureLoader = new TextureLoader();
+        //manage icon texture for node
         this.textureIcon = new TextureIcon(this.config,0);
+        //manager text texture for node ,edge
         this.textureText = new TextureText(this.config,1);
 
+        //enum mouse type
         this.mouseType = mouseType;
-        this.initGl();
-        this.initEvent();
 
-        this.initIconTexture();
-        this.initTextTexture();
-
+        // matrix from camera coordinate to webgl coordinate[-1 ,1]
         this.projectMatrix = null;
 
+        // camera transform info
         this.camera = {
-            scale:1,
-            positionX:0,
-            positionY:0,
-            rotation:0
+            scale:1,//scale
+            positionX:0,//position x
+            positionY:0,//position y
+            rotation:0//rotation,(not use now)
         };
 
+        // gl frame buffer to save png(not use now)
         this.saveDataFrame = null;
+        // gl texture
         this.saveDataTex = null;
 
         /**
-         * layers:　相关的layer
-         * index: cache索引 map
-         * flag:
+         ** render cache for context : graph ,node ,edge. for every node or edge , cache the render data for the
+         * relative layers, and if need , the vertex buffer of render layers are composed of the vertex data of the contexts,
+         *  the index buffer of render layers  are composed of the index data fo the contexts;
+         *
+         *  more info look at [updateCacheByData]
+         *
+         *  layers : relative layers of the context. example : 'node' 'nodeLabel' 'rectNode' for node context.
+         *  index : a map that store the layer info for each context, the key is the id of a node or a edge.
+         *
+         *      vertexStart: the start vertex num at the vertex buffer of render layer,
+         *      data.vertices: the vertex data array.
+         *      data.indices: the index data array.
+         *      oldVertexLength: the len of data.vertices in bytes.
+         *      oldIndexLength: the len of data.indices in bytes.
+         *
+         *  filters : context relative filters
+         *
+         *  example:
+         *  {
+         *     node:{
+         *       layers:['node','nodeLabel',...]
+         *       index:{
+         *             'nodeId1':{
+         *                      'layername1': {vertexStart:-1,data:{vertices:[...],indices:[...]},oldVertexLength:-1,oldIndexLength:-1}
+         *                      .....
+         *                  }
+         *               ....
+         *              }
+         *       filters:[filterNodeBySize,....]
+         *       }
+         *  }
+         *
          */
         this.renderCache = {
-            graph:{layers:[],index:{},flag:false,filters:[]},
-            node:{layers:[],index:{},flag:false,filters:[]},
-            edge:{layers:[],index:{},flag:false,filters:[]}
+            graph: {layers: [], index: {}, filters: []},
+            node: {layers: [], index: {}, filters: []},
+            edge: {layers: [], index: {}, filters: []}
         };
-        // this.clearAllFlag = true;
+        // map for layers ,key is the layer name.
         this.renderLayerMap = {};
+
+
+        /**
+         * render layer config, default is the WebGLRender.defaultLayersConfig .  more info in file [defaultConfig/index.js]
+         * {
+         *   mainLayer: {boolean} the main name that the layer belong to.
+         *   enable: {boolean} render and update the layer or not
+         *   show: {boolean} render the layer or not ,  don't affect update the layer.
+         *   needResize: {boolean} need resize the vertex buffer of layer or not
+         *   program: {WebGLProgram} the vertex buffer is initialized or not.
+         *   tempVertex: temp data for vertex buffer.
+         *   tempIndex: temp data for index buffer.
+         *   cache:{boolean} vertex buffer cache flag.
+         *   indexCache:{boolean} index buffer cache flag.
+         *   check:{fun} check the node or the edge will be render at the layer
+         *   option:{obj} custom args for the layer, pass to [getRenderData , getUniforms] of the layer render.
+         *   filter:{array} layer filters.
+         * }
+         *
+         */
         this.renderLayersConfig = this.config.renderLayersConfig || WebGLRender.defaultLayersConfig;
+
+        //init webgl context and Extension
+        this.initGl();
+
+        //register events to graph,event 'change' 'add' 'remove' etc.
+        this.initEvent();
+
+        //init textureIcon for node
+        this.initIconTexture();
+
+        console.time('initTextTexture')
+        //init textureText for node label and edge label
+        this.initTextTexture();
+        console.timeEnd('initTextTexture')
+
+
+        //init render layers info
         this.initRenderLayer();
 
-        this.updateLayerData();
+        // this.updateLayerData();
 
-        // debugger
+        // init mouse events
         initEvent.call(this);
 
     }
 
+    /**
+     * init webgl info
+     */
     initGl() {
+        //webgl　默认初始化 option
         var option = {
             preserveDrawingBuffer:true,
             premultipliedAlpha:true,
@@ -103,26 +179,39 @@ class WebGLRender extends EventEmitter{
             throw 'browser not support webGl!';
         }
 
+        //加载　Extension
         gl.getExtension('OES_standard_derivatives');
         gl.getExtension('OES_element_index_uint');
 
         this.gl = gl;
     }
+
+    /**
+     * init event
+     */
     initEvent(){
         var _this = this;
-        this.graph.on('change',function (type,ids,dirtyAttr) {
+        //graph node or edge 属性改变会触发　change 事件，
+        this.graph.on('change',function (type,ids,dirtyAttrs) {
             if(type =='node'){
-                 _this.updateNodeRenderData(ids,dirtyAttr);
+                updateTextureText(dirtyAttrs);
+                 _this.updateNodeRenderData(ids,dirtyAttrs);
             }else if(type == 'edge'){
-                 _this.updateEdgeRenderData(ids,dirtyAttr);
+                updateTextureText(dirtyAttrs);
+                _this.updateEdgeRenderData(ids,dirtyAttrs);
             }
 
         });
+
+        // clear缓存，重新计算 icon 和　text texture
         this.graph.on('reset',function () {
             _this.clearRenderCache();
             _this.initIconTexture();
             _this.initTextTexture();
         });
+
+
+        //node or edge 增加时，　需要重新计算cache, 更新text texture.
         this.graph.on('add',function (type,ids) {
             if(!util.isArray(ids)) ids = [ids];
 
@@ -131,36 +220,53 @@ class WebGLRender extends EventEmitter{
             if(type == 'node') objs = ids.map(function (e) {return _this.graph.nodesIndex[e]});
             else objs = ids.map(function (e) {return _this.graph.edgesIndex[e]});
 
-            var addtexts = getAddText(objs);
-            if(addtexts.length > 0){
-                _this.textureText.addTexts(addtexts);
-                _this.textureText.attachGl(_this.gl);
-            }
+            updateTextureText(objs);
             _this.clearRenderCache();
 
         });
+
+        // node or edge 移除时，　需要重新计算　index cache
         this.graph.on('remove',function (type,ids) {
             _this.forceRender();
             var contextRelativeLayers = _this.renderCache[type].layers;
             var  renderLayerMap = _this.renderLayerMap;
 
             contextRelativeLayers.forEach(function (layer) {
-                renderLayerMap[layer].indexCache = false;
+                renderLayerMap[layer].indexCache = false;// 重新计算index cache
             });
         });
 
+        //更新 text texture
+        function updateTextureText(objs) {
+            // debugger
+            var addtexts = getAddText(objs);
+            if(addtexts.length > 0){
+                // console.time('updateTextureText');
+                //是否需要　resize text texture
+                if(_this.textureText.needResize(addtexts.length)){
+                    //clear cache
+                    _this.clearRenderCache();
+                }
+                //add texts
+                _this.textureText.addTexts(addtexts);
+                _this.textureText.attachGl(_this.gl);
+                // console.timeEnd('updateTextureText');
+            }
+        }
 
         function getAddText(objs) {
             var infos = _this.textureText.textinfo.infos;
             var char,len;
             var texts = [];
+            var map = {};
             objs.forEach(function (e) {
                 if(!e.label) return;
                 len = e.label.length;
                 for(var i = 0;i< len;i++){
                     char = e.label.charAt(i);
-                    if(!infos[char]){
+                    if(!infos[char] && !map[char]){
                         texts.push(char);
+                        map[char] = true;
                     }
                 }
             });
@@ -169,13 +275,19 @@ class WebGLRender extends EventEmitter{
         }
 
     }
+
+    /**
+     * 初始化，text texture, 计算node.label 和　edge.label中的文字。
+     */
     initTextTexture(){
 
+        //clear
         this.textureText.clear();
 
         var nodes = this.graph.nodes;
         var edges = this.graph.edges;
 
+        // node label
         var map = {};
         var texts = [];
         nodes.forEach(function (e) {
@@ -191,6 +303,7 @@ class WebGLRender extends EventEmitter{
         });
 
 
+        //edge label
         edges.forEach(function (e) {
             if(e.label){
                 var chars = e.label.split('');
@@ -203,17 +316,23 @@ class WebGLRender extends EventEmitter{
             }
         });
 
-
-        this.textureText.createCanvasImg(texts);
-
+        // add text
+        this.textureText.addTexts(texts);
+        // 创建 gl texture and bind
         this.textureText.attachGl(this.gl);
     }
+
+    /**
+     * 初始化 icon texture ,计算node.icon 中的 icon
+     */
     initIconTexture(){
 
+        //clear
         this.textureIcon.clear();
 
         var nodes = this.graph.nodes;
 
+        //node icon
         var map = {};
         var icons = [];
         nodes.forEach(function (e) {
@@ -225,11 +344,17 @@ class WebGLRender extends EventEmitter{
             }
         });
 
+        //create icon texture
         this.textureIcon.createIcons(icons);
 
+        //create gl texture and bind
         this.textureIcon.attachGl(this.gl);
 
     }
+
+    /**
+     * 初始化render layer
+     */
     initRenderLayer(){
         var  renderLayerMap = this.renderLayerMap;
         var gl = this.gl;
@@ -242,41 +367,55 @@ class WebGLRender extends EventEmitter{
 
             layer.subLayers.forEach(function (subLayer) {
 
+                //default value
                 if(subLayer.enable == undefined) subLayer.enable = true;
                 if(subLayer.show == undefined) subLayer.show = true;
                 if(subLayer.option == undefined) subLayer.option = {};
                 if(subLayer.filters == undefined) subLayer.filters = [];
 
+                //layer map
                 renderLayerMap[subLayer.name] = subLayer;
 
+                //自定义layer ,没有下面的参数
                 if(subLayer.custom) return;
 
+                //create WebGLProgram
                 program = loadProgram(gl, [
                     loadShader(gl, subLayer.render.shaderVert, gl.VERTEX_SHADER),
                     loadShader(gl, subLayer.render.shaderFrag, gl.FRAGMENT_SHADER)
                 ]);
 
+                // attributes in shader
                 program.activeAttributes = getActiveAttributes(gl,program);
+                // uniforms in shader
                 program.activeUniforms = getActiveUniforms(gl,program);
 
+                //strip of a point in the render layer。
                 strip = subLayer.render.strip;
 
+                //如果不存在strip ,　从attributes　config 中计算
                 if(!subLayer.render.strip) strip = calculateStrip(subLayer.render.attributes);
 
+                //attributes offset in strip
                 program.offsetConfig = {config:subLayer.render.attributes,strip:strip};
                 program.uniforms = null;
+                //VBO buffer
                 program.vertexBuffer = gl.createBuffer();
+                //IBO buffer
                 program.indexBuffer = gl.createBuffer();
+                //IBO length
                 program.indexN = 0;
 
                 subLayer.mainLayer = layer.name;
                 subLayer.program = program;
-                subLayer.initBuffer = false;
+                // subLayer.initBuffer = false;
                 subLayer.tempVertex = [];
                 subLayer.tempIndex = [];
-                subLayer.index = [];
+                // subLayer.index = [];
                 subLayer.indexCache = false;
+                subLayer.needResize = false;
 
+                //layer check when create cache
                 if(subLayer.check == undefined) subLayer.check = function () {return true};
 
                 _this.renderCache[subLayer.context].layers.push(subLayer.name);
@@ -284,19 +423,45 @@ class WebGLRender extends EventEmitter{
             })
         }.bind(this));
     }
-    //render
+
+    /**
+     * prepare the render data and draw
+     */
     render() {
-        // debugger
+
+        if(!this.needUpdate) return;
+
+        // resize canvas width and height ,update projectMatrix
+
         this.resizeCanvas();
-        // setTimeout(this.render2.bind(this),500);
         // console.time('render');
 
-        this.updateLayerData();
+        //更新node 相关的render layer的　cache.
+
+        // console.time('updateContextCacheNode');
+        this.updateContextCache('node');
+        // console.timeEnd('updateContextCacheNode');
+
+        //更新edge 相关的render layer的　cache.
+
+        // console.time('updateContextCacheEdge');
+        this.updateContextCache('edge');
+        // console.timeEnd('updateContextCacheEdge');
+
+        //计算uniforms
 
         // console.time('updateLayerUniformData');
         this.updateLayerUniformData();
         // console.timeEnd('updateLayerUniformData');
 
+        //resize vertex buffer(VBO).
+
+        // console.time('resizeLayerVertexData');
+        this.resizeLayerVertexData('node');
+        this.resizeLayerVertexData('edge');
+        // console.timeEnd('resizeLayerVertexData');
+
+        //update index buffer(IBO)
         this.updateLayerIndex('node');//node first
         this.updateLayerIndex('edge');
 
@@ -313,7 +478,11 @@ class WebGLRender extends EventEmitter{
         this.needUpdate = false;
 
     }
-    setDefaultRenderFlag(){
+
+    /**
+     * set default render flags
+     */
+    setFlag(){
         var gl = this.gl;
         // gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
         gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
@@ -322,24 +491,33 @@ class WebGLRender extends EventEmitter{
         gl.disable(gl.DEPTH_TEST);
         gl.clearColor(1,1,1,1);
     }
+
+    /**
+     * draw layer data
+     */
     draw(){
 
-        var num = 0;
         var mainLayer, subLayers, layer, gl,err,
             renderLayerMap, program;
         renderLayerMap = this.renderLayerMap;
 
         gl = this.gl;
+        //clear viewport
         gl.clear(gl.COLOR_BUFFER_BIT);
-       this.setDefaultRenderFlag();
 
+        //set flag
+       this.setFlag();
+
+       //emit event
        this.emit('renderBefore',[this]);
 
         for (var i = 0; i < this.renderLayersConfig.length; i++) {
             mainLayer = this.renderLayersConfig[i];
             subLayers = mainLayer.subLayers;
 
+            //for each layer
             for (var j = 0; j < subLayers.length; j++) {
+
 
                 if(!subLayers[j].enable || !subLayers[j].show) continue;
 
@@ -349,36 +527,44 @@ class WebGLRender extends EventEmitter{
                     continue;
                 }
 
+                //call renderBefore if exist
                 if(subLayers[j].render.renderBefore && util.isFunction(subLayers[j].render.renderBefore)){
                     subLayers[j].renderBefore.render.call(subLayers[j],this,subLayers[j].option);
                 }
 
                 layer = subLayers[j].name;
 
+                //WebGLProgram
                 program = renderLayerMap[layer].program;
 
                 if(program.indexN == 0) continue;
 
+                //gl call, use program
                 gl.useProgram(program);
 
+                //bind VBO IBO
                 gl.bindBuffer(gl.ARRAY_BUFFER, program.vertexBuffer);
                 gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, program.indexBuffer);
 
+                //set attributes offset and enable attributes location
                 if(err = vertexAttribPointer(gl, program.activeAttributes, program.offsetConfig)){
                     throw new Error(`render layer[ ${layer} ] err:\n ${err}`);
                 }
 
+                //set uniform values
                 if(err = setUniforms(gl, program.activeUniforms, program.uniforms)){
                     throw new Error(`render layer[ ${layer} ] err:\n ${err}`);
                 }
 
+                //draw data
                 gl.drawElements(gl.TRIANGLES, program.indexN, gl.UNSIGNED_INT, 0);
 
-
+                //call renderAfter if exist
                 if(subLayers[j].render.renderAfter && util.isFunction(subLayers[j].render.renderAfter)){
                     subLayers[j].render.renderAfter.call(subLayers[j],this,subLayers[j].option);
                 }
 
+                //clear bing status
                 gl.bindBuffer(gl.ARRAY_BUFFER, null);
                 gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
 
@@ -386,66 +572,128 @@ class WebGLRender extends EventEmitter{
             }
         }
 
+        //emit event
         this.emit('renderAfter',[this]);
 
         // console.log('render count:',num);
     }
 
+    /**
+     * 计算cache chunk,
+     * @param context : node ,edge ,graph etc;
+     * @param data: a node or a edge obj,
+     * @param dirtyAttr : changed attributes
+     * @param needUpdateLayers : need update layers
+     */
     updateCacheByData(context,data,dirtyAttr,needUpdateLayers){
 
-        var cacheIndex,temp,points;
+        var cacheIndex,temp,points,startBytes,strip;
         var contextRelativeLayers = this.renderCache[context].layers;
         var renderLayerMap = this.renderLayerMap;
         var gl = this.gl;
 
+        //index map
         cacheIndex = this.renderCache[context].index[data.id] =  this.renderCache[context].index[data.id]  || {};
 
         needUpdateLayers = needUpdateLayers || contextRelativeLayers;
 
-        // debugger
+        //update cache
         needUpdateLayers.forEach(function(layer) {
 
             if(!renderLayerMap[layer].check(data) || !renderLayerMap[layer].enable) return;
 
-            //dirtyAttr setData update
+            //dirtyAttr setData update,ignore update cache ,
             if(dirtyAttr && !renderLayerMap[layer].cache) return;
 
+            //calculate cache
             temp = renderLayerMap[layer].render.getRenderData({
-                dirtyAttr:dirtyAttr,
-                oldData:cacheIndex[layer] ? cacheIndex[layer].data : null,
-                data: data,
+                dirtyAttr:dirtyAttr,//dirty attributes
+                oldData:cacheIndex[layer] ? cacheIndex[layer].data : null,//cache data, 可以看情况复用
+                data: data,//a node or a edge
                 config:this.config,
                 graph: this.graph,
                 textureText: this.textureText,
-                option: renderLayerMap[layer].option,
+                option: renderLayerMap[layer].option,//custom  args
                 // textureLoader: this.textureLoader,
                 textureIcon: this.textureIcon
             });
 
-            if(!temp) return;
 
+            strip = renderLayerMap[layer].program.offsetConfig.strip;
+
+            //cache 有效时，进行局部更新
             if(renderLayerMap[layer].cache){
-                gl.bindBuffer(gl.ARRAY_BUFFER, renderLayerMap[layer].program.vertexBuffer);
-                gl.bufferSubData(gl.ARRAY_BUFFER, cacheIndex[layer].vertexStart,new Float32Array(temp.vertices));
+                //updateNodeRenderData　updateEdgeRenderData　进行局部更新　主要执行这一部分
 
-                cacheIndex[layer].data.vertices = temp.vertices;//cache old data
-            }else {
-                points = renderLayerMap[layer].tempVertex.length / renderLayerMap[layer].program.offsetConfig.strip;
+                //no data
+                if(!temp){
+                    if(cacheIndex[layer].data){//need update index cache;
+                        renderLayerMap[layer].indexCache = false;
+                        cacheIndex[layer].data = null;
+                    }
+                    return;
+                }
 
-                cacheIndex[layer] = cacheIndex[layer] || {vertexStart:-1,data:null};
+                //vertex size 和上一次不一致的时候，会resize vertex buffer
+                if(renderLayerMap[layer].needResize || (temp && temp.vertices.length !== cacheIndex[layer].oldVertexLength)){
+                    renderLayerMap[layer].indexCache = false;
+                    renderLayerMap[layer].needResize = true;//set resize flag
+                    cacheIndex[layer].data = temp;
+                    cacheIndex[layer].oldVertexLength = temp.vertices.length;
+                    cacheIndex[layer].oldIndexLength = temp.indices.length;
+                }else{
+
+                    //每个float占4个bytes
+                    startBytes = cacheIndex[layer].vertexStart * strip * 4;//float 4 bytes
+
+                    //bind vertex buffer,局部更新vertex buffer data
+                    gl.bindBuffer(gl.ARRAY_BUFFER, renderLayerMap[layer].program.vertexBuffer);
+                    gl.bufferSubData(gl.ARRAY_BUFFER, startBytes,new Float32Array(temp.vertices));
+
+                    cacheIndex[layer].data = temp;
+
+                    //如果indices size 和　上一次不一致，需要更新index buffer
+                    if(temp.indices.length !== cacheIndex[layer].oldIndexLength) renderLayerMap[layer].indexCache = false;
+                }
+
+            }else {//cache　无效时，　把数据保存到　temp array.
+
+                //updateContextCache 主要执行这一部分
+
+                //temp array中的point数
+                points = renderLayerMap[layer].tempVertex.length / strip;
+
+
+                /**
+                 * chunk info
+                 * vertexStart: 这个vertex chunk在vertex buffer中的第几个point，
+                 * oldVertexLength: vertex chunk size，
+                 * oldIndexLength: index chunk size，
+                 */
+                cacheIndex[layer] = {vertexStart:-1,data:null,oldVertexLength:-1,oldIndexLength:-1};
+
+                if(!temp) return;
+
+                //检查chunk中point 属性长度是否一致
+                if(!util.isInteger(temp.vertices.length/strip))
+                    throw new Error('points num not bound to a integer');
 
                 cacheIndex[layer].data = temp;//cache old data
+                cacheIndex[layer].vertexStart = points;
+                cacheIndex[layer].oldVertexLength = temp.vertices.length;
+                cacheIndex[layer].oldIndexLength = temp.indices.length;
 
-                cacheIndex[layer].vertexStart = renderLayerMap[layer].tempVertex.length*4;
+                //add vertex chunk to temp array
                 temp.vertices.forEach(function (e) {renderLayerMap[layer].tempVertex.push(e)});
-                temp.indices.forEach(function (e,i) {
-                    temp.indices[i] = e+points;
-                    // renderLayerMap[layer].tempIndex.push(temp.indices[i])
-                });
             }
 
         }.bind(this))
     }
+
+    /**
+     * 计算context 相关layer的cache.
+     * @param context : node ,edge ,graph etc.
+     */
     updateContextCache(context){
         if(context != 'node' &&  context != 'edge' && context != 'graph') return;
 
@@ -454,9 +702,10 @@ class WebGLRender extends EventEmitter{
         var  renderLayerMap = this.renderLayerMap;
 
         if(context === 'graph'){
-
+            //reserve
         }else {
 
+            //寻找需要计算cache　的layers
             needUpdateLayers = [];
             contextRelativeLayers = this.renderCache[context].layers;
             contextRelativeLayers.forEach(function (layer) {
@@ -468,42 +717,109 @@ class WebGLRender extends EventEmitter{
 
             datas = context == 'node' ? this.graph.nodes : this.graph.edges;
             for(var i = 0,len = datas.length;i < len ; i++){
+                //create cache for a node or a edge
                 this.updateCacheByData(context,datas[i],null,needUpdateLayers);
             }
 
+            //创建vertex buffer 从 temp array
             needUpdateLayers.forEach(function (layer) {
-                
+
+                //bind and crate buffer
                 gl.bindBuffer(gl.ARRAY_BUFFER, renderLayerMap[layer].program.vertexBuffer);
-                // gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, renderLayerMap[layer].program.indexBuffer);
-
                 gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(renderLayerMap[layer].tempVertex), gl.DYNAMIC_DRAW);
-                // gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint32Array(renderLayerMap[layer].tempIndex), gl.STATIC_DRAW);
 
+                //set flag
                 renderLayerMap[layer].cache = true;
 
                 renderLayerMap[layer].tempVertex = [];
-                renderLayerMap[layer].tempIndex = [];
+                // renderLayerMap[layer].tempIndex = [];
             })
         }
 
     }
-    updateLayerData(){
-        // console.time('updateContextCacheNode');
-        this.updateContextCache('node');
-        // console.timeEnd('updateContextCacheNode');
 
-        // console.time('updateContextCacheEdge');
-        this.updateContextCache('edge');
-        // console.timeEnd('updateContextCacheEdge');
+    /**
+     * resize layer vertex buffer,
+     * @param context
+     */
+    resizeLayerVertexData(context){
+        if(context != 'node' &&  context != 'edge' && context != 'graph') return;
 
-        this.clearAllFlag = false;
+        var datas,contextRelativeLayers,cacheIndex;
+        var data,needResizeLayer,points,strip,vertexLen;
+        var gl = this.gl;
+        var  renderLayerMap = this.renderLayerMap;
 
+        if(context === 'graph'){
+
+        }else {
+            datas = context == 'node' ? this.graph.nodes : this.graph.edges;
+            contextRelativeLayers = this.renderCache[context].layers;
+
+            //find need resize vertex layers
+            needResizeLayer = [];
+            contextRelativeLayers.forEach(function (layer) {
+                if(renderLayerMap[layer].needResize){
+                    needResizeLayer.push(layer);
+                    renderLayerMap[layer].tempVertex = [];
+                    renderLayerMap[layer].tempIndex = [];
+                }
+            });
+
+            if(needResizeLayer.length > 0){
+                for(var i = 0,len = datas.length;i < len ; i++){
+                    data = datas[i];
+
+                    cacheIndex = this.renderCache[context].index[data.id];
+
+                    //create temp array data from vertex chunk
+                    for(var layer in cacheIndex){
+                        if(!renderLayerMap[layer].needResize) continue;
+
+                        strip = renderLayerMap[layer].program.offsetConfig.strip;
+                        points = renderLayerMap[layer].tempVertex.length/strip;//points in tempVertex
+                        vertexLen = cacheIndex[layer].oldVertexLength;//vertex len
+
+                        //当data 为null时候　，oldVertexLength > 0，说明上一次这个chunk有数据，暂时保留chunk的位置，初始化为０
+                        if(vertexLen > 0){
+                            cacheIndex[layer].vertexStart = points;
+                            for(var j = 0;j< vertexLen;j++){
+                                renderLayerMap[layer].tempVertex.push(
+                                    cacheIndex[layer].data ?  cacheIndex[layer].data.vertices[j] : 0//no data fill with 0
+                                );
+                            }
+                        }
+                    }
+                }
+
+                //创建vertex buffer 从 temp array
+                needResizeLayer.forEach(function (layer) {
+
+                    gl.bindBuffer(gl.ARRAY_BUFFER, renderLayerMap[layer].program.vertexBuffer);
+                    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(renderLayerMap[layer].tempVertex), gl.DYNAMIC_DRAW);
+
+                    renderLayerMap[layer].cache = true;
+                    renderLayerMap[layer].needResize = false;
+
+                    renderLayerMap[layer].tempVertex = [];
+                    // renderLayerMap[layer].tempIndex = [];
+                })
+
+            }
+
+
+        }
 
     }
+
+    /**
+     * update index buffer.
+     * @param context : node ,edge ,graph etc.
+     */
     updateLayerIndex(context){
         if(context != 'node' &&  context != 'edge' && context != 'graph') return;
 
-        var datas,contextRelativeLayers,cacheIndex,data,needUpdateLayer,check;
+        var datas,contextRelativeLayers,cacheIndex,data,needUpdateLayer,check,startPoint;
         var gl = this.gl;
         var  renderLayerMap = this.renderLayerMap;
 
@@ -523,6 +839,9 @@ class WebGLRender extends EventEmitter{
                 for(var i = 0,len = datas.length;i < len ; i++){
                     data = datas[i];
 
+                    cacheIndex = this.renderCache[context].index[data.id];
+
+                    //如果contex是edge的时候，edge的source,target中一个别过滤了，这条edge也会被过滤。
                     if(context == 'edge'){
                         if(this.graph.nodesIndex[data.source].filter || this.graph.nodesIndex[data.target].filter){
                             data.filter = true;
@@ -535,27 +854,31 @@ class WebGLRender extends EventEmitter{
                         if(data.filter = this._checkFilters(this.renderCache[context].filters,data)) continue;
                     }else data.filter = false;
 
-                    cacheIndex = this.renderCache[context].index[data.id];
+                    //crate temp array from index chunk data
                     for(var layer in cacheIndex){
-                        if(renderLayerMap[layer].indexCache) continue;
+                        if(renderLayerMap[layer].indexCache || !cacheIndex[layer].data) continue;
 
                         //layer filters
                         if(renderLayerMap[layer].filters && renderLayerMap[layer].filters.length){
                             if(check = this._checkFilters(renderLayerMap[layer].filters,data)) continue;
                         }
 
+                        startPoint = cacheIndex[layer].vertexStart;
+
                         cacheIndex[layer].data.indices.forEach(function (id) {
-                            renderLayerMap[layer].index.push(id);
+                            renderLayerMap[layer].tempIndex.push(id+startPoint);
                         });
                     }
                 }
 
+                //crate index buffer from temp array
                 needUpdateLayer.forEach(function (layer) {
+                    //bind and create buffer
                     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, renderLayerMap[layer].program.indexBuffer);
-                    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint32Array(renderLayerMap[layer].index), gl.STATIC_DRAW);
-                    renderLayerMap[layer].program.indexN = renderLayerMap[layer].index.length;
-                    renderLayerMap[layer].index = [];
-                    renderLayerMap[layer].indexCache = true;
+                    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint32Array(renderLayerMap[layer].tempIndex), gl.STATIC_DRAW);
+                    renderLayerMap[layer].program.indexN = renderLayerMap[layer].tempIndex.length;
+                    renderLayerMap[layer].tempIndex = [];
+                    renderLayerMap[layer].indexCache = true;//set flag
                 })
             }
 
@@ -563,6 +886,10 @@ class WebGLRender extends EventEmitter{
         }
 
     }
+
+    /**
+     * calculate uniforms every render frame.
+     */
     updateLayerUniformData(){
         var uniforms,err;
         var renderLayerMap = this.renderLayerMap;
@@ -570,10 +897,10 @@ class WebGLRender extends EventEmitter{
         for(var layer in renderLayerMap){
             if(renderLayerMap[layer].custom) continue;
             uniforms = renderLayerMap[layer].render.getUniforms({
-                matrix: mat3.multiMatrix([this.getCameraMatrix(true), this.projectMatrix]),
-                camera: this.camera,
+                matrix: mat3.multiMatrix([this.getCameraMatrix(true), this.projectMatrix]),//matrix transform from camera to gl
+                camera: this.camera, //camera info
                 config: this.config,
-                option: renderLayerMap[layer].option,
+                option: renderLayerMap[layer].option, //custom args
                 sampleRatio: this.sampleRatio,
                 textureText: this.textureText,
                 textureIcon: this.textureIcon
@@ -587,21 +914,45 @@ class WebGLRender extends EventEmitter{
             renderLayerMap[layer].program.uniforms = uniforms;
         }
     }
-    updateNodeRenderData(id,dirtyAttr){
-        // debugger
+
+    /**
+     * 局部更新node data
+     * @param ids: node ids
+     * @param dirtyAttrs: dirty attributes
+     */
+    updateNodeRenderData(ids,dirtyAttrs){
+
+        if(!util.isArray(ids)) ids = [ids];
+        if(!util.isArray(dirtyAttrs)) dirtyAttrs = [dirtyAttrs];
+
         this.forceRender();
-        // if(this.clearAllFlag) return;
-        this.updateCacheByData('node',this.graph.nodesIndex[id],dirtyAttr);
+
+        ids.forEach( function(id,i){
+            this.updateCacheByData('node',this.graph.nodesIndex[id],dirtyAttrs[i]);
+        }.bind(this));
+
     }
-    updateEdgeRenderData(ids,dirtyAttr){
-        this.forceRender();
-        // if(this.clearAllFlag) return;
+
+    /**
+     * 局部更新edge data
+     * @param ids: edge ids
+     * @param dirtyAttrs: dirty attributes
+     */
+    updateEdgeRenderData(ids,dirtyAttrs){
         if(!Array.isArray(ids)) ids = [ids];
-        ids.forEach(function (id) {
-            this.updateCacheByData('edge',this.graph.edgesIndex[id],dirtyAttr);
+        if(!Array.isArray(dirtyAttrs)) dirtyAttrs = [dirtyAttrs];
+
+        this.forceRender();
+
+        ids.forEach(function (id,i) {
+            this.updateCacheByData('edge',this.graph.edgesIndex[id],dirtyAttrs[i]);
         }.bind(this));
     }
-    //cache update
+
+    /**
+     * clear layer cache, if layers omitted, clear all layer cache.
+     * @param layers {string | [string]} :  layer name.
+     */
     clearRenderCache(layers){
         this.forceRender();
         var _this = this;
@@ -611,6 +962,7 @@ class WebGLRender extends EventEmitter{
                 if(_this.renderLayerMap[layer].custom) return;
 
                 _this.renderLayerMap[layer].cache = false;
+                _this.renderLayerMap[layer].needResize = false;
                 _this.renderLayerMap[layer].indexCache = false;
                 _this.renderLayerMap[layer].program.indexN = 0;
             });
@@ -619,6 +971,7 @@ class WebGLRender extends EventEmitter{
                 if(_this.renderLayerMap[layer].custom) continue;
 
                 _this.renderLayerMap[layer].cache = false;
+                _this.renderLayerMap[layer].needResize = false;
                 _this.renderLayerMap[layer].indexCache = false;
                 _this.renderLayerMap[layer].program.indexN = 0;
             }
@@ -627,6 +980,11 @@ class WebGLRender extends EventEmitter{
             _this.renderCache.edge.index = {};
         }
     }
+
+    /**
+     *  disable layer，disable之后，不会render，layer data也不会更新
+     * @param layers {string | [string]}
+     */
     disableRenderLayer(layers){
         this.forceRender();
 
@@ -640,7 +998,12 @@ class WebGLRender extends EventEmitter{
             }
         });
     }
-    enableRenderLayer(layers,updateCache = true){
+
+    /**
+     *  enable layer，enable之后，layer cache 会重新计算一次
+     * @param layers {string | [string]}
+     */
+    enableRenderLayer(layers){
         this.forceRender();
 
         var renderLayerMap = this.renderLayerMap;
@@ -651,15 +1014,51 @@ class WebGLRender extends EventEmitter{
             if(renderLayerMap[layer])
             {
                 renderLayerMap[layer].enable = true;
-                if(updateCache){
-                    renderLayerMap[layer].cache = false;
-                    renderLayerMap[layer].indexCache = false;
-                    renderLayerMap[layer].program.indexN = 0;
-                }
+                renderLayerMap[layer].cache = false;
+                renderLayerMap[layer].indexCache = false;
+                renderLayerMap[layer].program.indexN = 0;
             }
         });
     }
 
+    /**
+     * hide layer, 不会render　layer ,　但是layer cache data 会更新
+     * @param layers {string | [string]}
+     */
+    hideRenderLayer(layers){
+        this.forceRender();
+
+        var renderLayerMap = this.renderLayerMap;
+
+        if(!util.isArray(layers)) layers = [layers];
+        layers.forEach(function (layer) {
+            if(renderLayerMap[layer]){
+                renderLayerMap[layer].show = false;
+            }
+        });
+    }
+
+    /**
+     * show layer
+     * @param layers {string | [string]}
+     */
+    showRenderLayer(layers){
+        this.forceRender();
+
+        var renderLayerMap = this.renderLayerMap;
+
+        if(!util.isArray(layers)) layers = [layers];
+        layers.forEach(function (layer) {
+            if(renderLayerMap[layer]){
+                renderLayerMap[layer].show = true;
+            }
+        });
+    }
+
+    /**
+     * 对layer 触发一次layer filter 更新，重新计算index buffer
+     * @param layers {string | [string]}
+     */
     updateByLayerFilter(layers){
         if(!layers) return;
 
@@ -673,6 +1072,11 @@ class WebGLRender extends EventEmitter{
             renderLayerMap[layer].indexCache = false;
         });
     }
+
+    /**
+     * 对 context 相关的layer触发一次更新，重新计算index buffer
+     * @param context
+     */
     updateByContextFilter(context){
         var contextRelativeLayers = this.renderCache[context].layers;
         var renderLayerMap = this.renderLayerMap;
@@ -684,7 +1088,11 @@ class WebGLRender extends EventEmitter{
         });
     }
 
-
+    /**
+     * set layer filter
+     * @param layer {string}
+     * @param filters {[fun]}
+     */
     setLayerFilters(layer,filters){
         var  renderLayerMap = this.renderLayerMap;
         if(!renderLayerMap[layer]) return;
@@ -698,9 +1106,20 @@ class WebGLRender extends EventEmitter{
         renderLayerMap[layer].filters = filters;
 
     }
+
+    /**
+     * get layer filter
+     * @param layer
+     */
     getLayerFilters(layer){
         return  this.renderLayerMap[layer] ?  this.renderLayerMap[layer].filters : null;
     }
+
+    /**
+     * set context filter
+     * @param context
+     * @param filters
+     */
     setContextFilters(context,filters){
         this.forceRender();
         filters = filters || [];
@@ -716,10 +1135,21 @@ class WebGLRender extends EventEmitter{
 
         this.renderCache[context].filters = filters;
     }
+
+    /**
+     * get context filter
+     * @param context
+     * @returns {null}
+     */
     getContextFilters(context){
         return  this.renderCache[context] ?  this.renderCache[context].filters : null;
     }
 
+    /**
+     * set layer custom args
+     * @param layer
+     * @param option
+     */
     setLayerOption(layer,option){
         var renderLayerMap = this.renderLayerMap;
         if(!renderLayerMap[layer]) return;
@@ -731,37 +1161,21 @@ class WebGLRender extends EventEmitter{
         }
     }
 
+    /**
+     * set mouse type
+     * @param type
+     */
     setMouseType(type){
         // if(mouseType[type]){
         this.container.style.cursor = type;
         // }
     }
 
-    hideRenderLayer(layers){
-        this.forceRender();
-
-        var renderLayerMap = this.renderLayerMap;
-
-        if(!util.isArray(layers)) layers = [layers];
-        layers.forEach(function (layer) {
-            if(renderLayerMap[layer]){
-                renderLayerMap[layer].show = false;
-            }
-        });
-    }
-    showRenderLayer(layers){
-        this.forceRender();
-
-        var renderLayerMap = this.renderLayerMap;
-
-        if(!util.isArray(layers)) layers = [layers];
-        layers.forEach(function (layer) {
-            if(renderLayerMap[layer]){
-                renderLayerMap[layer].show = true;
-            }
-        });
-    }
-
+    /**
+     * get camera matrix ,
+     * @param isInvert
+     * @returns {*}
+     */
     getCameraMatrix(isInvert){
         var mat = mat3.multiMatrix([
             mat3.matrixFromScale(this.camera.scale,this.camera.scale),
@@ -770,6 +1184,11 @@ class WebGLRender extends EventEmitter{
         ]);
         return isInvert  ? mat3.invert(mat) : mat;
     }
+
+    /**
+     * resize render canvas and set viewport , update  projectMatrix
+     * @private
+     */
     resizeCanvas() {
         var canvas;
         var multiplier = this.sampleRatio;
@@ -818,10 +1237,22 @@ class WebGLRender extends EventEmitter{
         return {x:p[0],y:p[1]};
     }
 
+    /**
+     * force render
+     */
     forceRender(){
         this.needUpdate = true;
     }
-    zoomFromPostion(ratio,x,y,animation){
+
+    /**
+     * zoom from a point
+     * @private
+     * @param ratio
+     * @param x
+     * @param y
+     * @param animation
+     */
+    zoomFromPosition(ratio,x,y,animation){
         // debugger
 
         var scale = this.camera.scale;
@@ -838,11 +1269,11 @@ class WebGLRender extends EventEmitter{
         }
 
         if(animation){
-            this.zoomToAnimation({
+            this.zoomTo({
                 positionX:positionX,
                 positionY:positionY,
                 scale:newscale
-            });
+            },animation);
         }else {
             this.camera.positionX = positionX;
             this.camera.positionY = positionY;
@@ -850,17 +1281,11 @@ class WebGLRender extends EventEmitter{
         }
     }
 
-    zoomToAnimation(option,time){
-        Tween.removeByType('camera');
-        time = time || 100;
-
-        var _this = this;
-        new Tween(this.camera,'camera').to(option).duration(time).on('change',function () {
-            _this.forceRender();
-        });
-
-    }
-
+    /**
+     * zoom camera info
+     * @param option
+     * @param duration
+     */
     zoomTo(option,duration){
         Tween.removeByType('camera');
 
@@ -925,6 +1350,10 @@ class WebGLRender extends EventEmitter{
 
     }
 
+    /**
+     * check filter
+     * @private
+     */
     _checkFilters(filters, data) {
         var filter = false;
         for (var i = 0; i < filters.length; i++) {

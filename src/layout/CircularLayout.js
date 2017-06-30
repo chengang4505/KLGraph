@@ -1,6 +1,12 @@
-/**
- * Created by chengang on 17-2-20.
- */
+'use strict';
+
+import util from '../util'
+
+
+var defaultConfig = {
+    width:40
+};
+
 function CircularLayout() {
     this.nodes = null;
     // this.links = null;
@@ -11,14 +17,19 @@ function CircularLayout() {
      this.nodeHeights = {};
      this.node2BiComp = {};
 
-     this.width = 60;
+     this.width = defaultConfig.width;
 
 }
 
 var p = CircularLayout.prototype;
 
 //必须有的方法
-p.layout = function (nodes,edges) {
+p.layout = function (nodes,edges,option) {
+
+    option = option || {};
+
+    if(option.width) this.width = option.width;
+
     this.init(nodes,edges);
 
     this.posSet = new Array(this.nodes.length);

@@ -1,6 +1,5 @@
-/**
- * Created by chengang on 17-4-5.
- */
+'use strict';
+
 import EventEmitter from '../../base/EventEmitter'
 
 export  default  class  TextureLoader extends EventEmitter {

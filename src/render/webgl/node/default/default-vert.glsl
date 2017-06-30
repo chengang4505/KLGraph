@@ -23,17 +23,17 @@ varying float showicon;
 
 void main() {
 
-float zindex = 0.1;
+    float zindex = 0.1;
 
-if(a_selected > 0.5) zindex = 0.05;
+    if(a_selected > 0.5) zindex = 0.05;
 
 
-gl_Position = vec4((u_matrix*vec3((a_position+a_center),1)).xy,zindex,1);
-color = a_color/255.0;
-selected = a_selected;
-uv = a_uv;
-flag = a_flag;
+    gl_Position = vec4((u_matrix*vec3((a_position+a_center),1)).xy,zindex,1);
+    color = a_color/255.0;
+    selected = a_selected;
+    uv = a_uv;
+    flag = a_flag;
 
-size = a_size / u_camera_scale ;
-showicon = a_showicon;
+    size = a_size / u_camera_scale ;
+    showicon = a_showicon;
 }

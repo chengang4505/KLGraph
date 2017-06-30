@@ -15,7 +15,9 @@ export default class Selection extends EventEmitter{
 
         this.canvas.addEventListener('mousedown',this.mouseDown.bind(this));
 
+        this.flag = 0;// 0 rect 1 path
         this.rect = null;
+        this.path = null;
 
         this.data = {
             edges:[],
@@ -25,23 +27,36 @@ export default class Selection extends EventEmitter{
         this.initGraphEvent();
     }
 
-    enable(){
+    enable(flag = 0){
+
+        this.flag  = flag;
+
         this.canvas.style.display = 'block';
         this.ctx.clearRect(0,0,this.canvas.width,this.canvas.height);
     }
-    renderRect(){
-        var rect = this.rect;
+    render(){
+
         var ctx = this.ctx;
         var config = this.context.config;
         ctx.clearRect(0,0,this.canvas.width,this.canvas.height);
         ctx.fillStyle = config.selectionFillStyle;
         ctx.strokeStyle= config.selectionStrokeStyle;
         ctx.beginPath();
-        ctx.rect(rect.x,rect.y,rect.w,rect.h);
+
+        if(this.flag == 0){
+            var rect = this.rect;
+            ctx.rect(rect.x,rect.y,rect.w,rect.h);
+        }else if(this.flag == 1){
+            var first = this.path[0];
+            ctx.moveTo(first.x,first.y);
+            for(var i = 1;i<this.path.length;i++) ctx.lineTo(this.path[i].x,this.path[i].y);
+        }
+
         ctx.closePath();
         ctx.fill();
         ctx.stroke();
     }
+
     disable(){
         this.canvas.style.display = 'none';
         this.ctx.clearRect(0,0,this.canvas.width,this.canvas.height);
@@ -76,20 +91,32 @@ export default class Selection extends EventEmitter{
     mouseDown(e){
         var _this = this;
 
-        this.rect = {x:0, y:0, w:0, h:0};
+        if(this.flag == 0){
+            this.rect = {x:0, y:0, w:0, h:0};
+            this.rect.x = e.offsetX;
+            this.rect.y = e.offsetY;
+        }else if(this.flag == 1){
+            this.path = [];
+            this.path.push({x:e.offsetX,y:e.offsetY});
+        }
 
-        this.rect.x = e.offsetX;
-        this.rect.y = e.offsetY;
+
 
         _this.emit('selectStart',[_this]);
 
         document.addEventListener('mousemove',mouseMove);
         document.addEventListener('mouseup',mouseUp);
         function mouseMove(e) {
-            _this.rect.w = e.offsetX - _this.rect.x;
-            _this.rect.h = e.offsetY - _this.rect.y;
 
-            _this.renderRect();
+
+            if(_this.flag == 0){
+                _this.rect.w = e.offsetX - _this.rect.x;
+                _this.rect.h = e.offsetY - _this.rect.y;
+            }else if(_this.flag == 1){
+                _this.path.push({x:e.offsetX,y:e.offsetY});
+            }
+
+            _this.render();
         }
         function mouseUp(e) {
             mouseMove(e);
@@ -184,6 +211,31 @@ export default class Selection extends EventEmitter{
 
         _this.emit('select',['node',_this.getNodes()]);
     }
+
+    unSelectEdge(edgesid){
+
+        if(this.data.edges.length == 0 || !edgesid) return;
+
+        var _this = this;
+        if(!utils.isArray(edgesid)) edgesid = [edgesid];
+
+        var map = {};
+
+        edgesid.forEach(function (id) {
+            map[id] = true;
+        });
+
+        var newSelected = [];
+        this.data.edges.forEach(function (id) {
+            if(map[id]) _this.context.graph.setEdgeData(id,{selected:false});
+            else newSelected.push(id);
+        });
+
+        this.data.edges = newSelected;
+
+        _this.emit('select',['edge',_this.getEdges()]);
+    }
+
     getNodes(){
         return this.data.nodes.map( id => this.context.graph.nodesIndex[id]);
     }
@@ -221,12 +273,33 @@ export default class Selection extends EventEmitter{
 
         return selects;
     }
-    delete(){
+    delete(type){
         var _this = this;
-        var nodes = this.data.nodes;
-        this.data.nodes = [];
-        nodes.forEach(function (id) {
-            _this.context.graph.removeNode(id);
-        });
+
+        var clearNode = type === 'node';
+        var clearEdge = type === 'edge';
+
+        if(!type){
+            clearEdge = true;
+            clearNode = true;
+        }
+
+
+        if(clearNode){
+            var nodes = this.data.nodes;
+            this.data.nodes = [];
+            nodes.forEach(function (id) {
+                _this.context.graph.removeNode(id);
+            });
+        }
+
+        if(clearEdge){
+            var edges = this.data.edges;
+            this.data.edges = [];
+            edges.forEach(function (id) {
+                _this.context.graph.removeEdge(id);
+            });
+        }
+
     }
 }

@@ -20,7 +20,7 @@ export default {
         a_showicon: {components: 1, start: 11},
     },
     getUniforms({matrix, camera,config, sampleRatio,textureLoader,textureIcon}){
-        var color = utils.parseColor(config.defaultNodeBorder);
+        var color = utils.parseColor(config.defaultNodeSelectedBorder);
         return {
             u_matrix: matrix,
             u_camera_scale: camera.scale,
@@ -52,7 +52,7 @@ export default {
         var indices = [];
 
         var points = 0;
-        var bgScale = 1.2;
+        var bgScale = 1;
 
 
         addData(renderData, [data.x - bgSize * bgScale, data.y + bgSize * bgScale, color.r, color.g, color.b, color.a, 0, 0, img, isSelected, 0, hasIcon]);

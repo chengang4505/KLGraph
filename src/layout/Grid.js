@@ -1,14 +1,21 @@
-/**
- * Created by chengang on 17-4-12.
- */
+'use strict';
+
+import util from '../util'
+
+var defaultConfig = {
+    offsetX:50,
+    offsetY:50,
+};
 
 export default class Grid{
-    layout(_nodes,_edges){
+    layout(_nodes,_edges,option){
 
         var nodes = [];
 
-        var width = 50;
-        var height = 50;
+        this.option = util.extend(option || {},defaultConfig);
+
+        var width = this.option.offsetX;
+        var height = this.option.offsetY;
 
         var num = (Math.sqrt(_nodes.length) | 0) + 1;
 

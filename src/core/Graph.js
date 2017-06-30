@@ -272,35 +272,76 @@ class Graph extends EventEmitter{
         return this.nodes;
     }
 
-    setNodeData(id,obj){
+    setNodeData(ids,objs){
         // console.time('setNodeData')
-        var node = this.nodesIndex[id];
-
-        var updatePos = false;
-        if(obj.hasOwnProperty('x') || obj.hasOwnProperty('y')) updatePos = true;
-
-        for(var attr in obj){
-            node[attr] = obj[attr];
-            obj[attr] = true;
+        if(!utils.isArray(ids)){
+            ids = [ids];
         }
 
-        this.emit('change',['node',id,obj]);
-        if(updatePos){
-            obj = {source:true,target:true};
-            this.inEdgesIndex[id] && this.inEdgesIndex[id].length > 0 && this.emit('change',['edge',this.inEdgesIndex[id],obj]);
-            this.outEdgesIndex[id] && this.outEdgesIndex[id].length > 0 && this.emit('change',['edge',this.outEdgesIndex[id],obj]);
-        }
+        var objIsArr = utils.isArray(objs);
+
+        var nodeDirtyArr = [];
+        var edgeDirtyArr = [];
+        var edgeIdArr = [];
+
+        ids.forEach(function (id,i) {
+            var node = this.nodesIndex[id];
+            var obj = objIsArr ? objs[i] : objs;
+            var updatePos = false;
+
+            if(obj.hasOwnProperty('x') || obj.hasOwnProperty('y')) updatePos = true;
+
+            for(var attr in obj){
+                node[attr] = obj[attr];
+            }
+            nodeDirtyArr.push(obj);
+
+            if(updatePos){
+                if (this.inEdgesIndex[id] && this.inEdgesIndex[id].length > 0) {
+                    this.inEdgesIndex[id].forEach(id => {
+                        edgeIdArr.push(id);
+                        edgeDirtyArr.push({source: true, target: true});
+                    });
+                }
+
+                if (this.outEdgesIndex[id] && this.outEdgesIndex[id].length > 0) {
+                    this.outEdgesIndex[id].forEach(id => {
+                        edgeIdArr.push(id);
+                        edgeDirtyArr.push({source: true, target: true});
+                    });
+                }
+            }
+        }.bind(this));
+
+        this.emit('change',['node',ids,nodeDirtyArr]);
+
+        edgeIdArr.length > 0 && this.emit('change',['edge',edgeIdArr,edgeDirtyArr]);
+
         // console.timeEnd('setNodeData')
-
     }
 
-    setEdgeData(id,obj){
-        var edge = this.edgesIndex[id];
-        for(var attr in obj){
-            edge[attr] = obj[attr];
-            obj[attr] = true;
+    setEdgeData(ids,objs){
+
+        if(!utils.isArray(ids)){
+            ids = [ids];
         }
-        this.emit('change',['edge',id,obj])
+
+        var objIsArr = utils.isArray(objs);
+
+        var edgeDirtyArr = [];
+
+        ids.forEach(function (id,i) {
+            var edge = this.edgesIndex[id];
+            var obj = objIsArr? objs[i] : objs;
+
+            for(var attr in obj){
+                edge[attr] = obj[attr];
+            }
+            edgeDirtyArr.push(obj);
+        }.bind(this));
+
+
+        this.emit('change',['edge',ids,edgeDirtyArr])
     }
 
     updateNodeQuad(id,oldpos){

@@ -333,7 +333,7 @@ export default function initEvent() {
             var edge;
             if(node){
                 _this.emit('nodeRightClick',[node,e]);
-            }else if(edge = getEdge(graphPos)) {
+            }else if(config.enableEdgeEvent && (edge = getEdge(graphPos))) {
                 _this.emit('edgeRightClick',[edge,e]);
             }else {
                 _this.emit('stageRightClick',[e]);
@@ -359,10 +359,10 @@ export default function initEvent() {
 
 
         if(value > 0){
-            _this.zoomFromPostion(1/ratio,e.cameraX,e.cameraY);
+            _this.zoomFromPosition(1/ratio,e.cameraX,e.cameraY);
             _this.emit('zoom',[1/ratio,_this.camera.scale,e])
         }else {
-            _this.zoomFromPostion(ratio,e.cameraX,e.cameraY);
+            _this.zoomFromPosition(ratio,e.cameraX,e.cameraY);
             _this.emit('zoom',[ratio,_this.camera.scale,e])
         }
     }

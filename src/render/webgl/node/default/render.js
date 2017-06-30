@@ -20,7 +20,7 @@ export default {
         a_center: {components:2,start:12},
     },
     getUniforms({matrix, camera,config, sampleRatio, textureLoader,textureIcon}){
-        var color = utils.parseColor(config.defaultNodeBorder);
+        var color = utils.parseColor(config.defaultNodeSelectedBorder);
         return {
             u_matrix:matrix,
             u_camera_scale:camera.scale,
@@ -41,6 +41,7 @@ export default {
         // if (data.img && textureLoader.cache[data.img])
         //     img = textureLoader.cache[data.img];
 
+        //reuse old data
         if(oldData && dirtyAttr
             && Object.keys(dirtyAttr).length == 2
             && dirtyAttr.hasOwnProperty('x')
@@ -55,9 +56,11 @@ export default {
             }
             return {
                 vertices:oldVertices,
+                indices:oldData.indices
             };
         }
 
+        //init data
         var hasIcon = data.icon && textureIcon.iconinfo.infos[data.icon],uvs;
         uvs = hasIcon ? textureIcon.iconinfo.infos[data.icon].uvs : [0,0];
         hasIcon = hasIcon ? 1:0;

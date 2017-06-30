@@ -6,7 +6,7 @@ import util from '../../../../util'
 import mat3 from '../../../../base/Matrix'
 
 import vert from './../glsl/edge-label-vert.glsl'
-import frag from './../glsl/label-frag.glsl'
+import frag from './../glsl/edge-label-frag.glsl'
 
 export default {
     shaderVert: vert,
@@ -15,6 +15,7 @@ export default {
         a_position: {components:2,start:0},
         a_uv:{components:2,start:2},
         a_size: {components:1,start:4},
+        a_color: {components:4,start:5},
     },
     getUniforms({matrix, camera, sampleRatio, textureLoader,textureText}){
         return {
@@ -30,6 +31,7 @@ export default {
         if(!data.label) return null;
 
         var defaultSize = config.defaultNodeSize;
+        var labelColor = util.parseColor(data.labelColor || config.defaultEdgeLabelColor);
 
         // debugger
         var str = data.label.split('');
@@ -96,10 +98,10 @@ export default {
             uv = infos[char].uvs;
             x1 = uv[0],y1 = uv[1],x2 = uv[2],y2 = uv[3];
 
-            addData(renderData,[startx,starty,x1,y1,width],centerX,centerY,angle);
-            addData(renderData,[startx,starty-charHeight,x1,y2,width],centerX,centerY,angle);
-            addData(renderData,[startx+width,starty,x2,y1,width],centerX,centerY,angle);
-            addData(renderData,[startx+width,starty-charHeight,x2,y2,width],centerX,centerY,angle);
+            addData(renderData,[startx,starty,x1,y1,width,labelColor.r,labelColor.g,labelColor.b,labelColor.a],centerX,centerY,angle);
+            addData(renderData,[startx,starty-charHeight,x1,y2,width,labelColor.r,labelColor.g,labelColor.b,labelColor.a],centerX,centerY,angle);
+            addData(renderData,[startx+width,starty,x2,y1,width,labelColor.r,labelColor.g,labelColor.b,labelColor.a],centerX,centerY,angle);
+            addData(renderData,[startx+width,starty-charHeight,x2,y2,width,labelColor.r,labelColor.g,labelColor.b,labelColor.a],centerX,centerY,angle);
 
             addIndices(indices,[
                 points+0,points+1,points+2,

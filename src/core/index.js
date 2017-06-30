@@ -26,6 +26,8 @@ export  default  class Core {
             edges: option.edges
         });
 
+        this.debug = false;
+
         this.canvas = {};
         this.initCanvas();
 
@@ -81,7 +83,7 @@ export  default  class Core {
                 n++;
                 time = time / 1000;
                 if ((time - start) > 1) {
-                    // console.log(n);
+                    _this.debug && console.log('frames:'+n);
                     n = -1;
                     start = time;
                 }
@@ -99,8 +101,7 @@ export  default  class Core {
     }
     _render() {
         this.resize();
-
-        if (this.render && this.render.needUpdate) {
+        if (this.render) {
             // console.time('render')
             // debugger
             this.render.render();
@@ -110,18 +111,13 @@ export  default  class Core {
 
     }
     _initEvent() {
-        var _this = this;
-        this.render.on('nodeMouseDown', function (node, e) {
-            // debugger
-            if (!_this.selection.isNodeSelected(node.id))
-                _this.selection.selectNodes(node.id,e.shiftKey);
-            else if(e.shiftKey) _this.selection.unSelectNode(node.id);
-        });
-
-        this.render.on('nodeRightClick', function (type,node, e) {
-            if (type == 'node' && !_this.selection.isNodeSelected(node))
-                _this.selection.selectNodes(node);
-        });
+        // var _this = this;
+        // this.render.on('nodeMouseDown', function (node, e) {
+        //     // debugger
+        //     if (!_this.selection.isNodeSelected(node.id))
+        //         _this.selection.selectNodes(node.id,e.shiftKey);
+        //     else if(e.shiftKey) _this.selection.unSelectNode(node.id);
+        // });
     }
     resize() {
         if (this.canvas.mouse.width != this.container.clientWidth || this.canvas.mouse.height != this.container.clientHeight) {

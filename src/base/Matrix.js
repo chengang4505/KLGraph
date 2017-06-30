@@ -1,12 +1,12 @@
-/**
- * Created by chengang on 17-3-28.
- */
-
 'use strict';
 
 
 var mat3 = {};
 
+/**
+ *
+ * 返回一个单位矩阵
+ */
 mat3.normalize = function () {
     return [
         1, 0, 0,
@@ -15,6 +15,12 @@ mat3.normalize = function () {
     ];
 };
 
+/**
+ * 从dx ,dy 创建一个平移矩阵。
+ * @param dx
+ * @param dy
+ *
+ */
 mat3.matrixFromTranslate = function(dx, dy) {
     return [
         1, 0, 0,
@@ -23,6 +29,10 @@ mat3.matrixFromTranslate = function(dx, dy) {
     ];
 };
 
+/**
+ * 从angle 创建一个旋转矩阵。
+ * @param angle (弧度值)
+ */
 mat3.matrixFromRotation = function(angle) {
     var cos = Math.cos(angle),
         sin = Math.sin(angle);
@@ -34,6 +44,11 @@ mat3.matrixFromRotation = function(angle) {
     ];
 };
 
+/**
+ * 从scalex ,scaley 创建一个缩放矩阵。
+ * @param x
+ * @param y
+ */
 mat3.matrixFromScale = function(x,y) {
     return  [
         x, 0, 0,
@@ -42,6 +57,10 @@ mat3.matrixFromScale = function(x,y) {
     ];
 };
 
+/**
+ * 计算一个矩阵的逆矩阵。
+ * @param a
+ */
 mat3.invert = function (a) {
     var l =  3,
         a11 = a[0 * l + 0],
@@ -63,6 +82,11 @@ mat3.invert = function (a) {
     ];
 }
 
+/**
+ * 矩阵相乘，在a的基础上做b变换。
+ * @param a
+ * @param b
+ */
 mat3.multiply = function(a, b) {
     var l =  3,
         a00 = a[0 * l + 0],
@@ -97,6 +121,11 @@ mat3.multiply = function(a, b) {
     ];
 };
 
+/**
+ * 对点p进行a矩阵变换。
+ * @param p
+ * @param a
+ */
 mat3.transformPoint = function (p,a) {
     var x = p[0],
         y = p[1];
@@ -114,6 +143,11 @@ mat3.transformPoint = function (p,a) {
     return [x*a00+y*a10+a20,x*a01+y*a11+a21];
 }
 
+/**
+ * 对向量v进行a矩阵变换。
+ * @param v
+ * @param a
+ */
 mat3.rotateVector = function (v,a) {
     var x = v[0],
         y = v[1];
@@ -131,7 +165,10 @@ mat3.rotateVector = function (v,a) {
     return [x*a00+y*a10,x*a01+y*a11];
 };
 
-
+/**
+ * 计算多个矩阵的变换。
+ * @param matrixs
+ */
 mat3.multiMatrix = function (matrixs) {
     return matrixs.reduce(function (pre,cur) {
         return mat3.multiply(pre,cur);

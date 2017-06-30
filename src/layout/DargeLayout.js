@@ -1,19 +1,22 @@
-/**
- * Created by chengang on 17-4-12.
- */
+'use strict';
 
+import util from '../util'
+
+var defaultConfig = {
+    rankdir:'TB',
+    nodesep:15,
+    ranksep:100,
+    ranker:'longest-path'//network-simplex  longest-path tight-tree
+};
 export default class DargeLayout{
-    layout(nodes,edges){
+    layout(nodes,edges,option){
         // debugger
         if(!dagre || !dagre.graphlib) throw 'please add dagre lib first';
         var g = new dagre.graphlib.Graph();
 
-        g.setGraph({
-            rankdir:'TB',
-            nodesep:15,
-            ranksep:40,
-            ranker:'longest-path'//network-simplex  longest-path tight-tree
-        });
+        this.option = util.extend(option || {}, defaultConfig);
+
+        g.setGraph(this.option);
 
         g.setDefaultEdgeLabel(function() { return {}; });
 

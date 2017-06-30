@@ -76,7 +76,12 @@ export default {
 
 
         //curve
-        var color = util.parseColor(data.color||source.color || config.defaultEdgeColor);
+        var color ;
+        if(data.selected){
+            color = util.parseColor(config.defaultEdgeSelectedColor);
+        }else {
+            color = util.parseColor(data.color||source.color || config.defaultEdgeColor);
+        }
 
         var scalePos = scaleTrangles([source.x,source.y,ctrlP[0],ctrlP[1],tX,tY]);
         var scaleUV = scaleTrangles([1,1,0.5,0,0,0]);
@@ -120,7 +125,7 @@ function addIndices(indices,attrIndex) {
 
 
 function scaleTrangles(points, scale) {
-    scale = scale || 1.6;
+    scale = scale || 1.4;
     var p1_x = points[0],
         p1_y = points[1],
         p2_x = points[2],

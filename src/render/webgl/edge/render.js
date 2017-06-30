@@ -57,7 +57,13 @@ export default {
         var arrowX = target.x - (targetSize + arrowSize)/dis * dx;
         var arrowY = target.y - (targetSize + arrowSize)/dis * dy;
 
-        var color = util.parseColor(edge.color||source.color || config.defaultEdgeColor);
+        var color ;
+        if(data.selected){
+            color = util.parseColor(config.defaultEdgeSelectedColor);
+        }else {
+            color = util.parseColor(data.color||source.color || config.defaultEdgeColor);
+        }
+
 
         var renderData = [];
         var indices = [];

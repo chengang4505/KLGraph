@@ -13,105 +13,150 @@ export default class TextureText extends EventEmitter{
         this.fontSize = 48;
         this.fontFamily = config.textureTextFontFamily;
 
-        this.canvas = null;
+        this.textureTextWidth = config.textureTextWidth;
+        this.textureTextHeight = config.textureTextHeight;
 
+        this.canvas = null;
         this.textinfo = null;
+
+        this.startx = this.border;
+        this.starty = this.border;
 
         this.texts = [];
 
         this.sdf = new TextSDF(this.fontSize, this.fontSize/8, this.fontSize/3,null,this.fontFamily);
 
+        this.init();
 
         // test();
     }
 
-    createCanvasImg(texts) {
+    init(){
+        this.canvas = document.createElement('canvas');
+        this.ctx = this.canvas.getContext("2d");
+        this.resize(this.textureTextWidth,this.textureTextHeight);
+    }
 
-        if(!this.canvas) this.canvas = document.createElement('canvas');
-
-        var c = this.canvas;
-
-
-        var width = this.sdf.size;
-        var height = width;
-        var num = Math.ceil(Math.sqrt(texts.length));
-
-        c.width  = (num + 1) * (width) + 2* this.border;
-        c.height  = (num +1 ) * (height) + 2* this.border;
-
-
-        var ctx = c.getContext("2d");
+    resize(width,height){
+        var ctx = this.ctx;
+        this.canvas.width = width;
+        this.canvas.height = height;
 
         ctx.fillStyle = "#000000";
-        ctx.fillRect(0, 0, c.width, c.height);
+        ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
         ctx.font = `bold ${this.fontSize}px ${this.fontFamily}`;
         ctx.textAlign = "left";
         ctx.textBaseline = "top";
         ctx.fillStyle = "#ff0000";
 
+        this.textinfo =  {
+            fontSize:this.fontSize,
+            img:this.canvas,
+            width:this.canvas.width,
+            height:this.canvas.height,
+            infos:{}
+        };
 
-        var startx =this.border;
-        var starty =this.border;
-        var infos = {}, px, py, charWidth,data;
+        this.startx = this.border;
+        this.starty = this.border;
 
         this.texts = [];
+    }
+
+    needResize(num){
+        var width = this.canvas.width;
+        var height = this.canvas.height;
+
+        var size = this.sdf.size + 2;
+
+        //leave column of no use in y
+        var leaveNumY = Math.floor((height - this.starty - size - this.border) / size);
+        //num of char in a row
+        var numN = Math.floor((width - 2*this.border) / size);
+        // total num
+        var leaveNum = leaveNumY * numN /*+ (width - this.startx - this.border) / this.sdf.size*/;
+
+        return  leaveNum <= num;
+    }
+
+    getSize(totalN){
+        var width = this.canvas.width;
+        var height = this.canvas.height;
+        var numY,numN,totalNum;
+        var size = this.sdf.size + 2;
+
+        do{
+            width *= 2;
+            numY = Math.floor((height - 2 * this.border) / size);
+            numN = Math.floor((width - 2*this.border) / size);
+            totalNum = numY * numN;
+        }while (totalNum < totalN);
+
+        return {width:width,height:height};
+
+    }
+
+    addTexts(texts) {
+
+        if(!texts || texts.length < 1) return;
+
+        var oldTexts,resizeInfo;
+        if(this.needResize(texts.length)){
+            oldTexts = this.texts;
+// debugger
+            resizeInfo = this.getSize(texts.length + this.texts.length);
+            this.resize(resizeInfo.width,resizeInfo.height);
+
+            texts.forEach(e => oldTexts.push(e));
+
+            texts = oldTexts;
+
+        }
+
+
+        var c = this.canvas;
+        var ctx = this.ctx;
+
+        var startx =this.startx;
+        var starty =this.starty;
+        var infos = this.textinfo.infos, charWidth,data;
+
 
         for (var i = 0; i < texts.length; i++) {
 
-            if(this.textinfo && this.textinfo.infos[texts[i]]) continue;
+            if(this.textinfo && infos[texts[i]]) continue;
 
             data = this.sdf.draw(texts[i]);
             charWidth = data.charWidth;
 
-            // charWidth = ctx.measureText(texts[i]).width;
-
             if(startx + charWidth > c.width){
                 startx = this.border;
-                starty += height
+                starty += this.sdf.size;
+                if((starty + this.sdf.size) > this.canvas.height) console.error('texture text height err')
             }
 
-            ctx.putImageData(data.data, startx, starty,0,0,charWidth,data.data.height);
-
-            // ctx.fillText(texts[i], startx, starty);
-
+            ctx.putImageData(data.data, startx, starty,0,0,charWidth,this.sdf.size);
 
             infos[texts[i]] = {
                 uvs:[
                     startx/c.width, starty/c.height,
-                    (startx + charWidth)/c.width, (starty + height)/c.height,
+                    (startx + charWidth)/c.width, (starty + this.sdf.size)/c.height,
                 ],
-                width:charWidth/width
+                width:charWidth/this.sdf.size
             };
 
             this.texts.push(texts[i]);
 
             startx += charWidth;
         }
-        // this.computeAlpha(ctx);
-        this.textinfo =  {
-            fontSize:this.fontSize,
-            img:c,
-            width:c.width,
-            height:c.height,
-            infos:infos
-        };
+
+        this.startx = startx;
+        this.starty = starty;
 
         // document.body.appendChild(c);
         // c.style.position = 'absolute';
         // c.style.top = '100px';
-
-        // this.updateGPUTexture();
-    }
-
-    computeAlpha(ctx) {
-
-        var imgData = ctx.getImageData(0, 0, ctx.canvas.width, ctx.canvas.height);
-        for (var i = 0; i < imgData.data.length; i += 4) {
-            imgData.data[i + 3] = imgData.data[i];
-        }
-
-        ctx.putImageData(imgData,0,0);
 
     }
 
@@ -121,23 +166,7 @@ export default class TextureText extends EventEmitter{
         gl.bindTexture(gl.TEXTURE_2D, this.createTexture(gl));
     }
 
-    addTexts(strs){
-        if(strs.length == 0) return;
-
-        strs.forEach(function (e) {
-            this.texts.push(e);
-        }.bind(this));
-
-        var texts = this.texts;
-
-       this.clear();
-        this.createCanvasImg(texts);
-
-    }
-
     createTexture(gl){
-
-
         var texture = gl.createTexture();
 
         gl.activeTexture(gl.TEXTURE0+this.unit);
@@ -154,8 +183,7 @@ export default class TextureText extends EventEmitter{
     }
 
     clear(){
-        this.textinfo = null;
-        this.texts = [];
+        this.resize(this.canvas.width,this.canvas.height);
     }
 
 }

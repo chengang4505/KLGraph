@@ -15,19 +15,22 @@ import frag from './frag.glsl'
 
 function renderLayerData({data,cacheIndex,gl,layers,renderLayerMap}) {
 
-    var temp,program;
+    var temp,program,startPoint;
     var layerIndexMap = {};
     var _this = this;
 
     data.forEach(function (e) {
         if(e.filter) return;
         layers.forEach(function (layer) {
-            if(!cacheIndex[e.id][layer] || !renderLayerMap[layer].enable || !renderLayerMap[layer].show) return;
+            if(!cacheIndex[e.id][layer] || !cacheIndex[e.id][layer].data || !renderLayerMap[layer].enable || !renderLayerMap[layer].show) return;
 
             layerIndexMap[layer] = layerIndexMap[layer] || [];
             temp = cacheIndex[e.id][layer].data.indices;
+
+            startPoint = cacheIndex[e.id][layer].vertexStart;
+
             temp && temp.forEach(function (index) {
-                layerIndexMap[layer].push(index);
+                layerIndexMap[layer].push(index+startPoint);
             });
         });
     });

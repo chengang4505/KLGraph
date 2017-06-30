@@ -1,6 +1,6 @@
  precision mediump float;
 
-//vec4 color = vec4(77, 72, 91,255);
+vec4 color_bg = vec4(1,1,1,1);
 
 varying vec2 v_texCoord;
 varying float size;
@@ -14,7 +14,7 @@ uniform float u_camera_scale;
 void main() {
     vec4 color = label_color / 255.0;
 
-    float cutoff = 0.73;
+    float cutoff = 0.76;
     float offset = 6.0/size * u_camera_scale;
 
     offset = pow(offset,1.2);
@@ -23,6 +23,6 @@ void main() {
 
    float dist = texture2D(u_image, v_texCoord).r;
    float alpha = smoothstep(cutoff - offset, cutoff + offset, dist);
-   gl_FragColor = color *alpha;
-//   gl_FragColor =  vec4(0, 1,0,1);
+//   gl_FragColor = color *alpha;
+   gl_FragColor = mix(color_bg,color,alpha);
 }
