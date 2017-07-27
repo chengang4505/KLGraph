@@ -29,6 +29,7 @@ export default function initEvent() {
         mousewheel:handlerWrap(_wheelHandler),
         DOMMouseScroll:handlerWrap(_wheelHandler),//firfox
     };
+
     for(var e in events)    this.container.addEventListener(e, events[e], false);
     events.click = handlerWrap(_clickHandler);
 
@@ -371,6 +372,9 @@ export default function initEvent() {
 
     function handlerWrap(handle) {
         return function (e) {
+
+            if(!config.enableMouseEvent) return;
+
             var pos = _this.domToCameraPos({x: e.offsetX, y: e.offsetY});
             e.cameraX = pos.x;
             e.cameraY = pos.y;

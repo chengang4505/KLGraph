@@ -9,7 +9,8 @@ varying float dis;
 varying float flag;
 varying float dashed;
 varying float size;
-varying float ratio;
+varying float end_ratio;
+varying float start_ratio;
 
 uniform float u_camera_scale;
 
@@ -32,7 +33,7 @@ void main(){
                 float sd = (uv.x * uv.x - uv.y) / sqrt(fx * fx + fy * fy);
 
                 float alpha = 1.0 - abs(sd) / width;
-                if (alpha < 0.0 || uv.x < ratio || uv.x > 1.0) discard;
+                if (alpha < 0.0 || uv.x < end_ratio || uv.x > start_ratio) discard;
 
                 float n = 800.0/dis;
                 float dot = mod(uv.x*100.0,n);

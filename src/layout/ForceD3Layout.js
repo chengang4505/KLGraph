@@ -15,7 +15,7 @@ function id(d) {
 }
 
 
-export default class ColaLayout{
+export default class ForceD3Layout{
     layout(nodes,edges,option){
         if(!d3 || !d3.forceSimulation) throw 'please add d3 lib first';
 

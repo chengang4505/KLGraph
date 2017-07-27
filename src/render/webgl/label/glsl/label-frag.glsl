@@ -14,10 +14,10 @@ uniform float u_camera_scale;
 void main() {
     vec4 color = label_color / 255.0;
 
-    float cutoff = 0.73;
+    float cutoff = 0.72;
     float offset = 6.0/size * u_camera_scale;
 
-    offset = pow(offset,1.2);
+    offset = pow(offset,1.4);
 
     offset = min((1.0-cutoff),offset);
 

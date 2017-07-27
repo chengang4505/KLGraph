@@ -335,14 +335,20 @@ class WebGLRender extends EventEmitter{
         //node icon
         var map = {};
         var icons = [];
-        nodes.forEach(function (e) {
-            if(e.icon){
-                if(!map[e.icon]){
-                    map[e.icon] = true;
-                    icons.push(e.icon);
+
+        if(this.config.textureIcons && this.config.textureIcons.length > 0) icons = this.config.textureIcons;
+        else{
+            nodes.forEach(function (e) {
+                if(e.icon){
+                    if(!map[e.icon]){
+                        map[e.icon] = true;
+                        icons.push(e.icon);
+                    }
                 }
-            }
-        });
+            });
+        }
+
+
 
         //create icon texture
         this.textureIcon.createIcons(icons);
@@ -484,12 +490,18 @@ class WebGLRender extends EventEmitter{
      */
     setFlag(){
         var gl = this.gl;
+
         // gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
         gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
         // gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA,gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);
         gl.enable(gl.BLEND);
         gl.disable(gl.DEPTH_TEST);
-        gl.clearColor(1,1,1,1);
+
+        var bgColor  = util.parseColor(this.config.defaultBackgroundColor);
+        gl.clearColor(bgColor.r/255,bgColor.g/255,bgColor.b/255,bgColor.a/255);
+
+        //clear viewport
+        gl.clear(gl.COLOR_BUFFER_BIT);
     }
 
     /**
@@ -502,9 +514,6 @@ class WebGLRender extends EventEmitter{
         renderLayerMap = this.renderLayerMap;
 
         gl = this.gl;
-        //clear viewport
-        gl.clear(gl.COLOR_BUFFER_BIT);
-
         //set flag
        this.setFlag();
 
@@ -518,6 +527,7 @@ class WebGLRender extends EventEmitter{
             //for each layer
             for (var j = 0; j < subLayers.length; j++) {
 
+                layer = subLayers[j].name;
 
                 if(!subLayers[j].enable || !subLayers[j].show) continue;
 
@@ -527,17 +537,15 @@ class WebGLRender extends EventEmitter{
                     continue;
                 }
 
-                //call renderBefore if exist
-                if(subLayers[j].render.renderBefore && util.isFunction(subLayers[j].render.renderBefore)){
-                    subLayers[j].renderBefore.render.call(subLayers[j],this,subLayers[j].option);
-                }
-
-                layer = subLayers[j].name;
-
                 //WebGLProgram
                 program = renderLayerMap[layer].program;
 
                 if(program.indexN == 0) continue;
+
+                //call renderBefore if exist
+                if(subLayers[j].render.renderBefore && util.isFunction(subLayers[j].render.renderBefore)){
+                    subLayers[j].renderBefore.render.call(subLayers[j],this,subLayers[j].option);
+                }
 
                 //gl call, use program
                 gl.useProgram(program);

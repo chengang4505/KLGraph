@@ -34,7 +34,7 @@ export default {
         var renderData = [];
         var indices = [];
 
-        var labelSizeRatio = 0.35;
+        var labelSizeRatio = 0.4;
         var sizeX = util.getNodeSizeX(data) || defaultSize,sizeY = util.getNodeSizeY(data) || defaultSize;
         var size = Math.max(sizeX,sizeY);
         var infos = textureText.textinfo.infos,
@@ -42,7 +42,7 @@ export default {
             charHeight = size * labelSizeRatio,
             char,uv,width;
 
-        var lines = getLines(str,7,infos,charWidth);
+        var lines = getLines(str,20,infos,charWidth);
 
         var x1,y1,x2,y2,startx,starty;
         var points = 0;

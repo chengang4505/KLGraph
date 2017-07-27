@@ -176,6 +176,9 @@ utils.getNodeSizeY = function (node) {
 };
 
 utils.getBBox = function (nodes) {
+
+    if(!nodes || nodes.length == 0) return {x:0,y:0,w:0,h:0};
+
     var x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
     nodes.forEach(function (e) {
         if (e.x < x0) x0 = e.x;

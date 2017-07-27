@@ -5,6 +5,7 @@
  precision mediump float;
 
 varying vec4 color;
+varying vec4 icon_color;
 varying float img;
 varying float selected;
 varying vec2 uv;
@@ -46,7 +47,7 @@ if(flag > 0.5 && flag < 1.5) //flag =1
 
 }else if(flag > 1.5 && flag < 2.5) {//flag =2
     if(showicon < 0.5) discard;
-    gl_FragColor = texture2D(u_icons_texture,uv).w * vec4(1,1,1,1);
+    gl_FragColor = texture2D(u_icons_texture,uv).w * icon_color;
 }else if((flag > -0.5 && flag < 0.5)){//flat = 0 selected background
 
     if(selected < 0.5) discard;

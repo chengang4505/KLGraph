@@ -21,7 +21,7 @@ export  default  class Core {
 
         this.config = utils.extend(option.config || {},defaultConfig);
 
-        this.graph = new Graph({
+        this.graph = option.graph ? option.graph :  new Graph({
             nodes: option.nodes,
             edges: option.edges
         });

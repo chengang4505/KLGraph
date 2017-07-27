@@ -74,6 +74,7 @@
                 size: Math.random() * 10 + 10,
                 width: 16,
                 height: 10,
+//                color: Math.random() > 0.5 ? colors[(Math.random() * colors.length) | 0]: 'rgba(0,0,0,0)',
                 color: colors[(Math.random() * colors.length) | 0],
                 icon: icons[(Math.random() * icons.length) | 0],
             });
@@ -104,7 +105,7 @@
             edges: []
         };
 
-        var N = 200;
+        var N = 1000;
 
 
         for (var i = 0; i < N; i++) {
@@ -205,6 +206,7 @@
         });
 
 //        gview.render.disableRenderLayer('nodeLabel');
+//        gview.render.disableRenderLayer('edgeLabel');
 
         function makeLayout(name) {
             var layers = ['edge', 'edgeCurve','edgeCurveLabel', 'edgeLabel', 'nodeLabel'];

@@ -18,6 +18,7 @@ export default {
         a_size: {components:1,start:10},
         a_showicon: {components:1,start:11},
         a_center: {components:2,start:12},
+        a_icon_color: {components:4,start:14},
     },
     getUniforms({matrix, camera,config, sampleRatio, textureLoader,textureIcon}){
         var color = utils.parseColor(config.defaultNodeSelectedBorder);
@@ -30,17 +31,7 @@ export default {
             u_icons_texture:textureIcon.unit,
         }
     },
-    getRenderData({data,config, textureLoader, textureIcon,oldData,dirtyAttr}){
-
-        data.size = data.size || config.defaultNodeSize;
-        var isSelected = data.selected ? 1.0 : 0.0;
-        var color = utils.parseColor(data.color || config.defaultNodeColor);
-
-        // debugger
-        // var img = -1;
-        // if (data.img && textureLoader.cache[data.img])
-        //     img = textureLoader.cache[data.img];
-
+    getRenderData({data,config, textureIcon,oldData,dirtyAttr}){
         //reuse old data
         if(oldData && dirtyAttr
             && Object.keys(dirtyAttr).length == 2
@@ -48,11 +39,11 @@ export default {
             && dirtyAttr.hasOwnProperty('y')
         ){
             // debugger
-            var offset = 14;
+            var offset = 18;
             var oldVertices = oldData.vertices;
             for(var i = 0;i< oldVertices.length;i+=offset){
-                oldVertices[i+12] = data.x;
-                oldVertices[i+13] = data.y;
+                oldVertices[i+12] = data.x;//x
+                oldVertices[i+13] = data.y;//y
             }
             return {
                 vertices:oldVertices,
@@ -60,8 +51,19 @@ export default {
             };
         }
 
+        /**
+         * width height selected color iconOrImg uv center
+         */
+
         //init data
-        var hasIcon = data.icon && textureIcon.iconinfo.infos[data.icon],uvs;
+        data.size = data.size || config.defaultNodeSize;
+
+        var isSelected = data.selected ? 1.0 : 0.0;//selected flag
+        var color = utils.parseColor(data.color || config.defaultNodeColor);//node color
+
+        var iColor = utils.parseColor(data.iconColor || config.defaultNodeIconColor);//icon color
+        var hasIcon = data.icon && textureIcon.iconinfo.infos[data.icon], uvs;
+
         uvs = hasIcon ? textureIcon.iconinfo.infos[data.icon].uvs : [0,0];
         hasIcon = hasIcon ? 1:0;
 
@@ -74,10 +76,10 @@ export default {
         // debugger
 
         //background
-        addData(vertices,[-1*data.size*bgScale,+1*data.size*bgScale,color.r,color.g,color.b,color.a,0,0,isSelected,0,data.size,hasIcon,data.x,data.y]);
-        addData(vertices,[+1*data.size*bgScale,+1*data.size*bgScale,color.r,color.g,color.b,color.a,1,0,isSelected,0,data.size,hasIcon,data.x,data.y]);
-        addData(vertices,[-1*data.size*bgScale,-1*data.size*bgScale,color.r,color.g,color.b,color.a,0,1,isSelected,0,data.size,hasIcon,data.x,data.y]);
-        addData(vertices,[+1*data.size*bgScale,-1*data.size*bgScale,color.r,color.g,color.b,color.a,1,1,isSelected,0,data.size,hasIcon,data.x,data.y]);
+        addData(vertices,[-1*data.size*bgScale,+1*data.size*bgScale,color.r,color.g,color.b,color.a,0,0,isSelected,0,data.size,hasIcon,data.x,data.y,iColor.r,iColor.g,iColor.b,iColor.a]);
+        addData(vertices,[+1*data.size*bgScale,+1*data.size*bgScale,color.r,color.g,color.b,color.a,1,0,isSelected,0,data.size,hasIcon,data.x,data.y,iColor.r,iColor.g,iColor.b,iColor.a]);
+        addData(vertices,[-1*data.size*bgScale,-1*data.size*bgScale,color.r,color.g,color.b,color.a,0,1,isSelected,0,data.size,hasIcon,data.x,data.y,iColor.r,iColor.g,iColor.b,iColor.a]);
+        addData(vertices,[+1*data.size*bgScale,-1*data.size*bgScale,color.r,color.g,color.b,color.a,1,1,isSelected,0,data.size,hasIcon,data.x,data.y,iColor.r,iColor.g,iColor.b,iColor.a]);
 
         addIndices(indices,[
             points+0,points+1,points+2,
@@ -87,10 +89,10 @@ export default {
 
 
         //base
-        addData(vertices,[-1*data.size,+1*data.size,color.r,color.g,color.b,color.a,0,0,isSelected,1,data.size,hasIcon,data.x,data.y]);
-        addData(vertices,[+1*data.size,+1*data.size,color.r,color.g,color.b,color.a,1,0,isSelected,1,data.size,hasIcon,data.x,data.y]);
-        addData(vertices,[-1*data.size,-1*data.size,color.r,color.g,color.b,color.a,0,1,isSelected,1,data.size,hasIcon,data.x,data.y]);
-        addData(vertices,[+1*data.size,-1*data.size,color.r,color.g,color.b,color.a,1,1,isSelected,1,data.size,hasIcon,data.x,data.y]);
+        addData(vertices,[-1*data.size,+1*data.size,color.r,color.g,color.b,color.a,0,0,isSelected,1,data.size,hasIcon,data.x,data.y,iColor.r,iColor.g,iColor.b,iColor.a]);
+        addData(vertices,[+1*data.size,+1*data.size,color.r,color.g,color.b,color.a,1,0,isSelected,1,data.size,hasIcon,data.x,data.y,iColor.r,iColor.g,iColor.b,iColor.a]);
+        addData(vertices,[-1*data.size,-1*data.size,color.r,color.g,color.b,color.a,0,1,isSelected,1,data.size,hasIcon,data.x,data.y,iColor.r,iColor.g,iColor.b,iColor.a]);
+        addData(vertices,[+1*data.size,-1*data.size,color.r,color.g,color.b,color.a,1,1,isSelected,1,data.size,hasIcon,data.x,data.y,iColor.r,iColor.g,iColor.b,iColor.a]);
 
         addIndices(indices,[
             points+0,points+1,points+2,
@@ -98,14 +100,12 @@ export default {
         ]);
         points += 4;
 
-
-        var scale = 0.7;
-
         //icon
-        addData(vertices,[-1*data.size*scale,+1*data.size*scale,color.r,color.g,color.b,color.a,uvs[0],uvs[1],isSelected,2,data.size,hasIcon,data.x,data.y]);
-        addData(vertices,[+1*data.size*scale,+1*data.size*scale,color.r,color.g,color.b,color.a,uvs[2],uvs[1],isSelected,2,data.size,hasIcon,data.x,data.y]);
-        addData(vertices,[-1*data.size*scale,-1*data.size*scale,color.r,color.g,color.b,color.a,uvs[0],uvs[3],isSelected,2,data.size,hasIcon,data.x,data.y]);
-        addData(vertices,[+1*data.size*scale,-1*data.size*scale,color.r,color.g,color.b,color.a,uvs[2],uvs[3],isSelected,2,data.size,hasIcon,data.x,data.y]);
+        var iconInfo = data.icon ? getIconInfo(data) : {left:-1*data.size,top:data.size,right:data.size,bottom:-1*data.size};
+        addData(vertices,[iconInfo.left,iconInfo.top,color.r,color.g,color.b,color.a,uvs[0],uvs[1],isSelected,2,data.size,hasIcon,data.x,data.y,iColor.r,iColor.g,iColor.b,iColor.a]);
+        addData(vertices,[iconInfo.right,iconInfo.top,color.r,color.g,color.b,color.a,uvs[2],uvs[1],isSelected,2,data.size,hasIcon,data.x,data.y,iColor.r,iColor.g,iColor.b,iColor.a]);
+        addData(vertices,[iconInfo.left,iconInfo.bottom,color.r,color.g,color.b,color.a,uvs[0],uvs[3],isSelected,2,data.size,hasIcon,data.x,data.y,iColor.r,iColor.g,iColor.b,iColor.a]);
+        addData(vertices,[iconInfo.right,iconInfo.bottom,color.r,color.g,color.b,color.a,uvs[2],uvs[3],isSelected,2,data.size,hasIcon,data.x,data.y,iColor.r,iColor.g,iColor.b,iColor.a]);
 
         addIndices(indices,[
             points+0,points+1,points+2,
@@ -133,4 +133,19 @@ function addIndices(indices,attrIndex) {
     attrIndex.forEach(function (data) {
         indices.push(data);
     });
+}
+
+function getIconInfo(data) {
+    var icon = data.icon;
+    var defaultConfig = {content:'',offsetX:0,offsetY:0,scale:0.65};
+    icon = utils.isString(icon) ? utils.extend({content:icon},defaultConfig) : utils.extend(icon,defaultConfig);
+
+    var size = data.size;
+
+    return {
+        left: size * -1 * icon.scale + icon.offsetX,
+        right: size * icon.scale + icon.offsetX,
+        top: size  * icon.scale + icon.offsetY,
+        bottom: size * -1 * icon.scale + icon.offsetY,
+    }
 }

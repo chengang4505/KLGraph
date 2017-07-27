@@ -4,7 +4,7 @@ import util from '../util'
 
 var defaultConfig = {
     BBox:[1000, 1000],
-    linkDistance:30,
+    linkDistance:10,
     initIterations:20,
     userIterations:0,
     allIterations:2,

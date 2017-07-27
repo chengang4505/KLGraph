@@ -2,6 +2,7 @@
  precision mediump float;
 attribute vec2 a_position;
 attribute vec4 a_color;
+attribute vec4 a_icon_color;
 attribute vec2 a_uv;
 attribute float a_selected;
 attribute float a_flag;
@@ -14,6 +15,7 @@ uniform float u_camera_scale;
 uniform float u_sample_ratio;
 
 varying vec4 color;
+varying vec4 icon_color;
 varying float selected;
 varying vec2 uv;
 varying float flag;
@@ -36,4 +38,6 @@ void main() {
 
     size = a_size / u_camera_scale ;
     showicon = a_showicon;
+
+    icon_color = a_icon_color/255.0;
 }

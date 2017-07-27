@@ -87,7 +87,9 @@ export default class TextureText extends EventEmitter{
         var size = this.sdf.size + 2;
 
         do{
-            width *= 2;
+            if(width <= height)width *= 2;
+            else height *= 2;
+
             numY = Math.floor((height - 2 * this.border) / size);
             numN = Math.floor((width - 2*this.border) / size);
             totalNum = numY * numN;
@@ -172,6 +174,7 @@ export default class TextureText extends EventEmitter{
         gl.activeTexture(gl.TEXTURE0+this.unit);
         gl.bindTexture(gl.TEXTURE_2D, texture);
 
+        //NEAREST LINEAR
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);

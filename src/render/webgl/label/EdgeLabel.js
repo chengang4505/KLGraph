@@ -40,7 +40,8 @@ export default {
         var renderData = [];
         var indices = [];
 
-        var size = data.fontSize ||  Math.max(util.getNodeSizeX(source) || defaultSize,util.getNodeSizeY(source) || defaultSize)/3;
+        var ratio  = 0.33;
+        var size = data.fontSize ||  Math.max(util.getNodeSizeX(source) || defaultSize,util.getNodeSizeY(source) || defaultSize)*ratio;
         var infos = textureText.textinfo.infos,
             charWidth = size,
             charHeight = size,

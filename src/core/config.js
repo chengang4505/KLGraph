@@ -3,12 +3,14 @@
 export default {
 
     //default
+    defaultBackgroundColor:'#ffffff',
     defaultNodeSelectedBorder:'#d4525f',
     defaultEdgeSelectedColor:'#d4525f',
 
     // node
     defaultNodeSize:10,
     defaultNodeColor:"#3a82a8",
+    defaultNodeIconColor:"#ffffff",
     defaultNodeLabelColor:"#474d57",
 
     //edge
@@ -29,6 +31,7 @@ export default {
     textureTextWidth:1024,
     textureTextHeight:1024,
 
+    enableMouseEvent:true,
     enableOverEvent:true,
     enableEdgeEvent:true,
     enableSelectEdge:false,

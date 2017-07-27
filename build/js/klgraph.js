@@ -2006,12 +2006,18 @@ var WebGLRender = function (_EventEmitter) {
         key: 'setFlag',
         value: function setFlag() {
             var gl = this.gl;
+
             // gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
             gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
             // gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA,gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);
             gl.enable(gl.BLEND);
             gl.disable(gl.DEPTH_TEST);
-            gl.clearColor(1, 1, 1, 1);
+
+            var bgColor = _util2.default.parseColor(this.config.defaultBackgroundColor);
+            gl.clearColor(bgColor.r / 255, bgColor.g / 255, bgColor.b / 255, bgColor.a / 255);
+
+            //clear viewport
+            gl.clear(gl.COLOR_BUFFER_BIT);
         }
 
         /**
@@ -2026,9 +2032,6 @@ var WebGLRender = function (_EventEmitter) {
             renderLayerMap = this.renderLayerMap;
 
             gl = this.gl;
-            //clear viewport
-            gl.clear(gl.COLOR_BUFFER_BIT);
-
             //set flag
             this.setFlag();
 
@@ -2042,6 +2045,8 @@ var WebGLRender = function (_EventEmitter) {
                 //for each layer
                 for (var j = 0; j < subLayers.length; j++) {
 
+                    layer = subLayers[j].name;
+
                     if (!subLayers[j].enable || !subLayers[j].show) continue;
 
                     //custom render
@@ -2050,17 +2055,15 @@ var WebGLRender = function (_EventEmitter) {
                         continue;
                     }
 
-                    //call renderBefore if exist
-                    if (subLayers[j].render.renderBefore && _util2.default.isFunction(subLayers[j].render.renderBefore)) {
-                        subLayers[j].renderBefore.render.call(subLayers[j], this, subLayers[j].option);
-                    }
-
-                    layer = subLayers[j].name;
-
                     //WebGLProgram
                     program = renderLayerMap[layer].program;
 
                     if (program.indexN == 0) continue;
+
+                    //call renderBefore if exist
+                    if (subLayers[j].render.renderBefore && _util2.default.isFunction(subLayers[j].render.renderBefore)) {
+                        subLayers[j].renderBefore.render.call(subLayers[j], this, subLayers[j].option);
+                    }
 
                     //gl call, use program
                     gl.useProgram(program);
@@ -2953,7 +2956,7 @@ exports.default = WebGLRender;
 /* 7 */
 /***/ (function(module, exports) {
 
-module.exports = " precision mediump float;\n\nvec4 color_bg = vec4(1,1,1,1);\n\nvarying vec2 v_texCoord;\nvarying float size;\nvarying vec4 label_color;\n\n\nuniform sampler2D u_image;\nuniform float u_camera_scale;\n\n\nvoid main() {\n    vec4 color = label_color / 255.0;\n\n    float cutoff = 0.76;\n    float offset = 6.0/size * u_camera_scale;\n\n    offset = pow(offset,1.2);\n\n    offset = min((1.0-cutoff),offset);\n\n   float dist = texture2D(u_image, v_texCoord).r;\n   float alpha = smoothstep(cutoff - offset, cutoff + offset, dist);\n//   gl_FragColor = color *alpha;\n   gl_FragColor = mix(color_bg,color,alpha);\n}"
+module.exports = " precision mediump float;\n\nvec4 color_bg = vec4(0,0,0,0);\n\nvarying vec2 v_texCoord;\nvarying float size;\nvarying vec4 label_color;\n\n\nuniform sampler2D u_image;\nuniform float u_camera_scale;\n\n\nvoid main() {\n    vec4 color = label_color / 255.0;\n\n    float cutoff = 0.76;\n    float offset = 6.0/size * u_camera_scale;\n\n    offset = pow(offset,1.2);\n\n    offset = min((1.0-cutoff),offset);\n\n   float dist = texture2D(u_image, v_texCoord).r;\n   float alpha = smoothstep(cutoff - offset, cutoff + offset, dist);\n//   gl_FragColor = color *alpha;\n   gl_FragColor = mix(color_bg,color,alpha);\n}"
 
 /***/ }),
 /* 8 */
@@ -3017,7 +3020,7 @@ var Core = function () {
 
         this.config = _util2.default.extend(option.config || {}, _config2.default);
 
-        this.graph = new _Graph2.default({
+        this.graph = option.graph ? option.graph : new _Graph2.default({
             nodes: option.nodes,
             edges: option.edges
         });
@@ -4246,12 +4249,14 @@ Object.defineProperty(exports, "__esModule", {
 exports.default = {
 
     //default
+    defaultBackgroundColor: '#ffffff',
     defaultNodeSelectedBorder: '#d4525f',
     defaultEdgeSelectedColor: '#d4525f',
 
     // node
     defaultNodeSize: 10,
     defaultNodeColor: "#3a82a8",
+    defaultNodeIconColor: "#ffffff",
     defaultNodeLabelColor: "#474d57",
 
     //edge
@@ -5418,12 +5423,12 @@ function id(d) {
     return d.id;
 }
 
-var ColaLayout = function () {
-    function ColaLayout() {
-        _classCallCheck(this, ColaLayout);
+var ForceD3Layout = function () {
+    function ForceD3Layout() {
+        _classCallCheck(this, ForceD3Layout);
     }
 
-    _createClass(ColaLayout, [{
+    _createClass(ForceD3Layout, [{
         key: 'layout',
         value: function layout(nodes, edges, option) {
             if (!d3 || !d3.forceSimulation) throw 'please add d3 lib first';
@@ -5468,10 +5473,10 @@ var ColaLayout = function () {
         }
     }]);
 
-    return ColaLayout;
+    return ForceD3Layout;
 }();
 
-exports.default = ColaLayout;
+exports.default = ForceD3Layout;
 
 /***/ }),
 /* 20 */
@@ -6151,7 +6156,8 @@ var TextureText = function (_EventEmitter) {
             var size = this.sdf.size + 2;
 
             do {
-                width *= 2;
+                if (width <= height) width *= 2;else height *= 2;
+
                 numY = Math.floor((height - 2 * this.border) / size);
                 numN = Math.floor((width - 2 * this.border) / size);
                 totalNum = numY * numN;
@@ -6235,6 +6241,7 @@ var TextureText = function (_EventEmitter) {
             gl.activeTexture(gl.TEXTURE0 + this.unit);
             gl.bindTexture(gl.TEXTURE_2D, texture);
 
+            //NEAREST LINEAR
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
@@ -6526,7 +6533,8 @@ exports.default = {
         a_color: { components: 4, start: 6 },
         a_dashed: { components: 1, start: 10 },
         a_size: { components: 1, start: 11 },
-        a_ratio: { components: 1, start: 12 }
+        a_end_ratio: { components: 1, start: 12 },
+        a_start_ratio: { components: 1, start: 13 }
     },
     getUniforms: function getUniforms(_ref) {
         var matrix = _ref.matrix,
@@ -6554,26 +6562,34 @@ exports.default = {
         var renderData = [];
         var indices = [];
 
-        var dx = target.x - source.x;
-        var dy = target.y - source.y;
+        // var dx = target.x - source.x;
+        // var dy = target.y - source.y;
 
         var dis = _util2.default.getDistance(source.x, source.y, target.x, target.y);
-        var tNodeW, tNodeH, tSize;
-        tNodeW = _util2.default.getNodeSizeX(target);
-        tNodeH = _util2.default.getNodeSizeY(target);
+        var tNodeW, tNodeH, sNodeW, sNodeH, targetSize, sourceSize;
+        sNodeW = _util2.default.getNodeSizeX(source) || defaultSize;
+        sNodeH = _util2.default.getNodeSizeY(source) || defaultSize;
+        tNodeW = _util2.default.getNodeSizeX(target) || defaultSize;
+        tNodeH = _util2.default.getNodeSizeY(target) || defaultSize;
 
-        if (tNodeH && tNodeW && tNodeH == tNodeW) {
-            tSize = tNodeW;
+        if (source.type == 'rect') {
+            sourceSize = Math.sqrt(Math.pow(sNodeW, 2) + Math.pow(sNodeH, 2));
         } else {
-            tSize = Math.sqrt(Math.pow(tNodeW || defaultSize, 2) + Math.pow(tNodeH || defaultSize, 2));
+            sourceSize = sNodeW;
+        }
+
+        if (target.type == 'rect') {
+            targetSize = Math.sqrt(Math.pow(tNodeW, 2) + Math.pow(tNodeH, 2));
+        } else {
+            targetSize = tNodeW;
         }
 
         var size = (data.size || config.defaultEdgeSize) / 2;
         var aSize = data.arrowSize || config.defaultEdgeArrowSize;
         var vX, vY;
 
-        // var tX = target.x - tSize / dis * dx;
-        // var tY = target.y - tSize / dis * dy;
+        // var tX = target.x - targetSize / dis * dx;
+        // var tY = target.y - targetSize / dis * dy;
         var tX = target.x;
         var tY = target.y;
 
@@ -6581,7 +6597,10 @@ exports.default = {
 
         //arrow
         var dis1 = _util2.default.getDistance(tX, tY, ctrlP[0], ctrlP[1]);
-        var arrowPosRatio = (1 - (tSize + aSize) / dis1) * 0.5 + 0.5;
+
+        var startPosRatio = sourceSize / dis1 * 0.5;
+        var arrowPosRatio = (1 - (targetSize + aSize) / dis1) * 0.5 + 0.5;
+
         var arrowPos = _util2.default.getPointOnQuadraticCurve(arrowPosRatio, source.x, source.y, tX, tY, ctrlP[0], ctrlP[1]);
         var aTangent = _util2.default.getPointTangentOnQuadraticCurve(arrowPosRatio, source.x, source.y, tX, tY, ctrlP[0], ctrlP[1]);
 
@@ -6605,16 +6624,16 @@ exports.default = {
         var dashed = data.dashed ? 1 : 0;
         // debugger
         //curve
-        addData(renderData, [scalePos[0], scalePos[1], scaleUV[0], scaleUV[1], dis, 0, color.r, color.g, color.b, color.a, dashed, size, arrowPosRatio]);
-        addData(renderData, [scalePos[2], scalePos[3], scaleUV[2], scaleUV[3], dis, 0, color.r, color.g, color.b, color.a, dashed, size, arrowPosRatio]);
-        addData(renderData, [scalePos[4], scalePos[5], scaleUV[4], scaleUV[5], dis, 0, color.r, color.g, color.b, color.a, dashed, size, arrowPosRatio]);
+        addData(renderData, [scalePos[0], scalePos[1], scaleUV[0], scaleUV[1], dis, 0, color.r, color.g, color.b, color.a, dashed, size, arrowPosRatio, startPosRatio]);
+        addData(renderData, [scalePos[2], scalePos[3], scaleUV[2], scaleUV[3], dis, 0, color.r, color.g, color.b, color.a, dashed, size, arrowPosRatio, startPosRatio]);
+        addData(renderData, [scalePos[4], scalePos[5], scaleUV[4], scaleUV[5], dis, 0, color.r, color.g, color.b, color.a, dashed, size, arrowPosRatio, startPosRatio]);
 
         addIndices(indices, [0, 1, 2]);
 
         //arrow
-        addData(renderData, [arrowX + vX, arrowY + vY, 0, 0, 0, 1, color.r, color.g, color.b, color.a, dashed, size, arrowPosRatio]);
-        addData(renderData, [arrowX + vY * 0.6, arrowY - vX * 0.6, 0, 0, 0, 1, color.r, color.g, color.b, color.a, dashed, size, arrowPosRatio]);
-        addData(renderData, [arrowX - vY * 0.6, arrowY + vX * 0.6, 0, 0, 0, 1, color.r, color.g, color.b, color.a, dashed, size, arrowPosRatio]);
+        addData(renderData, [arrowX + vX, arrowY + vY, 0, 0, 0, 1, color.r, color.g, color.b, color.a, dashed, size, arrowPosRatio, startPosRatio]);
+        addData(renderData, [arrowX + vY * 0.6, arrowY - vX * 0.6, 0, 0, 0, 1, color.r, color.g, color.b, color.a, dashed, size, arrowPosRatio, startPosRatio]);
+        addData(renderData, [arrowX - vY * 0.6, arrowY + vX * 0.6, 0, 0, 0, 1, color.r, color.g, color.b, color.a, dashed, size, arrowPosRatio, startPosRatio]);
 
         addIndices(indices, [3, 4, 5]);
 
@@ -6717,10 +6736,9 @@ exports.default = {
 
         var target = graph.nodesIndex[data.target];
         var source = graph.nodesIndex[data.source];
-        var edge = data;
         var dx = target.x - source.x;
         var dy = target.y - source.y;
-        // var dis = util.getDistance(source.x,source.y,target.x,target.y);
+        var norV = _util2.default.normalize([dx, dy]);
         var dashed = data.dashed ? 1 : 0;
 
         var defaultSize = config.defaultNodeSize;
@@ -6730,14 +6748,22 @@ exports.default = {
         var crossVector = _util2.default.normalize([-dy, dx]);
 
         //arrow
-        var tNodeW, tNodeH, targetSize;
-        tNodeW = _util2.default.getNodeSizeX(target);
-        tNodeH = _util2.default.getNodeSizeY(target);
+        var tNodeW, tNodeH, sNodeW, sNodeH, targetSize, sourceSize;
+        sNodeW = _util2.default.getNodeSizeX(source) || defaultSize;
+        sNodeH = _util2.default.getNodeSizeY(source) || defaultSize;
+        tNodeW = _util2.default.getNodeSizeX(target) || defaultSize;
+        tNodeH = _util2.default.getNodeSizeY(target) || defaultSize;
 
-        if (tNodeH && tNodeW && tNodeH == tNodeW) {
-            targetSize = tNodeW;
+        if (source.type == 'rect') {
+            sourceSize = Math.sqrt(Math.pow(sNodeW, 2) + Math.pow(sNodeH, 2));
         } else {
-            targetSize = Math.sqrt(Math.pow(tNodeW || defaultSize, 2) + Math.pow(tNodeH || defaultSize, 2));
+            sourceSize = sNodeW;
+        }
+
+        if (target.type == 'rect') {
+            targetSize = Math.sqrt(Math.pow(tNodeW, 2) + Math.pow(tNodeH, 2));
+        } else {
+            targetSize = tNodeW;
         }
 
         var dis = _util2.default.getDistance(source.x, source.y, target.x, target.y);
@@ -6754,8 +6780,8 @@ exports.default = {
         var renderData = [];
         var indices = [];
 
-        addData(renderData, [source.x, source.y, crossVector[0], crossVector[1], size, color.r, color.g, color.b, color.a, dis, dashed, 0, 0]);
-        addData(renderData, [source.x, source.y, -crossVector[0], -crossVector[1], size, color.r, color.g, color.b, color.a, dis, dashed, 0, 0]);
+        addData(renderData, [source.x + norV[0] * sourceSize, source.y + norV[1] * sourceSize, crossVector[0], crossVector[1], size, color.r, color.g, color.b, color.a, dis, dashed, 0, 0]);
+        addData(renderData, [source.x + norV[0] * sourceSize, source.y + norV[1] * sourceSize, -crossVector[0], -crossVector[1], size, color.r, color.g, color.b, color.a, dis, dashed, 0, 0]);
         addData(renderData, [arrowX, arrowY, crossVector[0], crossVector[1], size, color.r, color.g, color.b, color.a, dis, dashed, 0, 1]);
         addData(renderData, [arrowX, arrowY, -crossVector[0], -crossVector[1], size, color.r, color.g, color.b, color.a, dis, dashed, 0, 1]);
 
@@ -6865,7 +6891,8 @@ exports.default = {
         var renderData = [];
         var indices = [];
 
-        var size = data.fontSize || Math.max(_util2.default.getNodeSizeX(source) || defaultSize, _util2.default.getNodeSizeY(source) || defaultSize) / 3;
+        var ratio = 0.22;
+        var size = data.fontSize || Math.max(_util2.default.getNodeSizeX(source) || defaultSize, _util2.default.getNodeSizeY(source) || defaultSize) * ratio;
         var infos = textureText.textinfo.infos,
             charWidth = size,
             charHeight = size,
@@ -7008,7 +7035,7 @@ exports.default = {
         var renderData = [];
         var indices = [];
 
-        var labelSizeRatio = 0.35;
+        var labelSizeRatio = 0.4;
         var sizeX = _util2.default.getNodeSizeX(data) || defaultSize,
             sizeY = _util2.default.getNodeSizeY(data) || defaultSize;
         var size = Math.max(sizeX, sizeY);
@@ -7169,7 +7196,8 @@ exports.default = {
         var renderData = [];
         var indices = [];
 
-        var size = data.fontSize || Math.max(_util2.default.getNodeSizeX(source) || defaultSize, _util2.default.getNodeSizeY(source) || defaultSize) / 3;
+        var ratio = 0.22;
+        var size = data.fontSize || Math.max(_util2.default.getNodeSizeX(source) || defaultSize, _util2.default.getNodeSizeY(source) || defaultSize) * ratio;
         var infos = textureText.textinfo.infos,
             charWidth = size,
             charHeight = size,
@@ -7298,7 +7326,8 @@ exports.default = {
         a_flag: { components: 1, start: 9 },
         a_size: { components: 1, start: 10 },
         a_showicon: { components: 1, start: 11 },
-        a_center: { components: 2, start: 12 }
+        a_center: { components: 2, start: 12 },
+        a_icon_color: { components: 4, start: 14 }
     },
     getUniforms: function getUniforms(_ref) {
         var matrix = _ref.matrix,
@@ -7321,29 +7350,18 @@ exports.default = {
     getRenderData: function getRenderData(_ref2) {
         var data = _ref2.data,
             config = _ref2.config,
-            textureLoader = _ref2.textureLoader,
             textureIcon = _ref2.textureIcon,
             oldData = _ref2.oldData,
             dirtyAttr = _ref2.dirtyAttr;
 
-
-        data.size = data.size || config.defaultNodeSize;
-        var isSelected = data.selected ? 1.0 : 0.0;
-        var color = _util2.default.parseColor(data.color || config.defaultNodeColor);
-
-        // debugger
-        // var img = -1;
-        // if (data.img && textureLoader.cache[data.img])
-        //     img = textureLoader.cache[data.img];
-
         //reuse old data
         if (oldData && dirtyAttr && Object.keys(dirtyAttr).length == 2 && dirtyAttr.hasOwnProperty('x') && dirtyAttr.hasOwnProperty('y')) {
             // debugger
-            var offset = 14;
+            var offset = 18;
             var oldVertices = oldData.vertices;
             for (var i = 0; i < oldVertices.length; i += offset) {
-                oldVertices[i + 12] = data.x;
-                oldVertices[i + 13] = data.y;
+                oldVertices[i + 12] = data.x; //x
+                oldVertices[i + 13] = data.y; //y
             }
             return {
                 vertices: oldVertices,
@@ -7351,9 +7369,20 @@ exports.default = {
             };
         }
 
+        /**
+         * width height selected color iconOrImg uv center
+         */
+
         //init data
+        data.size = data.size || config.defaultNodeSize;
+
+        var isSelected = data.selected ? 1.0 : 0.0; //selected flag
+        var color = _util2.default.parseColor(data.color || config.defaultNodeColor); //node color
+
+        var iColor = _util2.default.parseColor(data.iconColor || config.defaultNodeIconColor); //icon color
         var hasIcon = data.icon && textureIcon.iconinfo.infos[data.icon],
             uvs;
+
         uvs = hasIcon ? textureIcon.iconinfo.infos[data.icon].uvs : [0, 0];
         hasIcon = hasIcon ? 1 : 0;
 
@@ -7366,30 +7395,29 @@ exports.default = {
         // debugger
 
         //background
-        addData(vertices, [-1 * data.size * bgScale, +1 * data.size * bgScale, color.r, color.g, color.b, color.a, 0, 0, isSelected, 0, data.size, hasIcon, data.x, data.y]);
-        addData(vertices, [+1 * data.size * bgScale, +1 * data.size * bgScale, color.r, color.g, color.b, color.a, 1, 0, isSelected, 0, data.size, hasIcon, data.x, data.y]);
-        addData(vertices, [-1 * data.size * bgScale, -1 * data.size * bgScale, color.r, color.g, color.b, color.a, 0, 1, isSelected, 0, data.size, hasIcon, data.x, data.y]);
-        addData(vertices, [+1 * data.size * bgScale, -1 * data.size * bgScale, color.r, color.g, color.b, color.a, 1, 1, isSelected, 0, data.size, hasIcon, data.x, data.y]);
+        addData(vertices, [-1 * data.size * bgScale, +1 * data.size * bgScale, color.r, color.g, color.b, color.a, 0, 0, isSelected, 0, data.size, hasIcon, data.x, data.y, iColor.r, iColor.g, iColor.b, iColor.a]);
+        addData(vertices, [+1 * data.size * bgScale, +1 * data.size * bgScale, color.r, color.g, color.b, color.a, 1, 0, isSelected, 0, data.size, hasIcon, data.x, data.y, iColor.r, iColor.g, iColor.b, iColor.a]);
+        addData(vertices, [-1 * data.size * bgScale, -1 * data.size * bgScale, color.r, color.g, color.b, color.a, 0, 1, isSelected, 0, data.size, hasIcon, data.x, data.y, iColor.r, iColor.g, iColor.b, iColor.a]);
+        addData(vertices, [+1 * data.size * bgScale, -1 * data.size * bgScale, color.r, color.g, color.b, color.a, 1, 1, isSelected, 0, data.size, hasIcon, data.x, data.y, iColor.r, iColor.g, iColor.b, iColor.a]);
 
         addIndices(indices, [points + 0, points + 1, points + 2, points + 1, points + 2, points + 3]);
         points += 4;
 
         //base
-        addData(vertices, [-1 * data.size, +1 * data.size, color.r, color.g, color.b, color.a, 0, 0, isSelected, 1, data.size, hasIcon, data.x, data.y]);
-        addData(vertices, [+1 * data.size, +1 * data.size, color.r, color.g, color.b, color.a, 1, 0, isSelected, 1, data.size, hasIcon, data.x, data.y]);
-        addData(vertices, [-1 * data.size, -1 * data.size, color.r, color.g, color.b, color.a, 0, 1, isSelected, 1, data.size, hasIcon, data.x, data.y]);
-        addData(vertices, [+1 * data.size, -1 * data.size, color.r, color.g, color.b, color.a, 1, 1, isSelected, 1, data.size, hasIcon, data.x, data.y]);
+        addData(vertices, [-1 * data.size, +1 * data.size, color.r, color.g, color.b, color.a, 0, 0, isSelected, 1, data.size, hasIcon, data.x, data.y, iColor.r, iColor.g, iColor.b, iColor.a]);
+        addData(vertices, [+1 * data.size, +1 * data.size, color.r, color.g, color.b, color.a, 1, 0, isSelected, 1, data.size, hasIcon, data.x, data.y, iColor.r, iColor.g, iColor.b, iColor.a]);
+        addData(vertices, [-1 * data.size, -1 * data.size, color.r, color.g, color.b, color.a, 0, 1, isSelected, 1, data.size, hasIcon, data.x, data.y, iColor.r, iColor.g, iColor.b, iColor.a]);
+        addData(vertices, [+1 * data.size, -1 * data.size, color.r, color.g, color.b, color.a, 1, 1, isSelected, 1, data.size, hasIcon, data.x, data.y, iColor.r, iColor.g, iColor.b, iColor.a]);
 
         addIndices(indices, [points + 0, points + 1, points + 2, points + 1, points + 2, points + 3]);
         points += 4;
 
-        var scale = 0.7;
-
         //icon
-        addData(vertices, [-1 * data.size * scale, +1 * data.size * scale, color.r, color.g, color.b, color.a, uvs[0], uvs[1], isSelected, 2, data.size, hasIcon, data.x, data.y]);
-        addData(vertices, [+1 * data.size * scale, +1 * data.size * scale, color.r, color.g, color.b, color.a, uvs[2], uvs[1], isSelected, 2, data.size, hasIcon, data.x, data.y]);
-        addData(vertices, [-1 * data.size * scale, -1 * data.size * scale, color.r, color.g, color.b, color.a, uvs[0], uvs[3], isSelected, 2, data.size, hasIcon, data.x, data.y]);
-        addData(vertices, [+1 * data.size * scale, -1 * data.size * scale, color.r, color.g, color.b, color.a, uvs[2], uvs[3], isSelected, 2, data.size, hasIcon, data.x, data.y]);
+        var iconInfo = data.icon ? getIconInfo(data) : { left: -1 * data.size, top: data.size, right: data.size, bottom: -1 * data.size };
+        addData(vertices, [iconInfo.left, iconInfo.top, color.r, color.g, color.b, color.a, uvs[0], uvs[1], isSelected, 2, data.size, hasIcon, data.x, data.y, iColor.r, iColor.g, iColor.b, iColor.a]);
+        addData(vertices, [iconInfo.right, iconInfo.top, color.r, color.g, color.b, color.a, uvs[2], uvs[1], isSelected, 2, data.size, hasIcon, data.x, data.y, iColor.r, iColor.g, iColor.b, iColor.a]);
+        addData(vertices, [iconInfo.left, iconInfo.bottom, color.r, color.g, color.b, color.a, uvs[0], uvs[3], isSelected, 2, data.size, hasIcon, data.x, data.y, iColor.r, iColor.g, iColor.b, iColor.a]);
+        addData(vertices, [iconInfo.right, iconInfo.bottom, color.r, color.g, color.b, color.a, uvs[2], uvs[3], isSelected, 2, data.size, hasIcon, data.x, data.y, iColor.r, iColor.g, iColor.b, iColor.a]);
 
         addIndices(indices, [points + 0, points + 1, points + 2, points + 1, points + 2, points + 3]);
         points += 4;
@@ -7413,6 +7441,21 @@ function addIndices(indices, attrIndex) {
     attrIndex.forEach(function (data) {
         indices.push(data);
     });
+}
+
+function getIconInfo(data) {
+    var icon = data.icon;
+    var defaultConfig = { content: '', offsetX: 0, offsetY: 0, scale: 0.65 };
+    icon = _util2.default.isString(icon) ? _util2.default.extend({ content: icon }, defaultConfig) : _util2.default.extend(icon, defaultConfig);
+
+    var size = data.size;
+
+    return {
+        left: size * -1 * icon.scale + icon.offsetX,
+        right: size * icon.scale + icon.offsetX,
+        top: size * icon.scale + icon.offsetY,
+        bottom: size * -1 * icon.scale + icon.offsetY
+    };
 }
 
 /***/ }),
@@ -7450,7 +7493,8 @@ exports.default = {
         a_img: { components: 1, start: 8 },
         a_selected: { components: 1, start: 9 },
         a_flag: { components: 1, start: 10 },
-        a_showicon: { components: 1, start: 11 }
+        a_showicon: { components: 1, start: 11 },
+        a_icon_color: { components: 4, start: 12 }
     },
     getUniforms: function getUniforms(_ref) {
         var matrix = _ref.matrix,
@@ -7479,12 +7523,13 @@ exports.default = {
 
 
         var color = _util2.default.parseColor(data.color || config.defaultNodeColor);
+        var iColor = _util2.default.parseColor(data.iconColor || config.defaultNodeIconColor);
 
         var img = -1;
         if (data.img && textureLoader.cache.hasOwnProperty(data.img)) img = textureLoader.cache[data.img];
 
-        var sizeX = data.width || data.size || config.defaultNodeSize;
-        var sizeY = data.height || data.size || config.defaultNodeSize;
+        var sizeX = data.width = data.width || data.size || config.defaultNodeSize;
+        var sizeY = data.height = data.height || data.size || config.defaultNodeSize;
         var iconSize = Math.min(sizeX, sizeY);
         var bgSize = Math.max(sizeX, sizeY) * 1.414;
         var isSelected = data.selected ? 1.0 : 0.0;
@@ -7500,19 +7545,19 @@ exports.default = {
         var points = 0;
         var bgScale = 1;
 
-        addData(renderData, [data.x - bgSize * bgScale, data.y + bgSize * bgScale, color.r, color.g, color.b, color.a, 0, 0, img, isSelected, 0, hasIcon]);
-        addData(renderData, [data.x + bgSize * bgScale, data.y + bgSize * bgScale, color.r, color.g, color.b, color.a, 1, 0, img, isSelected, 0, hasIcon]);
-        addData(renderData, [data.x - bgSize * bgScale, data.y - bgSize * bgScale, color.r, color.g, color.b, color.a, 0, 1, img, isSelected, 0, hasIcon]);
-        addData(renderData, [data.x + bgSize * bgScale, data.y - bgSize * bgScale, color.r, color.g, color.b, color.a, 1, 1, img, isSelected, 0, hasIcon]);
+        addData(renderData, [data.x - bgSize * bgScale, data.y + bgSize * bgScale, color.r, color.g, color.b, color.a, 0, 0, img, isSelected, 0, hasIcon, iColor.r, iColor.g, iColor.b, iColor.a]);
+        addData(renderData, [data.x + bgSize * bgScale, data.y + bgSize * bgScale, color.r, color.g, color.b, color.a, 1, 0, img, isSelected, 0, hasIcon, iColor.r, iColor.g, iColor.b, iColor.a]);
+        addData(renderData, [data.x - bgSize * bgScale, data.y - bgSize * bgScale, color.r, color.g, color.b, color.a, 0, 1, img, isSelected, 0, hasIcon, iColor.r, iColor.g, iColor.b, iColor.a]);
+        addData(renderData, [data.x + bgSize * bgScale, data.y - bgSize * bgScale, color.r, color.g, color.b, color.a, 1, 1, img, isSelected, 0, hasIcon, iColor.r, iColor.g, iColor.b, iColor.a]);
 
         addIndices(indices, [points + 0, points + 1, points + 2, points + 1, points + 2, points + 3]);
         points += 4;
 
         //base
-        addData(renderData, [data.x - sizeX, data.y + sizeY, color.r, color.g, color.b, color.a, 0, 0, img, isSelected, 1, hasIcon]);
-        addData(renderData, [data.x + sizeX, data.y + sizeY, color.r, color.g, color.b, color.a, 1, 0, img, isSelected, 1, hasIcon]);
-        addData(renderData, [data.x - sizeX, data.y - sizeY, color.r, color.g, color.b, color.a, 0, 1, img, isSelected, 1, hasIcon]);
-        addData(renderData, [data.x + sizeX, data.y - sizeY, color.r, color.g, color.b, color.a, 1, 1, img, isSelected, 1, hasIcon]);
+        addData(renderData, [data.x - sizeX, data.y + sizeY, color.r, color.g, color.b, color.a, 0, 0, img, isSelected, 1, hasIcon, iColor.r, iColor.g, iColor.b, iColor.a]);
+        addData(renderData, [data.x + sizeX, data.y + sizeY, color.r, color.g, color.b, color.a, 1, 0, img, isSelected, 1, hasIcon, iColor.r, iColor.g, iColor.b, iColor.a]);
+        addData(renderData, [data.x - sizeX, data.y - sizeY, color.r, color.g, color.b, color.a, 0, 1, img, isSelected, 1, hasIcon, iColor.r, iColor.g, iColor.b, iColor.a]);
+        addData(renderData, [data.x + sizeX, data.y - sizeY, color.r, color.g, color.b, color.a, 1, 1, img, isSelected, 1, hasIcon, iColor.r, iColor.g, iColor.b, iColor.a]);
 
         addIndices(indices, [points + 0, points + 1, points + 2, points + 1, points + 2, points + 3]);
         points += 4;
@@ -7520,11 +7565,11 @@ exports.default = {
         var scale = 0.85;
         //icon
 
-        // debugger
-        addData(renderData, [data.x - iconSize * scale, data.y + iconSize * scale, color.r, color.g, color.b, color.a, uvs[0], uvs[1], -2, isSelected, 2, hasIcon]);
-        addData(renderData, [data.x + iconSize * scale, data.y + iconSize * scale, color.r, color.g, color.b, color.a, uvs[2], uvs[1], -2, isSelected, 2, hasIcon]);
-        addData(renderData, [data.x - iconSize * scale, data.y - iconSize * scale, color.r, color.g, color.b, color.a, uvs[0], uvs[3], -2, isSelected, 2, hasIcon]);
-        addData(renderData, [data.x + iconSize * scale, data.y - iconSize * scale, color.r, color.g, color.b, color.a, uvs[2], uvs[3], -2, isSelected, 2, hasIcon]);
+        var iconInfo = data.icon ? getIconInfo(data) : { left: -1 * data.size, top: data.size, right: data.size, bottom: -1 * data.size };
+        addData(renderData, [data.x + iconInfo.left, data.y + iconInfo.top, color.r, color.g, color.b, color.a, uvs[0], uvs[1], -2, isSelected, 2, hasIcon, iColor.r, iColor.g, iColor.b, iColor.a]);
+        addData(renderData, [data.x + iconInfo.right, data.y + iconInfo.top, color.r, color.g, color.b, color.a, uvs[2], uvs[1], -2, isSelected, 2, hasIcon, iColor.r, iColor.g, iColor.b, iColor.a]);
+        addData(renderData, [data.x + iconInfo.left, data.y + iconInfo.bottom, color.r, color.g, color.b, color.a, uvs[0], uvs[3], -2, isSelected, 2, hasIcon, iColor.r, iColor.g, iColor.b, iColor.a]);
+        addData(renderData, [data.x + iconInfo.right, data.y + iconInfo.bottom, color.r, color.g, color.b, color.a, uvs[2], uvs[3], -2, isSelected, 2, hasIcon, iColor.r, iColor.g, iColor.b, iColor.a]);
 
         addIndices(indices, [points + 0, points + 1, points + 2, points + 1, points + 2, points + 3]);
         points += 4;
@@ -7550,6 +7595,21 @@ function addIndices(indices, attrIndex) {
     });
 }
 
+function getIconInfo(data) {
+    var icon = data.icon;
+    var defaultConfig = { content: '', offsetX: 0, offsetY: 0, scale: 0.65 };
+    icon = _util2.default.isString(icon) ? _util2.default.extend({ content: icon }, defaultConfig) : _util2.default.extend(icon, defaultConfig);
+
+    var size = Math.min(data.width, data.height);
+
+    return {
+        left: size * -1 * icon.scale + icon.offsetX,
+        right: size * icon.scale + icon.offsetX,
+        top: size * icon.scale + icon.offsetY,
+        bottom: size * -1 * icon.scale + icon.offsetY
+    };
+}
+
 /***/ }),
 /* 35 */
 /***/ (function(module, exports) {
@@ -7566,13 +7626,13 @@ module.exports = "attribute vec2 a_position;\n//attribute vec2 a_uv;\n\n//varyin
 /* 37 */
 /***/ (function(module, exports) {
 
-module.exports = "#ifdef GL_OES_standard_derivatives\n#extension GL_OES_standard_derivatives : enable\n#endif\n\nprecision mediump float;\nvarying vec4 color;\nvarying vec2 uv;\nvarying float dis;\nvarying float flag;\nvarying float dashed;\nvarying float size;\nvarying float ratio;\n\nuniform float u_camera_scale;\n\n\n\nvoid main(){\n        float width = size / u_camera_scale;\n        float blur = clamp(0.6,0.05,width*1.0) ;\n        width = width + blur;\n        float blur_ratio = blur / width;\n        float scale = 1.0;\n\n        if(flag > -0.5 && flag < 0.5){//curve\n                vec2 px = dFdx(uv);\n                vec2 py = dFdy(uv);\n\n                float fx = 2.0 * uv.x * px.x - px.y;\n                float fy = 2.0 * uv.y * py.x - py.y;\n\n                float sd = (uv.x * uv.x - uv.y) / sqrt(fx * fx + fy * fy);\n\n                float alpha = 1.0 - abs(sd) / width;\n                if (alpha < 0.0 || uv.x < ratio || uv.x > 1.0) discard;\n\n                float n = 800.0/dis;\n                float dot = mod(uv.x*100.0,n);\n                if(dashed > 0.5 && dot > n*0.5 && dot < n) discard;\n\n                if(alpha < blur_ratio) scale = smoothstep(0.0,blur_ratio,alpha);\n\n                gl_FragColor = color*scale;\n\n        }else if(flag > 0.5 && flag < 1.5){//arrow\n                gl_FragColor = color;\n        }\n\n\n}"
+module.exports = "#ifdef GL_OES_standard_derivatives\n#extension GL_OES_standard_derivatives : enable\n#endif\n\nprecision mediump float;\nvarying vec4 color;\nvarying vec2 uv;\nvarying float dis;\nvarying float flag;\nvarying float dashed;\nvarying float size;\nvarying float end_ratio;\nvarying float start_ratio;\n\nuniform float u_camera_scale;\n\n\n\nvoid main(){\n        float width = size / u_camera_scale;\n        float blur = clamp(0.6,0.05,width*1.0) ;\n        width = width + blur;\n        float blur_ratio = blur / width;\n        float scale = 1.0;\n\n        if(flag > -0.5 && flag < 0.5){//curve\n                vec2 px = dFdx(uv);\n                vec2 py = dFdy(uv);\n\n                float fx = 2.0 * uv.x * px.x - px.y;\n                float fy = 2.0 * uv.y * py.x - py.y;\n\n                float sd = (uv.x * uv.x - uv.y) / sqrt(fx * fx + fy * fy);\n\n                float alpha = 1.0 - abs(sd) / width;\n                if (alpha < 0.0 || uv.x < end_ratio || uv.x > start_ratio) discard;\n\n                float n = 800.0/dis;\n                float dot = mod(uv.x*100.0,n);\n                if(dashed > 0.5 && dot > n*0.5 && dot < n) discard;\n\n                if(alpha < blur_ratio) scale = smoothstep(0.0,blur_ratio,alpha);\n\n                gl_FragColor = color*scale;\n\n        }else if(flag > 0.5 && flag < 1.5){//arrow\n                gl_FragColor = color;\n        }\n\n\n}"
 
 /***/ }),
 /* 38 */
 /***/ (function(module, exports) {
 
-module.exports = "attribute vec2 a_position;\n//attribute vec2 a_normal;\nattribute vec4 a_color;\n//attribute float a_size;\nattribute vec2 a_uv;\nattribute float a_dis;\nattribute float a_dashed;\nattribute float a_flag;\nattribute float a_size;\nattribute float a_ratio;\n\nuniform mat3 u_matrix;\n\nvarying vec4 color;\nvarying vec2 uv;\nvarying float dis;\nvarying float dashed;\nvarying float flag;\nvarying float size;\nvarying float ratio;\n\nvoid main() {\n\n//vec2 pos  = a_position + a_normal * a_size;\ngl_Position = vec4((u_matrix*vec3(a_position,1)).xy,0,1);\nuv = a_uv;\ndis = a_dis;\nflag = a_flag;\ncolor = a_color/255.0;\ncolor = vec4(color.rgb * color.a,color.a);\ndashed = a_dashed;\nsize = a_size;\nratio = 1.0 - a_ratio;\n}\n"
+module.exports = "attribute vec2 a_position;\n//attribute vec2 a_normal;\nattribute vec4 a_color;\n//attribute float a_size;\nattribute vec2 a_uv;\nattribute float a_dis;\nattribute float a_dashed;\nattribute float a_flag;\nattribute float a_size;\nattribute float a_end_ratio;\nattribute float a_start_ratio;\n\nuniform mat3 u_matrix;\n\nvarying vec4 color;\nvarying vec2 uv;\nvarying float dis;\nvarying float dashed;\nvarying float flag;\nvarying float size;\nvarying float end_ratio;\nvarying float start_ratio;\n\nvoid main() {\n\n//vec2 pos  = a_position + a_normal * a_size;\ngl_Position = vec4((u_matrix*vec3(a_position,1)).xy,0,1);\nuv = a_uv;\ndis = a_dis;\nflag = a_flag;\ncolor = a_color/255.0;\ncolor = vec4(color.rgb * color.a,color.a);\ndashed = a_dashed;\nsize = a_size;\nend_ratio = 1.0 - a_end_ratio;\nstart_ratio = 1.0 - a_start_ratio;\n}\n"
 
 /***/ }),
 /* 39 */
@@ -7590,7 +7650,7 @@ module.exports = "attribute vec2 a_position;\nattribute vec2 a_normal;\nattribut
 /* 41 */
 /***/ (function(module, exports) {
 
-module.exports = " precision mediump float;\n\n//vec4 color = vec4(77, 72, 91,255);\n\nvarying vec2 v_texCoord;\nvarying float size;\nvarying vec4 label_color;\n\n\nuniform sampler2D u_image;\nuniform float u_camera_scale;\n\n\nvoid main() {\n    vec4 color = label_color / 255.0;\n\n    float cutoff = 0.73;\n    float offset = 6.0/size * u_camera_scale;\n\n    offset = pow(offset,1.2);\n\n    offset = min((1.0-cutoff),offset);\n\n   float dist = texture2D(u_image, v_texCoord).r;\n   float alpha = smoothstep(cutoff - offset, cutoff + offset, dist);\n   gl_FragColor = color *alpha;\n//   gl_FragColor =  vec4(0, 1,0,1);\n}"
+module.exports = " precision mediump float;\n\n//vec4 color = vec4(77, 72, 91,255);\n\nvarying vec2 v_texCoord;\nvarying float size;\nvarying vec4 label_color;\n\n\nuniform sampler2D u_image;\nuniform float u_camera_scale;\n\n\nvoid main() {\n    vec4 color = label_color / 255.0;\n\n    float cutoff = 0.72;\n    float offset = 6.0/size * u_camera_scale;\n\n    offset = pow(offset,1.4);\n\n    offset = min((1.0-cutoff),offset);\n\n   float dist = texture2D(u_image, v_texCoord).r;\n   float alpha = smoothstep(cutoff - offset, cutoff + offset, dist);\n   gl_FragColor = color *alpha;\n//   gl_FragColor =  vec4(0, 1,0,1);\n}"
 
 /***/ }),
 /* 42 */
@@ -7602,25 +7662,25 @@ module.exports = "attribute vec2 a_position;\nattribute vec2 a_uv;\nattribute fl
 /* 43 */
 /***/ (function(module, exports) {
 
-module.exports = "//#ifdef GL_OES_standard_derivatives\n//#extension GL_OES_standard_derivatives : enable\n//#endif\n\n precision mediump float;\n\nvarying vec4 color;\nvarying float selected;\nvarying vec2 uv;\nvarying float flag;\nvarying float size;\nvarying float showicon;\n\n\n\nuniform sampler2D u_icons_texture;\nuniform vec4 u_borderColor;\nuniform float u_sample_ratio;\n\nvec4 borderColor = u_borderColor/255.0;\n\nvoid main()\n{\n   float r = 0.0;\n   float alpha = 1.0;\n   float blur = min(0.05,4.0/size) ;\n   float border = min(0.75,0.06*size) ;\n\nif(flag > 0.5 && flag < 1.5) //flag =1 base\n{\n    vec4 nodecolor = color;\n    vec2 cxy = 2.0 * uv - 1.0;\n    r = length(cxy);\n\n    if(r > 1.0 ){\n        discard;\n    }\n\n    if(r > 1.0-blur){\n        alpha = 1.0 -  smoothstep(1.0-blur, 1.0, r) ;\n     }\n\n\n     if( selected > 0.5  && r > border && r < border + blur){\n        nodecolor = mix(nodecolor,borderColor,smoothstep(border, border + blur, r));\n    }\n\n     if( selected > 0.5  &&  r >= border + blur){\n        nodecolor = borderColor;\n     }\n\n      gl_FragColor = nodecolor * alpha;\n\n}else if(flag > 1.5 && flag < 2.5) {//flag =2 icon\n    if(showicon < 0.5) discard;\n    gl_FragColor = texture2D(u_icons_texture,uv).w * vec4(1,1,1,1);\n}else if((flag > -0.5 && flag < 0.5)){//flat = 0 selected bg\n\n    if(selected < 0.5) discard;\n\n    vec2 cxy = 2.0 * uv - 1.0;\n    r = length(cxy);\n\n    if(r > 1.0 ){\n        discard;\n    }\n\n    r = smoothstep(0.7,1.0,r);\n\n     gl_FragColor = vec4(borderColor.rgb,0.8)*(1.0-r);\n//     gl_FragColor = vec4(1.0,0.0,0.0,0.8);\n}\n\n\n//     gl_FragColor = vec4(1.0,0.0,0.0,1.0);\n\n\n}\n"
+module.exports = "//#ifdef GL_OES_standard_derivatives\n//#extension GL_OES_standard_derivatives : enable\n//#endif\n\n precision mediump float;\n\nvarying vec4 color;\nvarying float selected;\nvarying vec2 uv;\nvarying float flag;\nvarying float size;\nvarying float showicon;\nvarying vec4 icon_color;\n\n\nuniform sampler2D u_icons_texture;\nuniform vec4 u_borderColor;\nuniform float u_sample_ratio;\n\nvec4 borderColor = u_borderColor/255.0;\n\nvoid main()\n{\n   float r = 0.0;\n   float alpha = 1.0;\n   float blur = min(0.05,4.0/size) ;\n   float border = min(0.75,0.06*size) ;\n\n    if(flag > 0.5 && flag < 1.5) //flag =1 base\n    {\n        vec4 nodecolor = color;\n        vec2 cxy = 2.0 * uv - 1.0;\n        r = length(cxy);\n\n        if(r > 1.0 ){\n            discard;\n        }\n\n        if(r > 1.0-blur){\n            alpha = 1.0 -  smoothstep(1.0-blur, 1.0, r) ;\n         }\n\n\n         if( selected > 0.5  && r > border && r < border + blur){\n            nodecolor = mix(nodecolor,borderColor,smoothstep(border, border + blur, r));\n        }\n\n         if( selected > 0.5  &&  r >= border + blur){\n            nodecolor = borderColor;\n         }\n\n          gl_FragColor = nodecolor * alpha;\n\n    }else if(flag > 1.5 && flag < 2.5) {//flag =2 icon\n        if(showicon < 0.5) discard;\n        gl_FragColor = texture2D(u_icons_texture,uv).w * icon_color;\n    }else if((flag > -0.5 && flag < 0.5)){//flat = 0 selected bg\n\n    //    float scale = 1.35;\n    //    float border_start = 1.0/1.35;\n    //    float border_end = border_start * 1.1;\n\n        if(selected < 0.5) discard;//selected = 0 ingore\n\n        vec2 cxy = 2.0 * uv - 1.0;\n        r = length(cxy);\n\n        if(r > 1.0 ){\n            gl_FragColor = vec4(0,0,0,0);\n        }else{\n    //         if(r >= border_start && r <= border_end){\n    //                 gl_FragColor = vec4(borderColor.rgb,0.75);\n    //         }else{\n                     r = smoothstep(0.7,1.0,r);\n                     gl_FragColor = vec4(borderColor.rgb,0.65)*(1.0-r);\n    //         }\n        }\n    }\n\n}\n"
 
 /***/ }),
 /* 44 */
 /***/ (function(module, exports) {
 
-module.exports = "\n precision mediump float;\nattribute vec2 a_position;\nattribute vec4 a_color;\nattribute vec2 a_uv;\nattribute float a_selected;\nattribute float a_flag;\nattribute float a_size;\nattribute float a_showicon;\nattribute vec2 a_center;\n\nuniform mat3 u_matrix;\nuniform float u_camera_scale;\nuniform float u_sample_ratio;\n\nvarying vec4 color;\nvarying float selected;\nvarying vec2 uv;\nvarying float flag;\nvarying float size;\nvarying float showicon;\n\n\nvoid main() {\n\n    float zindex = 0.1;\n\n    if(a_selected > 0.5) zindex = 0.05;\n\n\n    gl_Position = vec4((u_matrix*vec3((a_position+a_center),1)).xy,zindex,1);\n    color = a_color/255.0;\n    selected = a_selected;\n    uv = a_uv;\n    flag = a_flag;\n\n    size = a_size / u_camera_scale ;\n    showicon = a_showicon;\n}\n"
+module.exports = "\n precision mediump float;\nattribute vec2 a_position;\nattribute vec4 a_color;\nattribute vec4 a_icon_color;\nattribute vec2 a_uv;\nattribute float a_selected;\nattribute float a_flag;\nattribute float a_size;\nattribute float a_showicon;\nattribute vec2 a_center;\n\nuniform mat3 u_matrix;\nuniform float u_camera_scale;\nuniform float u_sample_ratio;\n\nvarying vec4 color;\nvarying vec4 icon_color;\nvarying float selected;\nvarying vec2 uv;\nvarying float flag;\nvarying float size;\nvarying float showicon;\n\n\nvoid main() {\n\n    float zindex = 0.1;\n\n    if(a_selected > 0.5) zindex = 0.05;\n\n\n    gl_Position = vec4((u_matrix*vec3((a_position+a_center),1)).xy,zindex,1);\n    color = a_color/255.0;\n    selected = a_selected;\n    uv = a_uv;\n    flag = a_flag;\n\n    size = a_size / u_camera_scale ;\n    showicon = a_showicon;\n\n    icon_color = a_icon_color/255.0;\n}\n"
 
 /***/ }),
 /* 45 */
 /***/ (function(module, exports) {
 
-module.exports = "//#ifdef GL_OES_standard_derivatives\n//#extension GL_OES_standard_derivatives : enable\n//#endif\n\n precision mediump float;\n\nvarying vec4 color;\nvarying float img;\nvarying float selected;\nvarying vec2 uv;\nvarying float flag;\nvarying float showicon;\n\n\n//uniform sampler2D u_textures[10];\nuniform sampler2D u_icons_texture;\nuniform vec4 u_borderColor;\nuniform float u_sample_ratio;\n\n\nvec4 borderColor = u_borderColor/255.0;\n\nvoid main()\n{\n   float r = 0.0, alpha = 1.0,\n   blur = 0.05 ,\n   border = 0.75 ;\n\n\nif(flag > 0.5 && flag < 1.5) //flag =1\n{\n    vec4 nodecolor = color;\n    vec2 cxy = 2.0 * uv - 1.0;\n    cxy = abs(cxy);\n\n\n//     if( selected > 0.5  && r > border && r < border + blur){\n//        nodecolor = mix(nodecolor,borderColor,smoothstep(border, border + blur, r));\n//    }\n\n     if(  selected > 0.5 && (cxy.x > 0.65  ||  cxy.y > 0.65)){\n        nodecolor = borderColor;\n     }\n\n      gl_FragColor = nodecolor * alpha;\n\n}else if(flag > 1.5 && flag < 2.5) {//flag =2\n    if(showicon < 0.5) discard;\n    gl_FragColor = texture2D(u_icons_texture,uv).w * vec4(1,1,1,1);\n}else if((flag > -0.5 && flag < 0.5)){//flat = 0 selected background\n\n    if(selected < 0.5) discard;\n\n     vec2 cxy = 2.0 * uv - 1.0;\n     r = length(cxy);\n\n     if(r > 1.0 ){\n         discard;\n     }\n\n     r = smoothstep(0.6,1.0,r);\n\n      gl_FragColor = vec4(borderColor.rgb,0.8)*(1.0-r);\n }\n\n\n}\n"
+module.exports = "//#ifdef GL_OES_standard_derivatives\n//#extension GL_OES_standard_derivatives : enable\n//#endif\n\n precision mediump float;\n\nvarying vec4 color;\nvarying vec4 icon_color;\nvarying float img;\nvarying float selected;\nvarying vec2 uv;\nvarying float flag;\nvarying float showicon;\n\n\n//uniform sampler2D u_textures[10];\nuniform sampler2D u_icons_texture;\nuniform vec4 u_borderColor;\nuniform float u_sample_ratio;\n\n\nvec4 borderColor = u_borderColor/255.0;\n\nvoid main()\n{\n   float r = 0.0, alpha = 1.0,\n   blur = 0.05 ,\n   border = 0.75 ;\n\n\nif(flag > 0.5 && flag < 1.5) //flag =1\n{\n    vec4 nodecolor = color;\n    vec2 cxy = 2.0 * uv - 1.0;\n    cxy = abs(cxy);\n\n\n//     if( selected > 0.5  && r > border && r < border + blur){\n//        nodecolor = mix(nodecolor,borderColor,smoothstep(border, border + blur, r));\n//    }\n\n     if(  selected > 0.5 && (cxy.x > 0.65  ||  cxy.y > 0.65)){\n        nodecolor = borderColor;\n     }\n\n      gl_FragColor = nodecolor * alpha;\n\n}else if(flag > 1.5 && flag < 2.5) {//flag =2\n    if(showicon < 0.5) discard;\n    gl_FragColor = texture2D(u_icons_texture,uv).w * icon_color;\n}else if((flag > -0.5 && flag < 0.5)){//flat = 0 selected background\n\n    if(selected < 0.5) discard;\n\n     vec2 cxy = 2.0 * uv - 1.0;\n     r = length(cxy);\n\n     if(r > 1.0 ){\n         discard;\n     }\n\n     r = smoothstep(0.6,1.0,r);\n\n      gl_FragColor = vec4(borderColor.rgb,0.8)*(1.0-r);\n }\n\n\n}\n"
 
 /***/ }),
 /* 46 */
 /***/ (function(module, exports) {
 
-module.exports = "\n precision mediump float;\nattribute vec2 a_position;\nattribute vec4 a_color;\nattribute float a_img;\nattribute vec2 a_uv;\nattribute float a_selected;\nattribute float a_flag;\nattribute float a_showicon;\n\nuniform mat3 u_matrix;\nuniform float u_camera_scale;\nuniform float u_sample_ratio;\n\nvarying vec4 color;\nvarying float img;\nvarying float selected;\nvarying vec2 uv;\nvarying float flag;\nvarying float showicon;\n\n\nvoid main() {\n\n\n    gl_Position = vec4((u_matrix*vec3(a_position,1)).xy,0,1);\n    color = a_color/255.0;\n    img = a_img;\n    selected = a_selected;\n    uv = a_uv;\n    flag = a_flag;\n    showicon = a_showicon;\n}\n"
+module.exports = "\n precision mediump float;\nattribute vec2 a_position;\nattribute vec4 a_color;\nattribute vec4 a_icon_color;\nattribute float a_img;\nattribute vec2 a_uv;\nattribute float a_selected;\nattribute float a_flag;\nattribute float a_showicon;\n\nuniform mat3 u_matrix;\nuniform float u_camera_scale;\nuniform float u_sample_ratio;\n\nvarying vec4 color;\nvarying vec4 icon_color;\nvarying float img;\nvarying float selected;\nvarying vec2 uv;\nvarying float flag;\nvarying float showicon;\n\n\nvoid main() {\n\n\n    gl_Position = vec4((u_matrix*vec3(a_position,1)).xy,0,1);\n    color = a_color/255.0;\n    img = a_img;\n    selected = a_selected;\n    uv = a_uv;\n    flag = a_flag;\n    showicon = a_showicon;\n    icon_color = a_icon_color/255.0;\n}\n"
 
 /***/ }),
 /* 47 */

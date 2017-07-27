@@ -5,9 +5,9 @@ var path = require('path');
 module.exports = {
     entry: './src/index.js',
     output: {
-        path: 'build/js',
+        // path: 'build/js',
         // path: 'docs/assert',
-        // path: path.resolve(__dirname, '../Demo/static/js'),
+        path: path.resolve(__dirname, '../Demo/static/js'),
         filename: 'klgraph.js',
         library: 'KLGraph',
         libraryTarget: 'umd',

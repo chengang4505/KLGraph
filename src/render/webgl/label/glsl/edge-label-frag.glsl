@@ -1,6 +1,6 @@
  precision mediump float;
 
-vec4 color_bg = vec4(1,1,1,1);
+vec4 color_bg = vec4(217, 224, 231,255.0)/255.0;
 
 varying vec2 v_texCoord;
 varying float size;

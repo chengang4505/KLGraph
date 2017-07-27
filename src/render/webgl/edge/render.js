@@ -29,10 +29,9 @@ export default {
     getRenderData({data,config, textureLoader, textureIcon,graph}){
         var target = graph.nodesIndex[data.target];
         var source = graph.nodesIndex[data.source];
-        var edge = data;
         var dx = target.x - source.x;
         var dy = target.y - source.y;
-        // var dis = util.getDistance(source.x,source.y,target.x,target.y);
+        var norV = util.normalize([dx,dy]);
         var dashed = data.dashed ? 1:0;
 
 
@@ -43,14 +42,22 @@ export default {
         var crossVector = util.normalize([-dy,dx]);
 
         //arrow
-        var tNodeW,tNodeH,targetSize;
-        tNodeW = util.getNodeSizeX(target);
-        tNodeH = util.getNodeSizeY(target);
+        var tNodeW,tNodeH,sNodeW,sNodeH,targetSize,sourceSize;
+        sNodeW = util.getNodeSizeX(source) || defaultSize;
+        sNodeH = util.getNodeSizeY(source) || defaultSize;
+        tNodeW = util.getNodeSizeX(target) || defaultSize;
+        tNodeH = util.getNodeSizeY(target) || defaultSize;
 
-        if(tNodeH && tNodeW && tNodeH == tNodeW){
-            targetSize = tNodeW;
+        if(source.type == 'rect'){
+            sourceSize = Math.sqrt(Math.pow(sNodeW,2)+Math.pow(sNodeH,2));
         }else {
-            targetSize = Math.sqrt(Math.pow((tNodeW || defaultSize),2)+Math.pow((tNodeH || defaultSize),2));
+            sourceSize = sNodeW;
+        }
+
+        if(target.type == 'rect'){
+            targetSize = Math.sqrt(Math.pow(tNodeW,2)+Math.pow(tNodeH,2));
+        }else {
+            targetSize = tNodeW;
         }
 
         var dis = util.getDistance(source.x,source.y,target.x,target.y);
@@ -68,8 +75,8 @@ export default {
         var renderData = [];
         var indices = [];
 
-        addData(renderData,[source.x,source.y,crossVector[0],crossVector[1],size,color.r,color.g,color.b,color.a,dis,dashed,0,0]);
-        addData(renderData,[source.x,source.y,-crossVector[0],-crossVector[1],size,color.r,color.g,color.b,color.a,dis,dashed,0,0]);
+        addData(renderData,[source.x+norV[0]*sourceSize,source.y+norV[1]*sourceSize,crossVector[0],crossVector[1],size,color.r,color.g,color.b,color.a,dis,dashed,0,0]);
+        addData(renderData,[source.x+norV[0]*sourceSize,source.y+norV[1]*sourceSize,-crossVector[0],-crossVector[1],size,color.r,color.g,color.b,color.a,dis,dashed,0,0]);
         addData(renderData,[arrowX,arrowY,crossVector[0],crossVector[1],size,color.r,color.g,color.b,color.a,dis,dashed,0,1]);
         addData(renderData,[arrowX,arrowY,-crossVector[0],-crossVector[1],size,color.r,color.g,color.b,color.a,dis,dashed,0,1]);
 
