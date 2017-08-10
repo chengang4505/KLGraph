@@ -255,6 +255,9 @@ utils.getNodeSizeY = function (node) {
 };
 
 utils.getBBox = function (nodes) {
+
+    if (!nodes || nodes.length == 0) return { x: 0, y: 0, w: 0, h: 0 };
+
     var x0 = Infinity,
         y0 = Infinity,
         x1 = -Infinity,
@@ -1195,8 +1198,8 @@ var Graph = function (_EventEmitter) {
             this.edges.forEach(function (edge) {
                 source = this.nodesIndex[edge.source];
                 target = this.nodesIndex[edge.target];
-                attr = edge.source + edge.target;
-                if (!map[attr]) map[attr] = map[edge.target + edge.source] = { counter: 0, source: edge.source };
+                attr = edge.source + '&' + edge.target;
+                if (!map[attr]) map[attr] = map[edge.target + '&' + edge.source] = { counter: 0, source: edge.source };
 
                 edge._curveGroup = map[attr];
 
@@ -1244,7 +1247,24 @@ var Graph = function (_EventEmitter) {
 
     }, {
         key: 'removeNode',
-        value: function removeNode(nodeid) {
+        value: function removeNode(nodeids) {
+            if (!_util2.default.isArray()) nodeids = [nodeids];
+
+            nodeids.forEach(function (nodeid) {
+                this._removeNode(nodeid);
+            }.bind(this));
+
+            this.emit('remove', ['node', nodeids]);
+        }
+
+        /**
+         *
+         * @private
+         */
+
+    }, {
+        key: '_removeNode',
+        value: function _removeNode(nodeid) {
             if (!nodeid || !this.nodesIndex[nodeid]) return;
 
             var nodes = this.nodes;
@@ -1274,8 +1294,6 @@ var Graph = function (_EventEmitter) {
             this.nodesIndex[nodeid] = null;
             this.inEdgesIndex[nodeid] = null;
             this.outEdgesIndex[nodeid] = null;
-
-            this.emit('remove', ['node', nodeid]);
         }
 
         /**
@@ -1331,7 +1349,25 @@ var Graph = function (_EventEmitter) {
         }
     }, {
         key: 'removeEdge',
-        value: function removeEdge(edgeid) {
+        value: function removeEdge(edgeids) {
+
+            if (!_util2.default.isArray(edgeids)) edgeids = [edgeids];
+
+            edgeids.forEach(function (edgeid) {
+                this._removeEdge(edgeid);
+            }.bind(this));
+
+            this.emit('remove', ['edge', edgeids]);
+        }
+
+        /**
+         *
+         * @private
+         */
+
+    }, {
+        key: '_removeEdge',
+        value: function _removeEdge(edgeid) {
             if (!edgeid || !this.edgesIndex[edgeid]) return;
 
             var edge = this.edgesIndex[edgeid],
@@ -1366,7 +1402,6 @@ var Graph = function (_EventEmitter) {
             }
 
             this.edgesIndex[edgeid] = null;
-            this.emit('remove', ['edge', edgeid]);
         }
     }, {
         key: 'getNodes',
@@ -1446,20 +1481,20 @@ var Graph = function (_EventEmitter) {
 
             this.emit('change', ['edge', ids, edgeDirtyArr]);
         }
-    }, {
-        key: 'updateNodeQuad',
-        value: function updateNodeQuad(id, oldpos) {
-            var nodes = this.quad.point(oldpos.x, oldpos.y);
-            if (nodes.length > 0) {
-                for (var i = 0, len = nodes.length; i < len; i++) {
-                    if (nodes[i].id == id) {
-                        nodes.splice(i, 1);
-                        break;
-                    }
-                }
-                this.quad.insert(this.nodesIndex[id], this.quad.root);
-            }
-        }
+
+        // updateNodeQuad(id,oldpos){
+        //     var nodes = this.quad.point(oldpos.x,oldpos.y);
+        //     if(nodes.length > 0){
+        //         for(var i = 0,len = nodes.length;i<len;i++){
+        //             if(nodes[i].id == id){
+        //                 nodes.splice(i,1);
+        //                 break;
+        //             }
+        //         }
+        //         this.quad.insert(this.nodesIndex[id],this.quad.root);
+        //     }
+        // }
+
     }]);
 
     return Graph;
@@ -1852,14 +1887,17 @@ var WebGLRender = function (_EventEmitter) {
             //node icon
             var map = {};
             var icons = [];
-            nodes.forEach(function (e) {
-                if (e.icon) {
-                    if (!map[e.icon]) {
-                        map[e.icon] = true;
-                        icons.push(e.icon);
+
+            if (this.config.textureIcons && this.config.textureIcons.length > 0) icons = this.config.textureIcons;else {
+                nodes.forEach(function (e) {
+                    if (e.icon) {
+                        if (!map[e.icon]) {
+                            map[e.icon] = true;
+                            icons.push(e.icon);
+                        }
                     }
-                }
-            });
+                });
+            }
 
             //create icon texture
             this.textureIcon.createIcons(icons);
@@ -2956,7 +2994,7 @@ exports.default = WebGLRender;
 /* 7 */
 /***/ (function(module, exports) {
 
-module.exports = " precision mediump float;\n\nvec4 color_bg = vec4(0,0,0,0);\n\nvarying vec2 v_texCoord;\nvarying float size;\nvarying vec4 label_color;\n\n\nuniform sampler2D u_image;\nuniform float u_camera_scale;\n\n\nvoid main() {\n    vec4 color = label_color / 255.0;\n\n    float cutoff = 0.76;\n    float offset = 6.0/size * u_camera_scale;\n\n    offset = pow(offset,1.2);\n\n    offset = min((1.0-cutoff),offset);\n\n   float dist = texture2D(u_image, v_texCoord).r;\n   float alpha = smoothstep(cutoff - offset, cutoff + offset, dist);\n//   gl_FragColor = color *alpha;\n   gl_FragColor = mix(color_bg,color,alpha);\n}"
+module.exports = " precision mediump float;\n\nvec4 color_bg = vec4(217, 224, 231,255.0)/255.0;\n\nvarying vec2 v_texCoord;\nvarying float size;\nvarying vec4 label_color;\n\n\nuniform sampler2D u_image;\nuniform float u_camera_scale;\n\n\nvoid main() {\n    vec4 color = label_color / 255.0;\n\n    float cutoff = 0.76;\n    float offset = 6.0/size * u_camera_scale;\n\n    offset = pow(offset,1.2);\n\n    offset = min((1.0-cutoff),offset);\n\n   float dist = texture2D(u_image, v_texCoord).r;\n   float alpha = smoothstep(cutoff - offset, cutoff + offset, dist);\n//   gl_FragColor = color *alpha;\n   gl_FragColor = mix(color_bg,color,alpha);\n}"
 
 /***/ }),
 /* 8 */
@@ -3501,6 +3539,7 @@ function initEvent() {
         mouseup: handlerWrap(_upHandler),
         mousewheel: handlerWrap(_wheelHandler),
         DOMMouseScroll: handlerWrap(_wheelHandler) };
+
     for (var e in events) {
         this.container.addEventListener(e, events[e], false);
     }events.click = handlerWrap(_clickHandler);
@@ -3634,6 +3673,9 @@ function initEvent() {
 
     function _downHandler(e) {
 
+        disableDocSelect();
+
+        //right click
         var isRight = e.which && e.which == 3 || e.button && e.button == 2;
 
         if (isRight) return;
@@ -3819,11 +3861,28 @@ function initEvent() {
 
     function handlerWrap(handle) {
         return function (e) {
+
+            if (!config.enableMouseEvent) return;
+
             var pos = _this.domToCameraPos({ x: e.offsetX, y: e.offsetY });
             e.cameraX = pos.x;
             e.cameraY = pos.y;
             handle(e);
         };
+    }
+
+    function disableDocSelect() {
+        var oldOnSelect = document.onselectstart;
+        document.onselectstart = function () {
+            return false;
+        };
+
+        document.addEventListener('mouseup', onMouseUp);
+
+        function onMouseUp() {
+            document.onselectstart = oldOnSelect;
+            document.removeEventListener('mouseup', onMouseUp);
+        }
     }
 
     function fit(e) {
@@ -4277,6 +4336,7 @@ exports.default = {
     textureTextWidth: 1024,
     textureTextHeight: 1024,
 
+    enableMouseEvent: true,
     enableOverEvent: true,
     enableEdgeEvent: true,
     enableSelectEdge: false,
@@ -5118,7 +5178,7 @@ function _classCallCheck(instance, Constructor) { if (!(instance instanceof Cons
 
 var defaultConfig = {
     BBox: [1000, 1000],
-    linkDistance: 30,
+    linkDistance: 10,
     initIterations: 20,
     userIterations: 0,
     allIterations: 2
@@ -5204,8 +5264,8 @@ function _classCallCheck(instance, Constructor) { if (!(instance instanceof Cons
 
 var defaultConfig = {
     rankdir: 'TB',
-    nodesep: 15,
-    ranksep: 100,
+    nodesep: 10,
+    ranksep: 40,
     ranker: 'longest-path' //network-simplex  longest-path tight-tree
 };
 
@@ -6891,7 +6951,7 @@ exports.default = {
         var renderData = [];
         var indices = [];
 
-        var ratio = 0.22;
+        var ratio = 0.33;
         var size = data.fontSize || Math.max(_util2.default.getNodeSizeX(source) || defaultSize, _util2.default.getNodeSizeY(source) || defaultSize) * ratio;
         var infos = textureText.textinfo.infos,
             charWidth = size,
@@ -7046,7 +7106,7 @@ exports.default = {
             uv,
             width;
 
-        var lines = getLines(str, 7, infos, charWidth);
+        var lines = getLines(str, 20, infos, charWidth);
 
         var x1, y1, x2, y2, startx, starty;
         var points = 0;
@@ -7196,7 +7256,7 @@ exports.default = {
         var renderData = [];
         var indices = [];
 
-        var ratio = 0.22;
+        var ratio = 0.33;
         var size = data.fontSize || Math.max(_util2.default.getNodeSizeX(source) || defaultSize, _util2.default.getNodeSizeY(source) || defaultSize) * ratio;
         var infos = textureText.textinfo.infos,
             charWidth = size,

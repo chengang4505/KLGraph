@@ -4,8 +4,8 @@ import util from '../util'
 
 var defaultConfig = {
     rankdir:'TB',
-    nodesep:15,
-    ranksep:100,
+    nodesep:10,
+    ranksep:40,
     ranker:'longest-path'//network-simplex  longest-path tight-tree
 };
 export default class DargeLayout{

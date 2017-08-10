@@ -103,8 +103,8 @@ class Graph extends EventEmitter{
         this.edges.forEach(function (edge) {
             source = this.nodesIndex[edge.source];
             target = this.nodesIndex[edge.target];
-            attr = edge.source+edge.target;
-            if(!map[attr]) map[attr] = map[edge.target+edge.source] = {counter:0,source:edge.source};
+            attr = edge.source+'&'+edge.target;
+            if(!map[attr]) map[attr] = map[edge.target+'&'+edge.source] = {counter:0,source:edge.source};
 
             edge._curveGroup = map[attr];
 
@@ -145,7 +145,22 @@ class Graph extends EventEmitter{
      * remove node
      * @param nodeid
      */
-    removeNode(nodeid) {
+    removeNode(nodeids) {
+        if(!utils.isArray()) nodeids = [nodeids];
+
+        nodeids.forEach(function (nodeid) {
+            this._removeNode(nodeid);
+        }.bind(this));
+
+        this.emit('remove',['node',nodeids]);
+
+    }
+
+    /**
+     *
+     * @private
+     */
+    _removeNode(nodeid) {
         if (!nodeid || !this.nodesIndex[nodeid]) return;
 
         var nodes = this.nodes;
@@ -175,9 +190,6 @@ class Graph extends EventEmitter{
         this.nodesIndex[nodeid] = null;
         this.inEdgesIndex[nodeid] = null;
         this.outEdgesIndex[nodeid] = null;
-
-        this.emit('remove',['node',nodeid]);
-
     }
 
 
@@ -229,7 +241,22 @@ class Graph extends EventEmitter{
     }
 
 
-    removeEdge(edgeid) {
+    removeEdge(edgeids) {
+
+        if(!utils.isArray(edgeids)) edgeids = [edgeids];
+
+        edgeids.forEach(function (edgeid) {
+            this._removeEdge(edgeid);
+        }.bind(this));
+
+        this.emit('remove',['edge',edgeids]);
+    }
+
+    /**
+     *
+     * @private
+     */
+    _removeEdge(edgeid) {
         if (!edgeid || !this.edgesIndex[edgeid]) return;
 
         var edge = this.edgesIndex[edgeid], edges;
@@ -265,8 +292,9 @@ class Graph extends EventEmitter{
         }
 
         this.edgesIndex[edgeid] = null;
-        this.emit('remove',['edge',edgeid]);
     }
+
+
 
     getNodes(){
         return this.nodes;
@@ -344,18 +372,18 @@ class Graph extends EventEmitter{
         this.emit('change',['edge',ids,edgeDirtyArr])
     }
 
-    updateNodeQuad(id,oldpos){
-        var nodes = this.quad.point(oldpos.x,oldpos.y);
-        if(nodes.length > 0){
-            for(var i = 0,len = nodes.length;i<len;i++){
-                if(nodes[i].id == id){
-                    nodes.splice(i,1);
-                    break;
-                }
-            }
-            this.quad.insert(this.nodesIndex[id],this.quad.root);
-        }
-    }
+    // updateNodeQuad(id,oldpos){
+    //     var nodes = this.quad.point(oldpos.x,oldpos.y);
+    //     if(nodes.length > 0){
+    //         for(var i = 0,len = nodes.length;i<len;i++){
+    //             if(nodes[i].id == id){
+    //                 nodes.splice(i,1);
+    //                 break;
+    //             }
+    //         }
+    //         this.quad.insert(this.nodesIndex[id],this.quad.root);
+    //     }
+    // }
 }
 
 export default Graph;

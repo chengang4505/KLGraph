@@ -175,6 +175,9 @@ export default function initEvent() {
 
     function _downHandler(e) {
 
+        disableDocSelect();
+
+        //right click
         var isRight = (e.which && e.which == 3) || (e.button && e.button == 2);
 
         if(isRight) return;
@@ -379,6 +382,18 @@ export default function initEvent() {
             e.cameraX = pos.x;
             e.cameraY = pos.y;
             handle(e);
+        }
+    }
+
+    function disableDocSelect() {
+        var oldOnSelect = document.onselectstart;
+        document.onselectstart = function () { return false };
+
+        document.addEventListener('mouseup',onMouseUp);
+
+        function onMouseUp() {
+            document.onselectstart = oldOnSelect;
+            document.removeEventListener('mouseup',onMouseUp);
         }
     }
 

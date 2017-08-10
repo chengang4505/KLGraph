@@ -112,7 +112,6 @@ class WebGLRender extends EventEmitter{
         // map for layers ,key is the layer name.
         this.renderLayerMap = {};
 
-
         /**
          * render layer config, default is the WebGLRender.defaultLayersConfig .  more info in file [defaultConfig/index.js]
          * {
