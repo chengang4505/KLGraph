@@ -88,6 +88,8 @@ class WebGLRender extends EventEmitter{
          *
          *  filters : context relative filters
          *
+         *  update : data to update
+         *
          *  example:
          *  {
          *     node:{
@@ -105,9 +107,9 @@ class WebGLRender extends EventEmitter{
          *
          */
         this.renderCache = {
-            graph: {layers: [], index: {}, filters: []},
-            node: {layers: [], index: {}, filters: []},
-            edge: {layers: [], index: {}, filters: []}
+            graph: {layers: [], index: {}, filters: [],update:{map:null,data:null}},
+            node: {layers: [], index: {}, filters: [],update:{map:null,data:null}},
+            edge: {layers: [], index: {}, filters: [],update:{map:null,data:null}}
         };
         // map for layers ,key is the layer name.
         this.renderLayerMap = {};
@@ -441,6 +443,8 @@ class WebGLRender extends EventEmitter{
         this.resizeCanvas();
         // console.time('render');
 
+        this.updateChange();
+
         //更新node 相关的render layer的　cache.
 
         // console.time('updateContextCacheNode');
@@ -583,6 +587,54 @@ class WebGLRender extends EventEmitter{
         this.emit('renderAfter',[this]);
 
         // console.log('render count:',num);
+    }
+
+    /**
+     * update change
+     */
+    updateChange(){
+
+        //update node
+        var update,id,map;
+        update = this.renderCache.node.update;
+        if(update.data && update.data.length > 0){
+            map = update.map;
+            for(id in map) this.updateCacheByData('node',this.graph.nodesIndex[id],map[id]);
+
+            update.data = null;
+            update.map = null;
+        }
+
+        //update edge
+        update = this.renderCache.edge.update;
+        if(update.data && update.data.length > 0){
+            map = update.map;
+            for(id in map) this.updateCacheByData('edge',this.graph.edgesIndex[id],map[id]);
+
+            update.data = null;
+            update.map = null;
+        }
+
+    }
+
+    /**
+     * add change
+     */
+    addChange(context,id,changeData){
+        if(context != 'node' &&  context != 'edge' && context != 'graph') return;
+
+        var map,data,temp;
+        if(context === 'graph'){
+            //reserve
+        }else {
+            map = this.renderCache[context].update.map = this.renderCache[context].update.map || Object.create(null);
+            data = this.renderCache[context].update.data = this.renderCache[context].update.data || [];
+
+            if(!map[id]) map[id] = temp = {}, data.push(temp);
+            else temp = map[id];
+
+            for(var attr in changeData) temp[attr] = changeData[attr];
+        }
     }
 
     /**
@@ -935,7 +987,8 @@ class WebGLRender extends EventEmitter{
         this.forceRender();
 
         ids.forEach( function(id,i){
-            this.updateCacheByData('node',this.graph.nodesIndex[id],dirtyAttrs[i]);
+            // this.updateCacheByData('node',this.graph.nodesIndex[id],dirtyAttrs[i]);
+            this.addChange('node',id,dirtyAttrs[i]);
         }.bind(this));
 
     }
@@ -952,7 +1005,8 @@ class WebGLRender extends EventEmitter{
         this.forceRender();
 
         ids.forEach(function (id,i) {
-            this.updateCacheByData('edge',this.graph.edgesIndex[id],dirtyAttrs[i]);
+            // this.updateCacheByData('edge',this.graph.edgesIndex[id],dirtyAttrs[i]);
+            this.addChange('edge',id,dirtyAttrs[i]);
         }.bind(this));
     }
 
