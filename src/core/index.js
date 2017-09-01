@@ -27,6 +27,7 @@ export  default  class Core {
         });
 
         this.debug = false;
+        this._destroy = false;
 
         this.canvas = {};
         this.initCanvas();
@@ -41,6 +42,22 @@ export  default  class Core {
         this._start();
 
         this._initEvent();
+    }
+
+    destroy(){
+
+        if(this._destroy) return;
+
+        this.graph.clear();
+        this.graph.clearListeners();
+
+        this.render.destroy();
+
+        this.selection.destroy();
+
+        this._destroy = true;
+
+
     }
 
     initCanvas() {
@@ -92,6 +109,9 @@ export  default  class Core {
         }
 
         function render(time) {
+
+            if(_this.render._destroy) return;
+
             _this._render();
             frames(time);
             requestAnimationFrame(render)
@@ -111,13 +131,13 @@ export  default  class Core {
 
     }
     _initEvent() {
-        // var _this = this;
-        // this.render.on('nodeMouseDown', function (node, e) {
-        //     // debugger
-        //     if (!_this.selection.isNodeSelected(node.id))
-        //         _this.selection.selectNodes(node.id,e.shiftKey);
-        //     else if(e.shiftKey) _this.selection.unSelectNode(node.id);
-        // });
+        var _this = this;
+        this.render.on('nodeMouseDown', function (node, e) {
+            // debugger
+            if (!_this.selection.isNodeSelected(node.id))
+                _this.selection.selectNodes(node.id,e.shiftKey);
+            else if(e.shiftKey) _this.selection.unSelectNode(node.id);
+        });
     }
     resize() {
         if (this.canvas.mouse.width != this.container.clientWidth || this.canvas.mouse.height != this.container.clientHeight) {

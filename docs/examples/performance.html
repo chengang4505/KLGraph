@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>Title</title>
+	<link rel="stylesheet" href="../assert/example.css">
+	<link rel="stylesheet" href="../assert/font-awesome-4.7.0/css/font-awesome.css">
+
+	<script src="../assert/klgraph.js"></script>
+	<script src="../assert/data.js"></script>
+</head>
+<body>
+<i class="fa fa-university" style="transform: scale(0)"></i>
+<div class="container">
+	<div id="graph" style="height: 100%"></div>
+	<a class="title" target="_blank" href="./performance.html">open performance.html</a>
+</div>
+<script>
+    var graph = document.getElementById('graph');
+
+    var colors = ["#1f77b4","#ff7f0e","#2ca02c","#d62728","#9467bd","#8c564b","#e377c2","#7f7f7f","#bcbd22","#17becf"];
+
+    var icons = ['\uf19c', '\uf1a7', '\uf19e', '\uf1a0'];
+
+    //等待字体加载完成
+    if (document.fonts) {
+        var fontsReady = document.fonts.ready;
+        if (typeof(fontsReady) == "function") {
+            fontsReady = document.fonts.ready();
+        }
+        fontsReady.then(function () {
+            main();
+        });
+    }
+
+    function main() {
+
+        var g = getTestData();
+
+        var gview = new KLGraph.GraphView({
+            nodes: g.nodes,
+            edges: g.edges,
+            container: graph,
+        });
+    }
+
+
+    function getTestData() {
+
+        var g = {
+            nodes: [],
+            edges: []
+        };
+
+        var N = 30000;
+
+
+        for (var i = 0; i < N; i++) {
+            g.nodes.push({
+                type: Math.random() > 0.5 ? 'default' : 'rect',
+                id: 'node' + i,
+                label: 'node' + i,
+                x: (Math.random() * 2 - 1) * 3000,
+                y: (Math.random() * 2 - 1) * 3000,
+                size: (Math.random()) * 10 + 10,
+                width: 16,
+                height: 10,
+                color: colors[(Math.random() * colors.length) | 0],
+                icon: icons[(Math.random() * icons.length) | 0],
+            });
+        }
+
+//        for (var i = 0; i < N / 2; i++) {
+//            var sourceid = (Math.random() * N) | 0;
+//            var targetid = (Math.random() * N) | 0;
+//            if (sourceid != targetid) {
+//                g.edges.push({
+//                    id: 'edge' + i,
+//                    //                type:Math.random() > 0.5 ?'default':'curve',
+//                    label: 'edge' + i,
+//                    source: 'node' + sourceid,
+//                    target: 'node' + targetid,
+//                    size: Math.random() * 0.5 + 1.0,
+//                    color: 'rgba(31, 73, 107, 0.3)',
+//                    arrowSize: 6
+//                });
+//            }
+//
+//        }
+
+        return g;
+    }
+
+
+
+</script>
+</body>
+</html>

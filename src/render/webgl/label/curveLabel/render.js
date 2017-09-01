@@ -17,11 +17,13 @@ export default {
         a_size: {components:1,start:4},
         a_color: {components:4,start:5},
     },
-    getUniforms({matrix, camera, sampleRatio, textureLoader,textureText}){
+    getUniforms({matrix, camera,config, sampleRatio, textureLoader,textureText}){
+        var color = util.parseColor(config.defaultTextBgColor);
         return {
             u_matrix:matrix,
             u_camera_scale:camera.scale,
             u_image:textureText.unit,
+            u_text_bg:[color.r, color.g, color.b, color.a],
         }
     },
     getRenderData({data,config, textureLoader, textureIcon,textureText,graph}){

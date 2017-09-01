@@ -1,18 +1,19 @@
  precision mediump float;
 
-vec4 color_bg = vec4(217, 224, 231,255.0)/255.0;
-
 varying vec2 v_texCoord;
 varying float size;
 varying vec4 label_color;
 
 
 uniform sampler2D u_image;
+uniform vec4 u_text_bg;
 uniform float u_camera_scale;
 
 
 void main() {
     vec4 color = label_color / 255.0;
+    vec4 color_bg = u_text_bg/255.0;
+
 
     float cutoff = 0.76;
     float offset = 6.0/size * u_camera_scale;

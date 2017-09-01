@@ -21,6 +21,20 @@ export default {
         a_flag: {components:1,start:11},
         a_u: {components:1,start:12},
     },
+    renderBefore(render,option){
+        var gl = render.gl;
+
+
+        // gl.clearDepth(1.0);
+        // gl.clear(gl.DEPTH_BUFFER_BIT);
+        // //
+        // gl.enable(gl.DEPTH_TEST);
+        // gl.depthFunc(gl.LESS);
+        //
+        // gl.enable(gl.BLEND);
+        // gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+
+    },
     getUniforms({matrix, camera, sampleRatio, textureLoader}){
         return {
             u_matrix:matrix

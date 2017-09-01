@@ -4,33 +4,33 @@ import util from '../util'
 
 
 var defaultConfig = {
-    width:40
+    width: 40
 };
 
 function CircularLayout() {
     this.nodes = null;
     // this.links = null;
-     this.posSet = null;
-     this.depthPosSet = null;
-     this.drawnBiComps =null;
-     this.bc = null;
-     this.nodeHeights = {};
-     this.node2BiComp = {};
+    this.posSet = null;
+    this.depthPosSet = null;
+    this.drawnBiComps = null;
+    this.bc = null;
+    this.nodeHeights = {};
+    this.node2BiComp = {};
 
-     this.width = defaultConfig.width;
+    this.width = defaultConfig.width;
 
 }
 
 var p = CircularLayout.prototype;
 
 //必须有的方法
-p.layout = function (nodes,edges,option) {
+p.layout = function (nodes, edges, option,cb) {
 
     option = option || {};
 
-    if(option.width) this.width = option.width;
+    if (option.width) this.width = option.width;
 
-    this.init(nodes,edges);
+    this.init(nodes, edges);
 
     this.posSet = new Array(this.nodes.length);
     this.depthPosSet = new Array(this.nodes.length);
@@ -39,26 +39,39 @@ p.layout = function (nodes,edges,option) {
     // var test = this.bc.filter(function (e) {
     //     return e.length > 3;
     // });
+
+    if(!this.bc){
+        console.log('layout err');
+        return null;
+    }
+
     this.__layout(this.bc);
-    return this.nodes.map(function (e) {
-        return {x: e.x || 0,y:e.y || 0};
-    })
+
+    var data = this.nodes.map(function (e) {
+        return {x: e.x || 0, y: e.y || 0};
+    });
+
+    // if(cb){
+    //     cb(null,data);
+    // }
+
+    return data;
 };
-p.init = function (nodes,edges) {
-    var oldNodes = nodes,oldLinks = edges;
-    var tempNodes = [],map = {},temp;
-    oldNodes.forEach(function (e,i) {
+p.init = function (nodes, edges) {
+    var oldNodes = nodes, oldLinks = edges;
+    var tempNodes = [], map = {}, temp;
+    oldNodes.forEach(function (e, i) {
         temp = {
-            id:e.id,
-            _index:i,
-            links:[]
+            id: e.id,
+            _index: i,
+            links: []
         };
         tempNodes.push(temp);
         map[temp.id] = temp;
     })
 
-    var s,t;
-    oldLinks.forEach(function (e,i) {
+    var s, t;
+    oldLinks.forEach(function (e, i) {
         s = map[e.source];
         t = map[e.target];
 
@@ -71,7 +84,7 @@ p.init = function (nodes,edges) {
 
     this.nodes = tempNodes;
 };
-p.createBicconnects = function() {
+p.createBicconnects = function () {
     var nodes = this.nodes;
     var states = new Array(this.nodes.length),
         dfsn = new Array(this.nodes.length),
@@ -80,6 +93,7 @@ p.createBicconnects = function() {
         pre = new Array(this.nodes.length);
 
     var biComponents = [];
+    var totalN = 0;
 
     pre[0] = -1;
     var num = 0;
@@ -88,9 +102,11 @@ p.createBicconnects = function() {
     }
 
     dfs(0);
-    return biComponents;
+
+    return totalN == nodes.length ?  biComponents : null;
 
     function dfs(current) {
+        totalN++;
         states[current] = 1;
         low[current] = dfsn[current] = ++num;
 
@@ -129,7 +145,8 @@ p.createBicconnects = function() {
                         singleComponent.push(current);
                         map[current] = true;
                     }
-                    /*singleComponent.length > 2 && */biComponents.push(singleComponent);
+                    /*singleComponent.length > 2 && */
+                    biComponents.push(singleComponent);
 //                        }
                 }
 //                    states[neigh]
@@ -141,7 +158,7 @@ p.createBicconnects = function() {
 
     }
 };
-p.__layout = function(biconncts) {
+p.__layout = function (biconncts) {
 
 
     var max = -1;
@@ -172,7 +189,6 @@ p.__layout = function(biconncts) {
     this.drawnBiComps[maxIndex] = true;
 
 
-
     var maxSize = bc.length;
     var radius = (this.width * maxSize) / (Math.PI * 2);
     var deltaAngle = (2 * Math.PI) / maxSize;
@@ -194,7 +210,7 @@ p.__layout = function(biconncts) {
 
     this.SetOuterCircle(maxIndex, radius, startX, startY, -1);
 };
-p.sortInnerCircle = function(icNodes) {
+p.sortInnerCircle = function (icNodes) {
     var greedyNodes = [];
     var modestNodes = [];
 
@@ -226,7 +242,7 @@ p.sortInnerCircle = function(icNodes) {
         deltaM = 0;
     } else if (gNo > mNo) {
         deltaM = 1;
-        deltaG = (gNo / mNo) | 0 ;
+        deltaG = (gNo / mNo) | 0;
     } else {
         deltaG = 1;
         deltaM = (mNo / gNo ) | 0;
@@ -250,7 +266,7 @@ p.sortInnerCircle = function(icNodes) {
     return toReturn;
 
 };
-p.NoOfChildren = function(nodeId, outerCircle) {
+p.NoOfChildren = function (nodeId, outerCircle) {
     var toReturn = 0;
     var nodes = this.nodes;
     var links = nodes[nodeId].links;
@@ -267,7 +283,7 @@ p.NoOfChildren = function(nodeId, outerCircle) {
 
     return toReturn;
 };
-p.SetOuterCircle = function(compIndex, innerCircleRadius, startX, startY, firstTouched) {
+p.SetOuterCircle = function (compIndex, innerCircleRadius, startX, startY, firstTouched) {
     var nodes = this.nodes;
     var outerNodesCount = 0;
     var rnc = 0;
@@ -277,7 +293,7 @@ p.SetOuterCircle = function(compIndex, innerCircleRadius, startX, startY, firstT
     for (var i = 0; i < this.bc[compIndex].length; i++) {
         iter = nodes[this.bc[compIndex][i]].links;
 
-        for (var j = 0 ;j< iter.length;j++) {
+        for (var j = 0; j < iter.length; j++) {
             var currNeighbour = iter[j];
 
             if (!this.posSet[currNeighbour]) {
@@ -348,9 +364,9 @@ p.SetOuterCircle = function(compIndex, innerCircleRadius, startX, startY, firstT
 
         if (outerPositionsTaken.length > 10) {
             outerPositionsTaken[(idPos + 1) % outerPositionsTaken.length] = (theAngle / innerDeltaAngle) | 0;
-            outerPositionsTaken[(idPos + 2) % outerPositionsTaken.length] = 0| (theAngle / innerDeltaAngle);
-            outerPositionsTaken[(idPos - 1 + outerPositionsTaken.length) % outerPositionsTaken.length] = 0| (theAngle / innerDeltaAngle);
-            outerPositionsTaken[(idPos - 2 + outerPositionsTaken.length) % outerPositionsTaken.length] = 0| (theAngle / innerDeltaAngle);
+            outerPositionsTaken[(idPos + 2) % outerPositionsTaken.length] = 0 | (theAngle / innerDeltaAngle);
+            outerPositionsTaken[(idPos - 1 + outerPositionsTaken.length) % outerPositionsTaken.length] = 0 | (theAngle / innerDeltaAngle);
+            outerPositionsTaken[(idPos - 2 + outerPositionsTaken.length) % outerPositionsTaken.length] = 0 | (theAngle / innerDeltaAngle);
 
             outerPositionsOwners[(idPos + 1) % outerPositionsOwners.length] = -2;
             outerPositionsOwners[(idPos + 2) % outerPositionsOwners.length] = -2;
@@ -367,12 +383,12 @@ p.SetOuterCircle = function(compIndex, innerCircleRadius, startX, startY, firstT
         var currentNeighbour;
         var noOfNeighbours = 0;
 
-        for (var j = 0; j < iter.length;j++) {
+        for (var j = 0; j < iter.length; j++) {
             currentNeighbour = iter[j];
 
             if (!this.posSet[currentNeighbour]) {
                 noOfNeighbours += (this.NoOfChildren(currentNeighbour, addedNeighbours) + 1);
-                addedNeighbours[currentNeighbour]= true;
+                addedNeighbours[currentNeighbour] = true;
             }
         }
 
@@ -399,10 +415,10 @@ p.SetOuterCircle = function(compIndex, innerCircleRadius, startX, startY, firstT
 
 //			iter = edgesFrom[this.bc[compIndex][i]].iterator();
 
-        var startPos = this.BestFreePositionsForAll(0| ((theAngle / outerDeltaAngle)
+        var startPos = this.BestFreePositionsForAll(0 | ((theAngle / outerDeltaAngle)
             - (noOfNeighbours / 2.0)), outerPositionsTaken,
             outerPositionsOwners, noOfNeighbours,
-            0| (theAngle / innerDeltaAngle), startX,
+            0 | (theAngle / innerDeltaAngle), startX,
             startY, outerDeltaAngle, outerRadius,
             this.bc[compIndex].length);
         var startAngle = startPos * outerDeltaAngle;
@@ -412,7 +428,7 @@ p.SetOuterCircle = function(compIndex, innerCircleRadius, startX, startY, firstT
 
 //			iter = nodes[this.bc[compIndex][i]].iterator();
 
-        for (var m = 0;m< iter.length;m++) {
+        for (var m = 0; m < iter.length; m++) {
             currentNeighbour = iter[m];
 
             if (!this.posSet[currentNeighbour]) {
@@ -423,7 +439,7 @@ p.SetOuterCircle = function(compIndex, innerCircleRadius, startX, startY, firstT
                 for (var j = 0; j < (holeDepth / 2); j++) {
                     outerPositionsOwners[(startPos) % outerPositionsOwners.length] = -3;
                     // free but it must not be used (add. space for tree-like struct.)
-                    outerPositionsTaken[(startPos) % outerPositionsOwners.length] = 0| (theAngle / innerDeltaAngle);
+                    outerPositionsTaken[(startPos) % outerPositionsOwners.length] = 0 | (theAngle / innerDeltaAngle);
                     startPos++;
                     startAngle += outerDeltaAngle;
 
@@ -436,7 +452,7 @@ p.SetOuterCircle = function(compIndex, innerCircleRadius, startX, startY, firstT
                 nodes[currentNeighbour].y = startY - (Math.sin(startAngle) * outerRadius);
 
                 outerPositionsOwners[(startPos) % outerPositionsOwners.length] = currentNeighbour;
-                outerPositionsTaken[(startPos) % outerPositionsOwners.length] = 0| (theAngle / innerDeltaAngle);
+                outerPositionsTaken[(startPos) % outerPositionsOwners.length] = 0 | (theAngle / innerDeltaAngle);
                 startPos++;
                 startAngle += outerDeltaAngle;
 
@@ -445,7 +461,7 @@ p.SetOuterCircle = function(compIndex, innerCircleRadius, startX, startY, firstT
 
                 for (var j = 0; j < (holeDepth / 2); j++) {
                     outerPositionsOwners[(startPos) % outerPositionsOwners.length] = -3;
-                    outerPositionsTaken[(startPos) % outerPositionsOwners.length] = 0| (theAngle / innerDeltaAngle);
+                    outerPositionsTaken[(startPos) % outerPositionsOwners.length] = 0 | (theAngle / innerDeltaAngle);
                     startPos++;
                     startAngle += outerDeltaAngle;
 
@@ -462,7 +478,7 @@ p.SetOuterCircle = function(compIndex, innerCircleRadius, startX, startY, firstT
 
         var currentNeighbour;
 
-        for (var m = 0;m < iter.length;m++) {
+        for (var m = 0; m < iter.length; m++) {
             currentNeighbour = iter[m];
 
             if (!addedNeighbours[currentNeighbour]) {
@@ -496,9 +512,9 @@ p.SetOuterCircle = function(compIndex, innerCircleRadius, startX, startY, firstT
         }
     }
 };
-p.BestFreePositionsForAll = function(idealPosition, outerPositionsTaken, outerPositionsOwners, noOfPos,
-                                 innerCirclePos, startX, startY,
-                                 outerDeltaAngle, outerRadius, innerCSize) {
+p.BestFreePositionsForAll = function (idealPosition, outerPositionsTaken, outerPositionsOwners, noOfPos,
+                                      innerCirclePos, startX, startY,
+                                      outerDeltaAngle, outerRadius, innerCSize) {
     var startPos = idealPosition;
     var nodes = this.nodes;
 
@@ -597,8 +613,7 @@ p.BestFreePositionsForAll = function(idealPosition, outerPositionsTaken, outerPo
                 }
 
                 for (var k = j; k < (i - count); k++) {
-                    if (outerPositionsOwners[(k + 1 + outerPositionsTaken.length) % outerPositionsTaken.length] > 0)
-                    {
+                    if (outerPositionsOwners[(k + 1 + outerPositionsTaken.length) % outerPositionsTaken.length] > 0) {
                         nodes[outerPositionsOwners[(k + 1 + outerPositionsTaken.length) % outerPositionsTaken.length]].x = startX + (Math.cos(outerDeltaAngle * k) * outerRadius);
                         nodes[outerPositionsOwners[(k + 1 + outerPositionsTaken.length) % outerPositionsTaken.length]].y = startY - (Math.sin(outerDeltaAngle * k) * outerRadius);
                     }
@@ -624,14 +639,14 @@ p.BestFreePositionsForAll = function(idealPosition, outerPositionsTaken, outerPo
     return startPos;
 
 };
-p.EachNodeHeight = function(nodeID) {
+p.EachNodeHeight = function (nodeID) {
     var nodes = this.nodes;
     var links = nodes[nodeID].links;
     var currentNeighbour;
     var noOfChildren = 0;
     var tmp = {};
 
-    for (var m = 0;m < links.length;m++) {
+    for (var m = 0; m < links.length; m++) {
         currentNeighbour = links[m];
 
         if (!this.depthPosSet[currentNeighbour] && !tmp[currentNeighbour]) {
@@ -641,7 +656,7 @@ p.EachNodeHeight = function(nodeID) {
     }
 
 
-    for (var m = 0;m < links.length;m++) {
+    for (var m = 0; m < links.length; m++) {
         currentNeighbour = links[m];
 
         if (tmp[currentNeighbour]) {
@@ -656,12 +671,12 @@ p.EachNodeHeight = function(nodeID) {
 
     return (noOfChildren + 1);
 };
-p.DFSSetPos = function( nodeID, theAngle,  theRadius) {
+p.DFSSetPos = function (nodeID, theAngle, theRadius) {
     var component = this.node2BiComp[nodeID];
     var nodes = this.nodes;
     if (component != undefined && !this.drawnBiComps[component]) {
         var comp = component;
-        var centerX =nodes[nodeID].x;
+        var centerX = nodes[nodeID].x;
         var centerY = nodes[nodeID].y;
         var radius = (this.width * this.bc[comp].length) / (2 * Math.PI);
         var deltaAngle = (2 * Math.PI) / this.bc[comp].length;
@@ -724,12 +739,12 @@ p.DFSSetPos = function( nodeID, theAngle,  theRadius) {
         var maxId = -3;
         var tmp = {};
 
-        for (var m = 0;m < iter.length;m++) {
+        for (var m = 0; m < iter.length; m++) {
             currentNeighbour = iter[m];
 
             if (!this.posSet[currentNeighbour] && !tmp[currentNeighbour]) {
                 neighboursCount++;
-                tmp[currentNeighbour]=true;
+                tmp[currentNeighbour] = true;
 
                 if (this.nodeHeights[currentNeighbour] < min1) {
                     min2 = min1;
@@ -818,7 +833,7 @@ p.DFSSetPos = function( nodeID, theAngle,  theRadius) {
 
         tmp = {};
 
-        for (var m = 0;m < iter.length;m++) {
+        for (var m = 0; m < iter.length; m++) {
             currentNeighbour = iter[m];
 
             if (!this.posSet[currentNeighbour] && !tmp[currentNeighbour]) {
@@ -865,7 +880,7 @@ p.DFSSetPos = function( nodeID, theAngle,  theRadius) {
             remStartAngle -= deltaAngle;
         }
 
-        for (var m = 0;m < iter.length;m++) {
+        for (var m = 0; m < iter.length; m++) {
             currentNeighbour = iter[m];
 
             if (tmp[currentNeighbour]) {
@@ -889,7 +904,7 @@ p.DFSSetPos = function( nodeID, theAngle,  theRadius) {
     }
 };
 
-function setOffset(node,x,y) {
+function setOffset(node, x, y) {
     node.x = x;
     node.y = y;
 }

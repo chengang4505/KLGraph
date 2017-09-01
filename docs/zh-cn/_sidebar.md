@@ -8,7 +8,7 @@
     - [Icon/图标](zh-cn/general/icon.md)
     - [Selection/选择器](zh-cn/general/selection.md)
     - [Filter/过滤器](zh-cn/general/filter.md)
-    - [Render layer config/分层](zh-cn/general/layer.md)
+    - [性能](zh-cn/general/performance.md)
 - **API 文档**
     - [KLGraphView](zh-cn/api/KLgraphView.md)
     - [WebGLRender](zh-cn/api/webglRender.md)

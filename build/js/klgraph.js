@@ -401,7 +401,7 @@ var EventEmitter = function () {
     function EventEmitter() {
         _classCallCheck(this, EventEmitter);
 
-        this._listener = {};
+        this.clearListeners();
     }
 
     _createClass(EventEmitter, [{
@@ -449,6 +449,11 @@ var EventEmitter = function () {
                 fn = listener[i];
                 fn.apply(null, args);
             }
+        }
+    }, {
+        key: 'clearListeners',
+        value: function clearListeners() {
+            this._listener = {};
         }
     }]);
 
@@ -889,9 +894,14 @@ function loadProgram(gl, shaders, attribs, loc, error) {
         linked,
         program = gl.createProgram();
 
+    program.shaders = {};
+
     for (i = 0; i < shaders.length; ++i) {
         gl.attachShader(program, shaders[i]);
-    }if (attribs) for (i = 0; i < attribs.length; ++i) {
+        program.shaders['shader' + i] = shaders[i];
+    }
+
+    if (attribs) for (i = 0; i < attribs.length; ++i) {
         gl.bindAttribLocation(program, locations ? locations[i] : i, opt_attribs[i]);
     }gl.linkProgram(program);
 
@@ -1587,11 +1597,18 @@ var WebGLRender = function (_EventEmitter) {
         //sample Ratio,
         _this2.sampleRatio = 1;
 
+        _this2._destroy = false;
+
+        _this2.gl = null;
+
+        //init webgl context and Extension
+        _this2.initGl();
+
         // this.textureLoader = new TextureLoader();
         //manage icon texture for node
-        _this2.textureIcon = new _TextureIcon2.default(_this2.config, 0);
+        _this2.textureIcon = new _TextureIcon2.default(_this2.config, _this2.gl, 0);
         //manager text texture for node ,edge
-        _this2.textureText = new _TextureText2.default(_this2.config, 1);
+        _this2.textureText = new _TextureText2.default(_this2.config, _this2.gl, 1);
 
         //enum mouse type
         _this2.mouseType = mouseType;
@@ -1654,7 +1671,7 @@ var WebGLRender = function (_EventEmitter) {
             edge: { layers: [], index: {}, filters: [], update: { map: null, data: null } }
         };
         // map for layers ,key is the layer name.
-        _this2.renderLayerMap = {};
+        _this2.renderLayerMap = Object.create(null);
 
         /**
          * render layer config, default is the WebGLRender.defaultLayersConfig .  more info in file [defaultConfig/index.js]
@@ -1676,19 +1693,14 @@ var WebGLRender = function (_EventEmitter) {
          */
         _this2.renderLayersConfig = _this2.config.renderLayersConfig || WebGLRender.defaultLayersConfig;
 
-        //init webgl context and Extension
-        _this2.initGl();
-
         //register events to graph,event 'change' 'add' 'remove' etc.
         _this2.initEvent();
 
         //init textureIcon for node
         _this2.initIconTexture();
 
-        console.time('initTextTexture');
         //init textureText for node label and edge label
         _this2.initTextTexture();
-        console.timeEnd('initTextTexture');
 
         //init render layers info
         _this2.initRenderLayer();
@@ -1701,12 +1713,36 @@ var WebGLRender = function (_EventEmitter) {
         return _this2;
     }
 
-    /**
-     * init webgl info
-     */
-
-
     _createClass(WebGLRender, [{
+        key: 'destroy',
+        value: function destroy() {
+
+            this.context = null;
+
+            this.graph = null;
+
+            this.textureIcon.destroy();
+            this.textureText.destroy();
+
+            this.container.parentNode.removeChild(this.container);
+            this.container = null;
+
+            this.renderCache = null;
+            this.renderLayerMap = null;
+            this.renderLayersConfig = null;
+
+            this.clearRenderMap();
+
+            this.clearListeners();
+
+            this._destroy = true;
+        }
+
+        /**
+         * init webgl info
+         */
+
+    }, {
         key: 'initGl',
         value: function initGl() {
             //webgl　默认初始化 option
@@ -1722,9 +1758,7 @@ var WebGLRender = function (_EventEmitter) {
 
             gl = canvas.getContext('experimental-webgl', option) || canvas.getContext('webgl', option);
 
-            if (!gl) {
-                throw 'browser not support webGl!';
-            }
+            if (!gl) throw 'browser not support WebGL!';
 
             //加载　Extension
             gl.getExtension('OES_standard_derivatives');
@@ -1833,6 +1867,8 @@ var WebGLRender = function (_EventEmitter) {
         key: 'initTextTexture',
         value: function initTextTexture() {
 
+            console.time('initTextTexture');
+
             //clear
             this.textureText.clear();
 
@@ -1869,8 +1905,8 @@ var WebGLRender = function (_EventEmitter) {
 
             // add text
             this.textureText.addTexts(texts);
-            // 创建 gl texture and bind
-            this.textureText.attachGl(this.gl);
+
+            console.timeEnd('initTextTexture');
         }
 
         /**
@@ -1903,9 +1939,6 @@ var WebGLRender = function (_EventEmitter) {
 
             //create icon texture
             this.textureIcon.createIcons(icons);
-
-            //create gl texture and bind
-            this.textureIcon.attachGl(this.gl);
         }
 
         /**
@@ -1964,10 +1997,8 @@ var WebGLRender = function (_EventEmitter) {
 
                     subLayer.mainLayer = layer.name;
                     subLayer.program = program;
-                    // subLayer.initBuffer = false;
                     subLayer.tempVertex = [];
                     subLayer.tempIndex = [];
-                    // subLayer.index = [];
                     subLayer.indexCache = false;
                     subLayer.needResize = false;
 
@@ -1980,6 +2011,39 @@ var WebGLRender = function (_EventEmitter) {
                 });
             }.bind(this));
         }
+    }, {
+        key: 'clearRenderMap',
+        value: function clearRenderMap() {
+            var renderLayerMap = this.renderLayerMap;
+            var gl = this.gl;
+            var layer;
+
+            for (var name in renderLayerMap) {
+                layer = renderLayerMap[name];
+
+                layer.option = null;
+                layer.filters = null;
+
+                if (layer.custom) continue;
+
+                layer.tempVertex = null;
+                layer.tempIndex = null;
+
+                layer.program.offsetConfig = null;
+                layer.program.activeAttributes = null;
+                layer.program.activeUniforms = null;
+                layer.program.uniforms = null;
+
+                for (var name1 in layer.program.shaders) {
+                    gl.deleteShader(layer.program.shaders[name1]);
+                }gl.deleteBuffer(layer.program.vertexBuffer);
+                gl.deleteBuffer(layer.program.indexBuffer);
+
+                gl.deleteProgram(layer.program);
+
+                layer.program = null;
+            }
+        }
 
         /**
          * prepare the render data and draw
@@ -1989,7 +2053,7 @@ var WebGLRender = function (_EventEmitter) {
         key: 'render',
         value: function render() {
 
-            if (!this.needUpdate) return;
+            if (this._destroy || !this.needUpdate) return;
 
             // resize canvas width and height ,update projectMatrix
 
@@ -2045,16 +2109,19 @@ var WebGLRender = function (_EventEmitter) {
          */
 
     }, {
-        key: 'setFlag',
-        value: function setFlag() {
+        key: '_setFlag',
+        value: function _setFlag() {
             var gl = this.gl;
-
             // gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
             gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
             // gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA,gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);
             gl.enable(gl.BLEND);
             gl.disable(gl.DEPTH_TEST);
-
+        }
+    }, {
+        key: '_clear',
+        value: function _clear() {
+            var gl = this.gl;
             var bgColor = _util2.default.parseColor(this.config.defaultBackgroundColor);
             gl.clearColor(bgColor.r / 255, bgColor.g / 255, bgColor.b / 255, bgColor.a / 255);
 
@@ -2074,18 +2141,22 @@ var WebGLRender = function (_EventEmitter) {
             renderLayerMap = this.renderLayerMap;
 
             gl = this.gl;
-            //set flag
-            this.setFlag();
+            //clear
+
+            this._clear();
 
             //emit event
             this.emit('renderBefore', [this]);
 
             for (var i = 0; i < this.renderLayersConfig.length; i++) {
+
                 mainLayer = this.renderLayersConfig[i];
                 subLayers = mainLayer.subLayers;
 
                 //for each layer
                 for (var j = 0; j < subLayers.length; j++) {
+
+                    this._setFlag();
 
                     layer = subLayers[j].name;
 
@@ -2104,7 +2175,7 @@ var WebGLRender = function (_EventEmitter) {
 
                     //call renderBefore if exist
                     if (subLayers[j].render.renderBefore && _util2.default.isFunction(subLayers[j].render.renderBefore)) {
-                        subLayers[j].renderBefore.render.call(subLayers[j], this, subLayers[j].option);
+                        subLayers[j].render.renderBefore.call(subLayers[j], this, subLayers[j].option);
                     }
 
                     //gl call, use program
@@ -2132,7 +2203,7 @@ var WebGLRender = function (_EventEmitter) {
                         subLayers[j].render.renderAfter.call(subLayers[j], this, subLayers[j].option);
                     }
 
-                    //clear bing status
+                    //clear bind status
                     gl.bindBuffer(gl.ARRAY_BUFFER, null);
                     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
                 }
@@ -2445,7 +2516,10 @@ var WebGLRender = function (_EventEmitter) {
             var gl = this.gl;
             var renderLayerMap = this.renderLayerMap;
 
-            if (context === 'graph') {} else {
+            if (context === 'graph') {
+                //reserve
+                //todo
+            } else {
                 datas = context == 'node' ? this.graph.nodes : this.graph.edges;
                 contextRelativeLayers = this.renderCache[context].layers;
 
@@ -3054,7 +3128,7 @@ exports.default = WebGLRender;
 /* 7 */
 /***/ (function(module, exports) {
 
-module.exports = " precision mediump float;\n\nvec4 color_bg = vec4(217, 224, 231,255.0)/255.0;\n\nvarying vec2 v_texCoord;\nvarying float size;\nvarying vec4 label_color;\n\n\nuniform sampler2D u_image;\nuniform float u_camera_scale;\n\n\nvoid main() {\n    vec4 color = label_color / 255.0;\n\n    float cutoff = 0.76;\n    float offset = 6.0/size * u_camera_scale;\n\n    offset = pow(offset,1.2);\n\n    offset = min((1.0-cutoff),offset);\n\n   float dist = texture2D(u_image, v_texCoord).r;\n   float alpha = smoothstep(cutoff - offset, cutoff + offset, dist);\n//   gl_FragColor = color *alpha;\n   gl_FragColor = mix(color_bg,color,alpha);\n}"
+module.exports = " precision mediump float;\n\nvarying vec2 v_texCoord;\nvarying float size;\nvarying vec4 label_color;\n\n\nuniform sampler2D u_image;\nuniform vec4 u_text_bg;\nuniform float u_camera_scale;\n\n\nvoid main() {\n    vec4 color = label_color / 255.0;\n    vec4 color_bg = u_text_bg/255.0;\n\n\n    float cutoff = 0.76;\n    float offset = 6.0/size * u_camera_scale;\n\n    offset = pow(offset,1.2);\n\n    offset = min((1.0-cutoff),offset);\n\n   float dist = texture2D(u_image, v_texCoord).r;\n   float alpha = smoothstep(cutoff - offset, cutoff + offset, dist);\n//   gl_FragColor = color *alpha;\n   gl_FragColor = mix(color_bg,color,alpha);\n}"
 
 /***/ }),
 /* 8 */
@@ -3124,6 +3198,7 @@ var Core = function () {
         });
 
         this.debug = false;
+        this._destroy = false;
 
         this.canvas = {};
         this.initCanvas();
@@ -3141,6 +3216,21 @@ var Core = function () {
     }
 
     _createClass(Core, [{
+        key: 'destroy',
+        value: function destroy() {
+
+            if (this._destroy) return;
+
+            this.graph.clear();
+            this.graph.clearListeners();
+
+            this.render.destroy();
+
+            this.selection.destroy();
+
+            this._destroy = true;
+        }
+    }, {
         key: 'initCanvas',
         value: function initCanvas() {
 
@@ -3195,6 +3285,9 @@ var Core = function () {
             }
 
             function render(time) {
+
+                if (_this.render._destroy) return;
+
                 _this._render();
                 frames(time);
                 requestAnimationFrame(render);
@@ -3602,12 +3695,252 @@ function initEvent() {
 
     for (var e in events) {
         this.container.addEventListener(e, events[e], false);
-    }events.click = handlerWrap(_clickHandler);
+    } //custom simulate click event
+    events.click = handlerWrap(_clickHandler);
 
     //some little situation maybe need the trigger function.
     this.trigger = function (type, event) {
         if (events[type]) events[type](event);
     };
+
+    //handler
+    function _clickHandler(e) {
+        var graphPos = _this.cameraToGraphPos({ x: e.cameraX, y: e.cameraY });
+        var edge, node;
+
+        node = getNode(graphPos);
+        if (node) {
+            _this.emit('nodeClick', [node, e]);
+        } else if (config.enableEdgeEvent && (edge = getEdge(graphPos))) {
+            _this.emit('edgeClick', [edge, e]);
+        } else {
+            _this.emit('stageClick', [e]);
+        }
+    }
+
+    function _downHandler(e) {
+
+        disableDocSelect();
+
+        //right click
+
+        if (!mouseLeft(e)) return;
+
+        mouseDown = true;
+        disableMove = true;
+
+        var graphPos = _this.cameraToGraphPos({ x: e.cameraX, y: e.cameraY });
+        var node = getNode(graphPos);
+        var nodeSelected = node ? _this.context.selection.isNodeSelected(node.id) : false;
+
+        handleDrag(!node);
+        // _this.forceRender();
+
+        function handleDrag(isCamera) {
+            var moveFlag = false;
+            var startx = graphPos.x,
+                starty = graphPos.y;
+
+            if (!isCamera) {
+                _this.emit('nodeMouseDown', [node, e]);
+            }
+
+            var onmousemove = docPosToRelativePos(_this.container, handlerWrap(function (e) {
+
+                if (!isCamera && !moveFlag) {
+                    _this.emit('nodeDragStart', [node, e]);
+                    moveFlag = true;
+                }
+
+                _this.forceRender();
+
+                var graphPos = _this.cameraToGraphPos({ x: e.cameraX, y: e.cameraY }),
+                    temp;
+                var offsetx = graphPos.x - startx;
+                var offsety = graphPos.y - starty;
+
+                if (isCamera) {
+                    _this.camera.positionX -= offsetx;
+                    _this.camera.positionY -= offsety;
+                    _this.setMouseType(_this.mouseType.MOVE);
+                } else {
+
+                    if (nodeSelected) {
+                        _this.context.selection.data.nodes.forEach(function (id) {
+                            temp = _this.context.graph.nodesIndex[id];
+                            _this.graph.setNodeData(id, { x: temp.x + offsetx, y: temp.y + offsety });
+                        });
+                    } else _this.graph.setNodeData(node.id, { x: node.x + offsetx, y: node.y + offsety });
+
+                    // fit(e);
+                }
+
+                if (isCamera) {
+                    var newgraphPos = _this.cameraToGraphPos({ x: e.cameraX, y: e.cameraY });
+                    startx = newgraphPos.x;
+                    starty = newgraphPos.y;
+                } else {
+                    startx = graphPos.x;
+                    starty = graphPos.y;
+                }
+                // console.timeEnd('move')
+            }));
+
+            var onmouseup = docPosToRelativePos(_this.container, handlerWrap(function (e) {
+
+                if (!isCamera && moveFlag) _this.emit('nodeDragEnd', [node, e]);
+
+                moveFlag = false;
+
+                clear();
+            }));
+
+            document.addEventListener('mousemove', onmousemove);
+            document.addEventListener('mouseup', onmouseup);
+
+            function clear() {
+                // _this.setMouseType(_this.mouseType.DEFAULT);
+                onmousemove && document.removeEventListener('mousemove', onmousemove);
+                onmouseup && document.removeEventListener('mouseup', onmouseup);
+
+                onmouseup = onmousemove = null;
+
+                disableMove = false;
+            }
+        }
+    }
+
+    function _moveHandler(e) {
+        if (mouseDown) mouseMove = true;
+
+        if (disableMove || !_this.config.enableOverEvent) return;
+
+        var graphPos = _this.cameraToGraphPos({ x: e.cameraX, y: e.cameraY });
+        var node = getNode(graphPos);
+        var old;
+
+        if (node && node !== overInfo.currentNode) {
+            old = overInfo.currentNode;
+            overInfo.currentNode = node;
+
+            if (old) _this.emit('nodeOut', [old, e]);
+            if (overInfo.currentEdge) {
+                old = overInfo.currentEdge;
+                overInfo.currentEdge = null;
+                _this.emit('edgeOut', [old, e]);
+            }
+            _this.emit('nodeOver', [node, e]);
+        } else if (!node && overInfo.currentNode) {
+            old = overInfo.currentNode;
+            overInfo.currentNode = null;
+            _this.emit('nodeOut', [old, e]);
+        }
+
+        var edge;
+        if (!node && config.enableEdgeEvent) {
+            edge = getEdge(graphPos);
+            if (edge && edge !== overInfo.currentEdge) {
+                old = overInfo.currentEdge;
+                overInfo.currentEdge = edge;
+
+                if (old) _this.emit('edgeOut', [old, e]);
+                _this.emit('edgeOver', [edge, e]);
+            } else if (!edge && overInfo.currentEdge) {
+                old = overInfo.currentEdge;
+                overInfo.currentEdge = null;
+                _this.emit('edgeOut', [old, e]);
+            }
+        }
+
+        if (node || edge) {
+            _this.setMouseType(_this.mouseType.POINTER);
+        } else {
+            _this.setMouseType(_this.mouseType.DEFAULT);
+        }
+    }
+
+    function _upHandler(e) {
+
+        //no move ,simulate click event
+        if (mouseDown && !mouseMove && mouseLeft(e)) {
+            _clickHandler(e);
+        }
+
+        if (mouseRight(e)) {
+            var graphPos = _this.cameraToGraphPos({ x: e.cameraX, y: e.cameraY });
+            var node = getNode(graphPos);
+            var edge;
+            if (node) {
+                _this.emit('nodeRightClick', [node, e]);
+            } else if (config.enableEdgeEvent && (edge = getEdge(graphPos))) {
+                _this.emit('edgeRightClick', [edge, e]);
+            } else {
+                _this.emit('stageRightClick', [e]);
+            }
+        }
+
+        mouseDown = false;
+        mouseMove = false;
+    }
+
+    function _wheelHandler(e) {
+        var value = e.wheelDelta !== undefined && e.wheelDelta || e.detail !== undefined && -e.detail;
+
+        if (value == 0) return; // Mac OS maybe -0;
+
+
+        _this.forceRender();
+        var ratio = _this.config.zoomRatio;
+
+        if (value > 0) {
+            _this.zoomFromPosition(1 / ratio, e.cameraX, e.cameraY);
+            _this.emit('zoom', [1 / ratio, _this.camera.scale, e]);
+        } else {
+            _this.zoomFromPosition(ratio, e.cameraX, e.cameraY);
+            _this.emit('zoom', [ratio, _this.camera.scale, e]);
+        }
+    }
+
+    //to camera pos
+    function handlerWrap(handle) {
+        return function (e) {
+
+            if (!config.enableMouseEvent) return;
+
+            var pos = _this.domToCameraPos({ x: e.offsetX, y: e.offsetY });
+            e.cameraX = pos.x;
+            e.cameraY = pos.y;
+            handle(e);
+        };
+    }
+
+    function docPosToRelativePos(dom, handle) {
+        return function (e) {
+            var bbox = dom.getBoundingClientRect();
+            var newEvent = Object.create(null);
+
+            for (var attr in e) {
+                if (e.hasOwnProperty(attr)) newEvent[attr] = e[attr];
+            }newEvent.offsetX = e.clientX - bbox.left;
+            newEvent.offsetY = e.clientY - bbox.top;
+
+            handle(newEvent);
+        };
+    }
+
+    function disableDocSelect() {
+        var oldOnSelect = document.onselectstart;
+        document.onselectstart = function () {
+            return false;
+        };
+
+        document.addEventListener('mouseup', onMouseUp);
+
+        function onMouseUp() {
+            document.onselectstart = oldOnSelect;
+            document.removeEventListener('mouseup', onMouseUp);
+        }
+    }
 
     //default check function
     function defaultNodeCheck(posx, posy, node) {
@@ -3630,9 +3963,11 @@ function initEvent() {
         var target = _this.graph.nodesIndex[edge.target];
         var ctrolP;
 
+        //line
         if (edge.curveCount == 0) {
             check = _util2.default.inLine(posx, posy, source.x, source.y, target.x, target.y, (edge.size || config.defaultEdgeSize) / 2);
         } else {
+            //curve
             // debugger
             ctrolP = _util2.default.getControlPos(source.x, source.y, target.x, target.y, edge.curveCount, edge.curveOrder);
             check = _util2.default.isPointOnQuadraticCurve(posx, posy, source.x, source.y, target.x, target.y, ctrolP[0], ctrolP[1], (edge.size || config.defaultEdgeSize) / 2);
@@ -3691,7 +4026,6 @@ function initEvent() {
         // console.timeEnd('getNode')
         return findNode;
     }
-
     function getEdge(pos) {
         // console.time('getEdge')
         var edges = _this.graph.edges;
@@ -3717,271 +4051,11 @@ function initEvent() {
         return findEdge;
     }
 
-    function _clickHandler(e) {
-        var graphPos = _this.cameraToGraphPos({ x: e.cameraX, y: e.cameraY });
-        var edge, node;
-
-        node = getNode(graphPos);
-        if (node) {
-            _this.emit('nodeClick', [node, e]);
-        } else if (config.enableEdgeEvent && (edge = getEdge(graphPos))) {
-            _this.emit('edgeClick', [edge, e]);
-        } else {
-            _this.emit('stageClick', [e]);
-        }
+    function mouseLeft(e) {
+        return e.which && e.which == 1 || e.button && e.button == 0;
     }
-
-    function _downHandler(e) {
-
-        disableDocSelect();
-
-        //right click
-        var isRight = e.which && e.which == 3 || e.button && e.button == 2;
-
-        if (isRight) return;
-
-        mouseDown = true;
-        disableMove = true;
-
-        var graphPos = _this.cameraToGraphPos({ x: e.cameraX, y: e.cameraY });
-        var node = getNode(graphPos);
-
-        if (node) _this.emit('nodeMouseDown', [node, e]);
-
-        handleDrag(!node);
-        // _this.forceRender();
-
-        function handleDrag(isCamera) {
-            var isDown = true;
-            var startx = graphPos.x,
-                starty = graphPos.y;
-
-            var onmousemove = handlerWrap(function (e) {
-                if (!isDown) return;
-                // console.time('move')
-
-                _this.forceRender();
-
-                var graphPos = _this.cameraToGraphPos({ x: e.cameraX, y: e.cameraY }),
-                    temp;
-                var offsetx = graphPos.x - startx;
-                var offsety = graphPos.y - starty;
-
-                if (isCamera) {
-                    _this.camera.positionX -= offsetx;
-                    _this.camera.positionY -= offsety;
-                    _this.setMouseType(_this.mouseType.MOVE);
-                } else {
-
-                    if (_this.context.selection.isNodeSelected(node.id)) {
-                        _this.context.selection.data.nodes.forEach(function (id) {
-                            temp = _this.context.graph.nodesIndex[id];
-                            _this.graph.setNodeData(id, { x: temp.x + offsetx, y: temp.y + offsety });
-                        });
-                    } else _this.graph.setNodeData(node.id, { x: node.x + offsetx, y: node.y + offsety });
-
-                    // fit(e);
-                }
-
-                if (isCamera) {
-                    var newgraphPos = _this.cameraToGraphPos({ x: e.cameraX, y: e.cameraY });
-                    startx = newgraphPos.x;
-                    starty = newgraphPos.y;
-                } else {
-                    startx = graphPos.x;
-                    starty = graphPos.y;
-                }
-                // console.timeEnd('move')
-            });
-
-            var onmouseup = handlerWrap(function (e) {
-                e.preventDefault();
-                isDown = false;
-                clear();
-            });
-
-            var onmouseout = handlerWrap(function (e) {
-                isDown = false;
-                clear();
-            });
-
-            _this.container.removeEventListener('mousemove', onmousemove);
-            _this.container.removeEventListener('mouseup', onmouseup);
-            _this.container.removeEventListener('mouseout', onmouseout);
-
-            _this.container.addEventListener('mousemove', onmousemove);
-            _this.container.addEventListener('mouseup', onmouseup);
-            _this.container.addEventListener('mouseout', onmouseout);
-
-            function clear() {
-                // _this.setMouseType(_this.mouseType.DEFAULT);
-                onmousemove && _this.container.removeEventListener('mousemove', onmousemove);
-                onmouseup && _this.container.removeEventListener('mouseup', onmouseup);
-                onmouseout && _this.container.removeEventListener('mouseout', onmouseout);
-                onmousemove = onmouseup = onmouseout = null;
-
-                disableMove = false;
-            }
-        }
-    }
-
-    function _moveHandler(e) {
-        if (mouseDown) mouseMove = true;
-
-        if (disableMove || !_this.config.enableOverEvent) return;
-
-        var graphPos = _this.cameraToGraphPos({ x: e.cameraX, y: e.cameraY });
-        var node = getNode(graphPos);
-        var old;
-
-        if (node && node !== overInfo.currentNode) {
-            old = overInfo.currentNode;
-            overInfo.currentNode = node;
-
-            if (old) _this.emit('nodeOut', [old, e]);
-            if (overInfo.currentEdge) {
-                old = overInfo.currentEdge;
-                overInfo.currentEdge = null;
-                _this.emit('edgeOut', [old, e]);
-            }
-            _this.emit('nodeOver', [node, e]);
-        } else if (!node && overInfo.currentNode) {
-            old = overInfo.currentNode;
-            overInfo.currentNode = null;
-            _this.emit('nodeOut', [old, e]);
-        }
-
-        var edge;
-        if (!node && config.enableEdgeEvent) {
-            edge = getEdge(graphPos);
-            if (edge && edge !== overInfo.currentEdge) {
-                old = overInfo.currentEdge;
-                overInfo.currentEdge = edge;
-
-                if (old) _this.emit('edgeOut', [old, e]);
-                _this.emit('edgeOver', [edge, e]);
-            } else if (!edge && overInfo.currentEdge) {
-                old = overInfo.currentEdge;
-                overInfo.currentEdge = null;
-                _this.emit('edgeOut', [old, e]);
-            }
-        }
-
-        if (node || edge) {
-            _this.setMouseType(_this.mouseType.POINTER);
-        } else {
-            _this.setMouseType(_this.mouseType.DEFAULT);
-        }
-    }
-
-    function _upHandler(e) {
-
-        var isRight = e.which && e.which == 3 || e.button && e.button == 2;
-
-        if (mouseDown && !mouseMove && !isRight) {
-            _clickHandler(e);
-        }
-
-        if (isRight) {
-            var graphPos = _this.cameraToGraphPos({ x: e.cameraX, y: e.cameraY });
-            var node = getNode(graphPos);
-            var edge;
-            if (node) {
-                _this.emit('nodeRightClick', [node, e]);
-            } else if (config.enableEdgeEvent && (edge = getEdge(graphPos))) {
-                _this.emit('edgeRightClick', [edge, e]);
-            } else {
-                _this.emit('stageRightClick', [e]);
-            }
-        }
-
-        mouseDown = false;
-        mouseMove = false;
-    }
-
-    function _wheelHandler(e) {
-        var value = e.wheelDelta !== undefined && e.wheelDelta || e.detail !== undefined && -e.detail;
-
-        if (value == 0) return; // Mac OS maybe -0;
-
-
-        _this.forceRender();
-        var ratio = _this.config.zoomRatio;
-
-        if (value > 0) {
-            _this.zoomFromPosition(1 / ratio, e.cameraX, e.cameraY);
-            _this.emit('zoom', [1 / ratio, _this.camera.scale, e]);
-        } else {
-            _this.zoomFromPosition(ratio, e.cameraX, e.cameraY);
-            _this.emit('zoom', [ratio, _this.camera.scale, e]);
-        }
-    }
-
-    //drag
-
-    function handlerWrap(handle) {
-        return function (e) {
-
-            if (!config.enableMouseEvent) return;
-
-            var pos = _this.domToCameraPos({ x: e.offsetX, y: e.offsetY });
-            e.cameraX = pos.x;
-            e.cameraY = pos.y;
-            handle(e);
-        };
-    }
-
-    function disableDocSelect() {
-        var oldOnSelect = document.onselectstart;
-        document.onselectstart = function () {
-            return false;
-        };
-
-        document.addEventListener('mouseup', onMouseUp);
-
-        function onMouseUp() {
-            document.onselectstart = oldOnSelect;
-            document.removeEventListener('mouseup', onMouseUp);
-        }
-    }
-
-    function fit(e) {
-        var x = e.offsetX,
-            y = e.offsetY;
-
-        var camearaX = _this.camera.positionX;
-        var camearaY = _this.camera.positionY;
-        var scale = _this.camera.scale;
-
-        var offset = 20 / scale;
-        var update = false;
-
-        if (x < 100) {
-            update = true;
-            camearaX -= offset;
-        }
-        if (x > _this.container.clientWidth - 100) {
-            update = true;
-            camearaX += offset;
-        }
-
-        if (y < 100) {
-            update = true;
-            camearaY += offset;
-        }
-
-        if (y > _this.container.clientHeight - 100) {
-            update = true;
-            camearaY -= offset;
-        }
-
-        // if(update) _this.zoomToAnimation({
-        //     positionX:camearaX,
-        //     positionY:camearaY,
-        //     scale:scale
-        // });
-
-        if (update) _this.zoomTo(1.01, e.cameraX, e.cameraY, true);
+    function mouseRight(e) {
+        return e.which && e.which == 3 || e.button && e.button == 2;
     }
 }
 
@@ -4028,7 +4102,8 @@ var Selection = function (_EventEmitter) {
         _this2.canvas = canvas;
         _this2.ctx = _this2.canvas.getContext('2d');
 
-        _this2.canvas.addEventListener('mousedown', _this2.mouseDown.bind(_this2));
+        _this2._mouseDownHandler = _this2.mouseDown.bind(_this2);
+        _this2.canvas.addEventListener('mousedown', _this2._mouseDownHandler);
 
         _this2.flag = 0; // 0 rect 1 path
         _this2.rect = null;
@@ -4044,6 +4119,22 @@ var Selection = function (_EventEmitter) {
     }
 
     _createClass(Selection, [{
+        key: 'destroy',
+        value: function destroy() {
+            this.context = null;
+
+            this.canvas.removeEventListener('mousedown', this._mouseDownHandler);
+            this.canvas.parentNode.removeChild(this.canvas);
+            this.canvas = null;
+
+            this.ctx = null;
+
+            this.rect = null;
+            this.path = null;
+
+            this.data = null;
+        }
+    }, {
         key: 'enable',
         value: function enable() {
             var flag = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : 0;
@@ -4369,6 +4460,7 @@ exports.default = {
 
     //default
     defaultBackgroundColor: '#ffffff',
+    defaultTextBgColor: 'rgba(0,0,0,0)',
     defaultNodeSelectedBorder: '#d4525f',
     defaultEdgeSelectedColor: '#d4525f',
 
@@ -4443,7 +4535,7 @@ function CircularLayout() {
 var p = CircularLayout.prototype;
 
 //必须有的方法
-p.layout = function (nodes, edges, option) {
+p.layout = function (nodes, edges, option, cb) {
 
     option = option || {};
 
@@ -4458,10 +4550,23 @@ p.layout = function (nodes, edges, option) {
     // var test = this.bc.filter(function (e) {
     //     return e.length > 3;
     // });
+
+    if (!this.bc) {
+        console.log('layout err');
+        return null;
+    }
+
     this.__layout(this.bc);
-    return this.nodes.map(function (e) {
+
+    var data = this.nodes.map(function (e) {
         return { x: e.x || 0, y: e.y || 0 };
     });
+
+    // if(cb){
+    //     cb(null,data);
+    // }
+
+    return data;
 };
 p.init = function (nodes, edges) {
     var oldNodes = nodes,
@@ -4502,6 +4607,7 @@ p.createBicconnects = function () {
         pre = new Array(this.nodes.length);
 
     var biComponents = [];
+    var totalN = 0;
 
     pre[0] = -1;
     var num = 0;
@@ -4510,9 +4616,11 @@ p.createBicconnects = function () {
     }
 
     dfs(0);
-    return biComponents;
+
+    return totalN == nodes.length ? biComponents : null;
 
     function dfs(current) {
+        totalN++;
         states[current] = 1;
         low[current] = dfsn[current] = ++num;
 
@@ -4551,7 +4659,8 @@ p.createBicconnects = function () {
                         singleComponent.push(current);
                         map[current] = true;
                     }
-                    /*singleComponent.length > 2 && */biComponents.push(singleComponent);
+                    /*singleComponent.length > 2 && */
+                    biComponents.push(singleComponent);
                     //                        }
                 }
                 //                    states[neigh]
@@ -5751,9 +5860,18 @@ function TextSDF(fontSize, buffer, radius, cutoff, fontFamily) {
 
     // hack around https://bugzilla.mozilla.org/show_bug.cgi?id=737852
     this.middle = Math.round(size / 2 * (navigator.userAgent.indexOf('Gecko/') >= 0 ? 1.2 : 1));
+
+    this.cache = {
+        map: {},
+        len: 0
+    };
 }
 
 TextSDF.prototype.draw = function (char) {
+    var cache = this.cache;
+
+    if (cache.map[char]) return cache.map[char];
+
     this.ctx.clearRect(0, 0, this.size, this.size);
     this.ctx.fillText(char, this.buffer, this.middle);
 
@@ -5779,10 +5897,31 @@ TextSDF.prototype.draw = function (char) {
         data[4 * i + 3] = 255;
     }
 
-    return {
+    var data = {
         data: imgData,
         charWidth: charSize + this.buffer * 2
     };
+
+    this.addCache(char, data);
+
+    return data;
+};
+
+TextSDF.maxCacheSize = 1024;
+
+TextSDF.prototype.addCache = function (key, data) {
+    var maxSize = TextSDF.maxCacheSize;
+    var cache = this.cache;
+    if (cache.len < maxSize && !cache.map[key]) {
+        cache.map[key] = data;
+        cache.len++;
+    }
+};
+
+TextSDF.prototype.clearCache = function () {
+    var cache = this.cache;
+    cache.len = 0;
+    cache.map = {};
 };
 
 // 2D Euclidean distance transform by Felzenszwalb & Huttenlocher https://cs.brown.edu/~pff/dt/
@@ -5862,13 +6001,12 @@ function _inherits(subClass, superClass) { if (typeof superClass !== "function" 
 var TextureIcon = function (_EventEmitter) {
     _inherits(TextureIcon, _EventEmitter);
 
-    function TextureIcon(config, unit) {
+    function TextureIcon(config, gl, unit) {
         _classCallCheck(this, TextureIcon);
 
-        // this.gl = gl;
         var _this = _possibleConstructorReturn(this, (TextureIcon.__proto__ || Object.getPrototypeOf(TextureIcon)).call(this));
 
-        _this.texture = null;
+        _this.gl = gl;
         _this.unit = unit || 0;
 
         _this.textureIconWidth = config.textureIconWidth;
@@ -5887,6 +6025,8 @@ var TextureIcon = function (_EventEmitter) {
         _this.iconinfo = null;
         _this.icons = [];
         _this.iconsToCreate = [];
+
+        _this.texture = null;
 
         _this.fontLoaded = true;
 
@@ -5928,8 +6068,6 @@ var TextureIcon = function (_EventEmitter) {
 
             icons = icons || this.iconsToCreate;
 
-            if (icons.length == 0) return;
-
             if (!this.fontLoaded) {
                 icons.forEach(function (e) {
                     this.iconsToCreate.push(e);
@@ -5941,6 +6079,8 @@ var TextureIcon = function (_EventEmitter) {
                 this.createIcon(icons[i]);
             }
             this.computeAlpha();
+
+            this.attachGl();
 
             // document.body.appendChild(this.canvas);
             // this.updateGPUTexture();
@@ -5988,10 +6128,13 @@ var TextureIcon = function (_EventEmitter) {
         }
     }, {
         key: 'attachGl',
-        value: function attachGl(gl, unit) {
-            if (unit !== undefined && unit !== null) this.unit = unit;
+        value: function attachGl() {
+
+            var gl = this.gl;
+
             gl.activeTexture(gl.TEXTURE0 + this.unit);
-            gl.bindTexture(gl.TEXTURE_2D, this.createTexture(gl, this.icons.length == 0));
+            this.createTexture(this.icons.length == 0);
+            gl.bindTexture(gl.TEXTURE_2D, this.texture);
         }
     }, {
         key: 'addIcons',
@@ -6013,11 +6156,14 @@ var TextureIcon = function (_EventEmitter) {
         }
     }, {
         key: 'createTexture',
-        value: function createTexture(gl, empty) {
+        value: function createTexture(empty) {
 
-            var texture = gl.createTexture();
+            var gl = this.gl;
+
+            if (!this.texture) this.texture = gl.createTexture();
+
             gl.activeTexture(gl.TEXTURE0 + this.unit);
-            gl.bindTexture(gl.TEXTURE_2D, texture);
+            gl.bindTexture(gl.TEXTURE_2D, this.texture);
 
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
@@ -6025,7 +6171,6 @@ var TextureIcon = function (_EventEmitter) {
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
 
             if (empty) gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 4, 4, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);else gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, this.iconinfo.img);
-            return texture;
         }
     }, {
         key: 'clear',
@@ -6041,6 +6186,20 @@ var TextureIcon = function (_EventEmitter) {
             ctx.fillStyle = "#000000";
             ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
             ctx.restore();
+        }
+    }, {
+        key: 'destroy',
+        value: function destroy() {
+
+            if (this.texture) this.gl.deleteTexture(this.texture);
+
+            this.ctx = null;
+            this.gl = null;
+            this.canvas = null;
+            this.iconinfo = null;
+            this.icons = [];
+            this.iconsToCreate = [];
+            this.texture = null;
         }
     }]);
 
@@ -6185,12 +6344,14 @@ function _inherits(subClass, superClass) { if (typeof superClass !== "function" 
 var TextureText = function (_EventEmitter) {
     _inherits(TextureText, _EventEmitter);
 
-    function TextureText(config, unit) {
+    function TextureText(config, gl, unit) {
         _classCallCheck(this, TextureText);
 
         var _this = _possibleConstructorReturn(this, (TextureText.__proto__ || Object.getPrototypeOf(TextureText)).call(this));
 
         _this.border = 2;
+
+        _this.gl = gl;
 
         _this.unit = unit || 1;
         _this.fontSize = 48;
@@ -6201,6 +6362,7 @@ var TextureText = function (_EventEmitter) {
 
         _this.canvas = null;
         _this.textinfo = null;
+        _this.texture = null;
 
         _this.startx = _this.border;
         _this.starty = _this.border;
@@ -6345,21 +6507,27 @@ var TextureText = function (_EventEmitter) {
             // document.body.appendChild(c);
             // c.style.position = 'absolute';
             // c.style.top = '100px';
+
+            this.attachGl();
         }
     }, {
         key: 'attachGl',
-        value: function attachGl(gl, unit) {
-            if (unit !== undefined && unit !== null) this.unit = unit;
+        value: function attachGl() {
+            var gl = this.gl;
+
             gl.activeTexture(gl.TEXTURE0 + this.unit);
-            gl.bindTexture(gl.TEXTURE_2D, this.createTexture(gl));
+            this.createTexture();
+            gl.bindTexture(gl.TEXTURE_2D, this.texture);
         }
     }, {
         key: 'createTexture',
-        value: function createTexture(gl) {
-            var texture = gl.createTexture();
+        value: function createTexture() {
+            var gl = this.gl;
+
+            if (!this.texture) this.texture = gl.createTexture();
 
             gl.activeTexture(gl.TEXTURE0 + this.unit);
-            gl.bindTexture(gl.TEXTURE_2D, texture);
+            gl.bindTexture(gl.TEXTURE_2D, this.texture);
 
             //NEAREST LINEAR
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
@@ -6368,13 +6536,27 @@ var TextureText = function (_EventEmitter) {
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
 
             gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, this.textinfo.img);
-
-            return texture;
         }
     }, {
         key: 'clear',
         value: function clear() {
             this.resize(this.canvas.width, this.canvas.height);
+        }
+    }, {
+        key: 'destroy',
+        value: function destroy() {
+
+            if (this.texture) this.gl.deleteTexture(this.texture);
+
+            this.canvas = null;
+            this.textinfo = null;
+            this.texture = null;
+            this.gl = null;
+            this.texts = [];
+
+            this.sdf.clearCache();
+
+            this.sdf = null;
         }
     }]);
 
@@ -6586,7 +6768,7 @@ Object.defineProperty(exports, "__esModule", {
 exports.default = function (WebGLRender) {
     WebGLRender.defaultLayersConfig = [{
         name: 'base',
-        subLayers: [{ name: 'edge', context: 'edge', render: WebGLRender.edge.default, check: edgeCount(0) }, { name: 'edgeCurve', context: 'edge', render: WebGLRender.edge.curve, check: edgeCount(0, true) }, { name: 'edgeLabel', context: 'edge', render: WebGLRender.edgeLabel.default, check: edgeCount(0) }, { name: 'edgeCurveLabel', context: 'edge', render: WebGLRender.edgeLabel.curve, check: edgeCount(0, true) }, { name: 'node', context: 'node', render: WebGLRender.node.default, check: layerCheckDefault() }, { name: 'rectNode', context: 'node', render: WebGLRender.node.rect, check: layerCheck('rect') }, { name: 'nodeLabel', context: 'node', render: WebGLRender.nodeLabel.default }, { name: 'nodeOver', custom: true, render: _customOverRender2.default, option: { over: false } }]
+        subLayers: [{ name: 'nodeLabel', context: 'node', render: WebGLRender.nodeLabel.default }, { name: 'edge', context: 'edge', render: WebGLRender.edge.default, check: edgeCount(0) }, { name: 'edgeCurve', context: 'edge', render: WebGLRender.edge.curve, check: edgeCount(0, true) }, { name: 'edgeLabel', context: 'edge', render: WebGLRender.edgeLabel.default, check: edgeCount(0) }, { name: 'edgeCurveLabel', context: 'edge', render: WebGLRender.edgeLabel.curve, check: edgeCount(0, true) }, { name: 'node', context: 'node', render: WebGLRender.node.default, check: layerCheckDefault() }, { name: 'rectNode', context: 'node', render: WebGLRender.node.rect, check: layerCheck('rect') }, { name: 'nodeOver', custom: true, render: _customOverRender2.default, option: { over: false } }]
     }];
 };
 
@@ -6837,6 +7019,18 @@ exports.default = {
         a_flag: { components: 1, start: 11 },
         a_u: { components: 1, start: 12 }
     },
+    renderBefore: function renderBefore(render, option) {
+        var gl = render.gl;
+
+        // gl.clearDepth(1.0);
+        // gl.clear(gl.DEPTH_BUFFER_BIT);
+        // //
+        // gl.enable(gl.DEPTH_TEST);
+        // gl.depthFunc(gl.LESS);
+        //
+        // gl.enable(gl.BLEND);
+        // gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+    },
     getUniforms: function getUniforms(_ref) {
         var matrix = _ref.matrix,
             camera = _ref.camera,
@@ -6979,14 +7173,17 @@ exports.default = {
     getUniforms: function getUniforms(_ref) {
         var matrix = _ref.matrix,
             camera = _ref.camera,
+            config = _ref.config,
             sampleRatio = _ref.sampleRatio,
             textureLoader = _ref.textureLoader,
             textureText = _ref.textureText;
 
+        var color = _util2.default.parseColor(config.defaultTextBgColor);
         return {
             u_matrix: matrix,
             u_camera_scale: camera.scale,
-            u_image: textureText.unit
+            u_image: textureText.unit,
+            u_text_bg: [color.r, color.g, color.b, color.a]
         };
     },
     getRenderData: function getRenderData(_ref2) {
@@ -7284,14 +7481,17 @@ exports.default = {
     getUniforms: function getUniforms(_ref) {
         var matrix = _ref.matrix,
             camera = _ref.camera,
+            config = _ref.config,
             sampleRatio = _ref.sampleRatio,
             textureLoader = _ref.textureLoader,
             textureText = _ref.textureText;
 
+        var color = _util2.default.parseColor(config.defaultTextBgColor);
         return {
             u_matrix: matrix,
             u_camera_scale: camera.scale,
-            u_image: textureText.unit
+            u_image: textureText.unit,
+            u_text_bg: [color.r, color.g, color.b, color.a]
         };
     },
     getRenderData: function getRenderData(_ref2) {
@@ -7764,7 +7964,7 @@ module.exports = "precision mediump float;\nvarying vec4 color;\nvarying float d
 /* 40 */
 /***/ (function(module, exports) {
 
-module.exports = "attribute vec2 a_position;\nattribute vec2 a_normal;\nattribute vec4 a_color;\nattribute float a_size;\nattribute float a_dis;\nattribute float a_dashed;\nattribute float a_flag;\nattribute float a_u;\n\nuniform mat3 u_matrix;\n\nvarying vec4 color;\nvarying float dis;\nvarying float dashed;\nvarying float flag;\nvarying float u;\n\nvoid main() {\n\nvec2 pos  = a_position + a_normal * a_size;\ngl_Position = vec4((u_matrix*vec3(pos,1)).xy,0,1);\ndis = a_dis;\ndashed = a_dashed;\nflag = a_flag;\ncolor = a_color/255.0;\nu = a_u;\n}\n"
+module.exports = "attribute vec2 a_position;\nattribute vec2 a_normal;\nattribute vec4 a_color;\nattribute float a_size;\nattribute float a_dis;\nattribute float a_dashed;\nattribute float a_flag;\nattribute float a_u;\n\nuniform mat3 u_matrix;\n\nvarying vec4 color;\nvarying float dis;\nvarying float dashed;\nvarying float flag;\nvarying float u;\n\nvoid main() {\n\nvec2 pos  = a_position + a_normal * a_size;\ngl_Position = vec4((u_matrix*vec3(pos,1)).xy,0.5,1);\ndis = a_dis;\ndashed = a_dashed;\nflag = a_flag;\ncolor = a_color/255.0;\nu = a_u;\n}\n"
 
 /***/ }),
 /* 41 */

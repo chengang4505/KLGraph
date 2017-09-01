@@ -28,9 +28,18 @@ export  default  function TextSDF(fontSize, buffer, radius, cutoff, fontFamily) 
 
     // hack around https://bugzilla.mozilla.org/show_bug.cgi?id=737852
     this.middle = Math.round((size / 2) * (navigator.userAgent.indexOf('Gecko/') >= 0 ? 1.2 : 1));
+
+    this.cache = {
+        map:{},
+        len:0
+    };
 }
 
 TextSDF.prototype.draw = function (char) {
+    var cache = this.cache;
+
+    if(cache.map[char]) return cache.map[char];
+
     this.ctx.clearRect(0, 0, this.size, this.size);
     this.ctx.fillText(char, this.buffer, this.middle);
 
@@ -56,10 +65,31 @@ TextSDF.prototype.draw = function (char) {
         data[4 * i + 3] = 255;
     }
 
-    return {
+    var data = {
         data:imgData,
         charWidth:charSize+this.buffer*2
     };
+
+    this.addCache(char,data);
+
+    return data;
+};
+
+TextSDF.maxCacheSize = 1024;
+
+TextSDF.prototype.addCache = function (key,data) {
+    var maxSize = TextSDF.maxCacheSize;
+    var cache = this.cache;
+    if(cache.len < maxSize && !cache.map[key]){
+        cache.map[key] = data;
+        cache.len++;
+    }
+};
+
+TextSDF.prototype.clearCache = function () {
+    var cache = this.cache;
+    cache.len = 0;
+    cache.map = {};
 };
 
 // 2D Euclidean distance transform by Felzenszwalb & Huttenlocher https://cs.brown.edu/~pff/dt/

@@ -73,7 +73,7 @@ return /******/ (function(modules) { // webpackBootstrap
 /******/ 	__webpack_require__.p = "";
 /******/
 /******/ 	// Load entry module and return exports
-/******/ 	return __webpack_require__(__webpack_require__.s = 46);
+/******/ 	return __webpack_require__(__webpack_require__.s = 47);
 /******/ })
 /************************************************************************/
 /******/ ([
@@ -126,6 +126,25 @@ utils.isObject = function (obj) {
 };
 utils.isFunction = function (obj) {
     return obj != null && (typeof obj === 'undefined' ? 'undefined' : _typeof(obj)) === typeoffn;
+};
+
+utils.isInteger = Number.isInteger || function (value) {
+    return typeof value === "number" && isFinite(value) && Math.floor(value) === value;
+};
+
+utils.nextPow2 = function (n) {
+    // var num = 1;
+    // while(num < n) num <<= 1;
+    // return num;
+
+    n = n - 1;
+    var i = 1;
+    var offset;
+    while ((offset = n >> i) > 0) {
+        n |= offset;
+        i *= 2;
+    }
+    return n + 1;
 };
 
 utils.extend = function () {
@@ -236,6 +255,9 @@ utils.getNodeSizeY = function (node) {
 };
 
 utils.getBBox = function (nodes) {
+
+    if (!nodes || nodes.length == 0) return { x: 0, y: 0, w: 0, h: 0 };
+
     var x0 = Infinity,
         y0 = Infinity,
         x1 = -Infinity,
@@ -364,9 +386,6 @@ exports.default = utils;
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
-/**
- * Created by chengang on 17-2-16.
- */
 
 
 
@@ -382,7 +401,7 @@ var EventEmitter = function () {
     function EventEmitter() {
         _classCallCheck(this, EventEmitter);
 
-        this._listener = {};
+        this.clearListeners();
     }
 
     _createClass(EventEmitter, [{
@@ -430,6 +449,11 @@ var EventEmitter = function () {
                 fn = listener[i];
                 fn.apply(null, args);
             }
+        }
+    }, {
+        key: 'clearListeners',
+        value: function clearListeners() {
+            this._listener = {};
         }
     }]);
 
@@ -870,9 +894,14 @@ function loadProgram(gl, shaders, attribs, loc, error) {
         linked,
         program = gl.createProgram();
 
+    program.shaders = {};
+
     for (i = 0; i < shaders.length; ++i) {
         gl.attachShader(program, shaders[i]);
-    }if (attribs) for (i = 0; i < attribs.length; ++i) {
+        program.shaders['shader' + i] = shaders[i];
+    }
+
+    if (attribs) for (i = 0; i < attribs.length; ++i) {
         gl.bindAttribLocation(program, locations ? locations[i] : i, opt_attribs[i]);
     }gl.linkProgram(program);
 
@@ -893,10 +922,6 @@ function loadProgram(gl, shaders, attribs, loc, error) {
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
-/**
- * Created by chengang on 17-3-28.
- */
-
 
 
 Object.defineProperty(exports, "__esModule", {
@@ -904,14 +929,28 @@ Object.defineProperty(exports, "__esModule", {
 });
 var mat3 = {};
 
+/**
+ *
+ * 返回一个单位矩阵
+ */
 mat3.normalize = function () {
     return [1, 0, 0, 0, 1, 0, 0, 0, 1];
 };
 
+/**
+ * 从dx ,dy 创建一个平移矩阵。
+ * @param dx
+ * @param dy
+ *
+ */
 mat3.matrixFromTranslate = function (dx, dy) {
     return [1, 0, 0, 0, 1, 0, dx, dy, 1];
 };
 
+/**
+ * 从angle 创建一个旋转矩阵。
+ * @param angle (弧度值)
+ */
 mat3.matrixFromRotation = function (angle) {
     var cos = Math.cos(angle),
         sin = Math.sin(angle);
@@ -919,10 +958,19 @@ mat3.matrixFromRotation = function (angle) {
     return [cos, sin, 0, -sin, cos, 0, 0, 0, 1];
 };
 
+/**
+ * 从scalex ,scaley 创建一个缩放矩阵。
+ * @param x
+ * @param y
+ */
 mat3.matrixFromScale = function (x, y) {
     return [x, 0, 0, 0, y, 0, 0, 0, 1];
 };
 
+/**
+ * 计算一个矩阵的逆矩阵。
+ * @param a
+ */
 mat3.invert = function (a) {
     var l = 3,
         a11 = a[0 * l + 0],
@@ -940,6 +988,11 @@ mat3.invert = function (a) {
     return [(a22 * a33 - a23 * a32) / del, (a13 * a32 - a12 * a33) / del, (a12 * a23 - a13 * a22) / del, (a23 * a31 - a21 * a33) / del, (a11 * a33 - a13 * a31) / del, (a13 * a21 - a11 * a23) / del, (a21 * a32 - a22 * a31) / del, (a12 * a31 - a11 * a32) / del, (a11 * a22 - a12 * a21) / del];
 };
 
+/**
+ * 矩阵相乘，在a的基础上做b变换。
+ * @param a
+ * @param b
+ */
 mat3.multiply = function (a, b) {
     var l = 3,
         a00 = a[0 * l + 0],
@@ -964,6 +1017,11 @@ mat3.multiply = function (a, b) {
     return [a00 * b00 + a01 * b10 + a02 * b20, a00 * b01 + a01 * b11 + a02 * b21, a00 * b02 + a01 * b12 + a02 * b22, a10 * b00 + a11 * b10 + a12 * b20, a10 * b01 + a11 * b11 + a12 * b21, a10 * b02 + a11 * b12 + a12 * b22, a20 * b00 + a21 * b10 + a22 * b20, a20 * b01 + a21 * b11 + a22 * b21, a20 * b02 + a21 * b12 + a22 * b22];
 };
 
+/**
+ * 对点p进行a矩阵变换。
+ * @param p
+ * @param a
+ */
 mat3.transformPoint = function (p, a) {
     var x = p[0],
         y = p[1];
@@ -981,6 +1039,11 @@ mat3.transformPoint = function (p, a) {
     return [x * a00 + y * a10 + a20, x * a01 + y * a11 + a21];
 };
 
+/**
+ * 对向量v进行a矩阵变换。
+ * @param v
+ * @param a
+ */
 mat3.rotateVector = function (v, a) {
     var x = v[0],
         y = v[1];
@@ -998,6 +1061,10 @@ mat3.rotateVector = function (v, a) {
     return [x * a00 + y * a10, x * a01 + y * a11];
 };
 
+/**
+ * 计算多个矩阵的变换。
+ * @param matrixs
+ */
 mat3.multiMatrix = function (matrixs) {
     return matrixs.reduce(function (pre, cur) {
         return mat3.multiply(pre, cur);
@@ -1008,12 +1075,6 @@ exports.default = mat3;
 
 /***/ }),
 /* 5 */
-/***/ (function(module, exports) {
-
-module.exports = " precision mediump float;\n\nvec4 color = vec4(77, 72, 91,255);\n\nvarying vec2 v_texCoord;\nvarying float size;\n\n\nuniform sampler2D u_image;\nuniform float u_camera_scale;\n\n\nvoid main() {\n    color = color / 255.0;\n\n    float cutoff = 0.76;\n    float offset = 6.0/size * u_camera_scale;\n\n    offset = pow(offset,1.2);\n\n    offset = min((1.0-cutoff),offset);\n\n   float dist = texture2D(u_image, v_texCoord).r;\n   float alpha = smoothstep(cutoff - offset, cutoff + offset, dist);\n   gl_FragColor = color *alpha;\n}"
-
-/***/ }),
-/* 6 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -1147,8 +1208,8 @@ var Graph = function (_EventEmitter) {
             this.edges.forEach(function (edge) {
                 source = this.nodesIndex[edge.source];
                 target = this.nodesIndex[edge.target];
-                attr = edge.source + edge.target;
-                if (!map[attr]) map[attr] = map[edge.target + edge.source] = { counter: 0, source: edge.source };
+                attr = edge.source + '&' + edge.target;
+                if (!map[attr]) map[attr] = map[edge.target + '&' + edge.source] = { counter: 0, source: edge.source };
 
                 edge._curveGroup = map[attr];
 
@@ -1196,7 +1257,24 @@ var Graph = function (_EventEmitter) {
 
     }, {
         key: 'removeNode',
-        value: function removeNode(nodeid) {
+        value: function removeNode(nodeids) {
+            if (!_util2.default.isArray()) nodeids = [nodeids];
+
+            nodeids.forEach(function (nodeid) {
+                this._removeNode(nodeid);
+            }.bind(this));
+
+            this.emit('remove', ['node', nodeids]);
+        }
+
+        /**
+         *
+         * @private
+         */
+
+    }, {
+        key: '_removeNode',
+        value: function _removeNode(nodeid) {
             if (!nodeid || !this.nodesIndex[nodeid]) return;
 
             var nodes = this.nodes;
@@ -1226,8 +1304,6 @@ var Graph = function (_EventEmitter) {
             this.nodesIndex[nodeid] = null;
             this.inEdgesIndex[nodeid] = null;
             this.outEdgesIndex[nodeid] = null;
-
-            this.emit('remove', ['node', nodeid]);
         }
 
         /**
@@ -1283,7 +1359,25 @@ var Graph = function (_EventEmitter) {
         }
     }, {
         key: 'removeEdge',
-        value: function removeEdge(edgeid) {
+        value: function removeEdge(edgeids) {
+
+            if (!_util2.default.isArray(edgeids)) edgeids = [edgeids];
+
+            edgeids.forEach(function (edgeid) {
+                this._removeEdge(edgeid);
+            }.bind(this));
+
+            this.emit('remove', ['edge', edgeids]);
+        }
+
+        /**
+         *
+         * @private
+         */
+
+    }, {
+        key: '_removeEdge',
+        value: function _removeEdge(edgeid) {
             if (!edgeid || !this.edgesIndex[edgeid]) return;
 
             var edge = this.edgesIndex[edgeid],
@@ -1318,7 +1412,6 @@ var Graph = function (_EventEmitter) {
             }
 
             this.edgesIndex[edgeid] = null;
-            this.emit('remove', ['edge', edgeid]);
         }
     }, {
         key: 'getNodes',
@@ -1327,50 +1420,91 @@ var Graph = function (_EventEmitter) {
         }
     }, {
         key: 'setNodeData',
-        value: function setNodeData(id, obj) {
+        value: function setNodeData(ids, objs) {
             // console.time('setNodeData')
-            var node = this.nodesIndex[id];
-
-            var updatePos = false;
-            if (obj.hasOwnProperty('x') || obj.hasOwnProperty('y')) updatePos = true;
-
-            for (var attr in obj) {
-                node[attr] = obj[attr];
-                obj[attr] = true;
+            if (!_util2.default.isArray(ids)) {
+                ids = [ids];
             }
 
-            this.emit('change', ['node', id, obj]);
-            if (updatePos) {
-                obj = { source: true, target: true };
-                this.inEdgesIndex[id] && this.inEdgesIndex[id].length > 0 && this.emit('change', ['edge', this.inEdgesIndex[id], obj]);
-                this.outEdgesIndex[id] && this.outEdgesIndex[id].length > 0 && this.emit('change', ['edge', this.outEdgesIndex[id], obj]);
-            }
+            var objIsArr = _util2.default.isArray(objs);
+
+            var nodeDirtyArr = [];
+            var edgeDirtyArr = [];
+            var edgeIdArr = [];
+
+            ids.forEach(function (id, i) {
+                var node = this.nodesIndex[id];
+                var obj = objIsArr ? objs[i] : objs;
+                var updatePos = false;
+
+                if (obj.hasOwnProperty('x') || obj.hasOwnProperty('y')) updatePos = true;
+
+                for (var attr in obj) {
+                    node[attr] = obj[attr];
+                }
+                nodeDirtyArr.push(obj);
+
+                if (updatePos) {
+                    if (this.inEdgesIndex[id] && this.inEdgesIndex[id].length > 0) {
+                        this.inEdgesIndex[id].forEach(function (id) {
+                            edgeIdArr.push(id);
+                            edgeDirtyArr.push({ source: true, target: true });
+                        });
+                    }
+
+                    if (this.outEdgesIndex[id] && this.outEdgesIndex[id].length > 0) {
+                        this.outEdgesIndex[id].forEach(function (id) {
+                            edgeIdArr.push(id);
+                            edgeDirtyArr.push({ source: true, target: true });
+                        });
+                    }
+                }
+            }.bind(this));
+
+            this.emit('change', ['node', ids, nodeDirtyArr]);
+
+            edgeIdArr.length > 0 && this.emit('change', ['edge', edgeIdArr, edgeDirtyArr]);
+
             // console.timeEnd('setNodeData')
         }
     }, {
         key: 'setEdgeData',
-        value: function setEdgeData(id, obj) {
-            var edge = this.edgesIndex[id];
-            for (var attr in obj) {
-                edge[attr] = obj[attr];
-                obj[attr] = true;
+        value: function setEdgeData(ids, objs) {
+
+            if (!_util2.default.isArray(ids)) {
+                ids = [ids];
             }
-            this.emit('change', ['edge', id, obj]);
-        }
-    }, {
-        key: 'updateNodeQuad',
-        value: function updateNodeQuad(id, oldpos) {
-            var nodes = this.quad.point(oldpos.x, oldpos.y);
-            if (nodes.length > 0) {
-                for (var i = 0, len = nodes.length; i < len; i++) {
-                    if (nodes[i].id == id) {
-                        nodes.splice(i, 1);
-                        break;
-                    }
+
+            var objIsArr = _util2.default.isArray(objs);
+
+            var edgeDirtyArr = [];
+
+            ids.forEach(function (id, i) {
+                var edge = this.edgesIndex[id];
+                var obj = objIsArr ? objs[i] : objs;
+
+                for (var attr in obj) {
+                    edge[attr] = obj[attr];
                 }
-                this.quad.insert(this.nodesIndex[id], this.quad.root);
-            }
+                edgeDirtyArr.push(obj);
+            }.bind(this));
+
+            this.emit('change', ['edge', ids, edgeDirtyArr]);
         }
+
+        // updateNodeQuad(id,oldpos){
+        //     var nodes = this.quad.point(oldpos.x,oldpos.y);
+        //     if(nodes.length > 0){
+        //         for(var i = 0,len = nodes.length;i<len;i++){
+        //             if(nodes[i].id == id){
+        //                 nodes.splice(i,1);
+        //                 break;
+        //             }
+        //         }
+        //         this.quad.insert(this.nodesIndex[id],this.quad.root);
+        //     }
+        // }
+
     }]);
 
     return Graph;
@@ -1379,7 +1513,7 @@ var Graph = function (_EventEmitter) {
 exports.default = Graph;
 
 /***/ }),
-/* 7 */
+/* 6 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -1446,67 +1580,172 @@ var WebGLRender = function (_EventEmitter) {
     function WebGLRender(context, container) {
         _classCallCheck(this, WebGLRender);
 
+        //graphView obj
         var _this2 = _possibleConstructorReturn(this, (WebGLRender.__proto__ || Object.getPrototypeOf(WebGLRender)).call(this));
 
         _this2.context = context;
+        //config
         _this2.config = _this2.context.config;
 
+        //dom canvas
         _this2.container = container;
+        //graph
         _this2.graph = context.graph;
 
+        //render flag, render when  needUpdate is true;
         _this2.needUpdate = true;
+        //sample Ratio,
         _this2.sampleRatio = 1;
 
-        // this.initTexture = false;
-        // this.textureLoader = new TextureLoader();
-        _this2.textureIcon = new _TextureIcon2.default(_this2.config, 0);
-        _this2.textureText = new _TextureText2.default(_this2.config, 1);
+        _this2._destroy = false;
 
-        _this2.mouseType = mouseType;
+        _this2.gl = null;
+
+        //init webgl context and Extension
         _this2.initGl();
-        _this2.initEvent();
 
-        _this2.initIconTexture();
-        _this2.initTextTexture();
+        // this.textureLoader = new TextureLoader();
+        //manage icon texture for node
+        _this2.textureIcon = new _TextureIcon2.default(_this2.config, _this2.gl, 0);
+        //manager text texture for node ,edge
+        _this2.textureText = new _TextureText2.default(_this2.config, _this2.gl, 1);
 
+        //enum mouse type
+        _this2.mouseType = mouseType;
+
+        // matrix from camera coordinate to webgl coordinate[-1 ,1]
         _this2.projectMatrix = null;
 
+        // camera transform info
         _this2.camera = {
-            scale: 1,
-            positionX: 0,
-            positionY: 0,
-            rotation: 0
+            scale: 1, //scale
+            positionX: 0, //position x
+            positionY: 0, //position y
+            rotation: 0 //rotation,(not use now)
         };
 
+        // gl frame buffer to save png(not use now)
         _this2.saveDataFrame = null;
+        // gl texture
         _this2.saveDataTex = null;
 
         /**
-         * layers:　相关的layer
-         * index: cache索引 map
-         * flag:
+         ** render cache for context : graph ,node ,edge. for every node or edge , cache the render data for the
+         * relative layers, and if need , the vertex buffer of render layers are composed of the vertex data of the contexts,
+         *  the index buffer of render layers  are composed of the index data fo the contexts;
+         *
+         *  more info look at [updateCacheByData]
+         *
+         *  layers : relative layers of the context. example : 'node' 'nodeLabel' 'rectNode' for node context.
+         *  index : a map that store the layer info for each context, the key is the id of a node or a edge.
+         *
+         *      vertexStart: the start vertex num at the vertex buffer of render layer,
+         *      data.vertices: the vertex data array.
+         *      data.indices: the index data array.
+         *      oldVertexLength: the len of data.vertices in bytes.
+         *      oldIndexLength: the len of data.indices in bytes.
+         *
+         *  filters : context relative filters
+         *
+         *  update : data to update
+         *
+         *  example:
+         *  {
+         *     node:{
+         *       layers:['node','nodeLabel',...]
+         *       index:{
+         *             'nodeId1':{
+         *                      'layername1': {vertexStart:-1,data:{vertices:[...],indices:[...]},oldVertexLength:-1,oldIndexLength:-1}
+         *                      .....
+         *                  }
+         *               ....
+         *              }
+         *       filters:[filterNodeBySize,....]
+         *       }
+         *  }
+         *
          */
         _this2.renderCache = {
-            graph: { layers: [], index: {}, flag: false, filters: [] },
-            node: { layers: [], index: {}, flag: false, filters: [] },
-            edge: { layers: [], index: {}, flag: false, filters: [] }
+            graph: { layers: [], index: {}, filters: [], update: { map: null, data: null } },
+            node: { layers: [], index: {}, filters: [], update: { map: null, data: null } },
+            edge: { layers: [], index: {}, filters: [], update: { map: null, data: null } }
         };
-        // this.clearAllFlag = true;
-        _this2.renderLayerMap = {};
+        // map for layers ,key is the layer name.
+        _this2.renderLayerMap = Object.create(null);
+
+        /**
+         * render layer config, default is the WebGLRender.defaultLayersConfig .  more info in file [defaultConfig/index.js]
+         * {
+         *   mainLayer: {boolean} the main name that the layer belong to.
+         *   enable: {boolean} render and update the layer or not
+         *   show: {boolean} render the layer or not ,  don't affect update the layer.
+         *   needResize: {boolean} need resize the vertex buffer of layer or not
+         *   program: {WebGLProgram} the vertex buffer is initialized or not.
+         *   tempVertex: temp data for vertex buffer.
+         *   tempIndex: temp data for index buffer.
+         *   cache:{boolean} vertex buffer cache flag.
+         *   indexCache:{boolean} index buffer cache flag.
+         *   check:{fun} check the node or the edge will be render at the layer
+         *   option:{obj} custom args for the layer, pass to [getRenderData , getUniforms] of the layer render.
+         *   filter:{array} layer filters.
+         * }
+         *
+         */
         _this2.renderLayersConfig = _this2.config.renderLayersConfig || WebGLRender.defaultLayersConfig;
+
+        //register events to graph,event 'change' 'add' 'remove' etc.
+        _this2.initEvent();
+
+        //init textureIcon for node
+        _this2.initIconTexture();
+
+        //init textureText for node label and edge label
+        _this2.initTextTexture();
+
+        //init render layers info
         _this2.initRenderLayer();
 
-        _this2.updateLayerData();
+        // this.updateLayerData();
 
-        // debugger
+        // init mouse events
         _Event2.default.call(_this2);
 
         return _this2;
     }
 
     _createClass(WebGLRender, [{
+        key: 'destroy',
+        value: function destroy() {
+
+            this.context = null;
+
+            this.graph = null;
+
+            this.textureIcon.destroy();
+            this.textureText.destroy();
+
+            this.container.parentNode.removeChild(this.container);
+            this.container = null;
+
+            this.renderCache = null;
+            this.renderLayerMap = null;
+            this.renderLayersConfig = null;
+
+            this.clearRenderMap();
+
+            this.clearListeners();
+
+            this._destroy = true;
+        }
+
+        /**
+         * init webgl info
+         */
+
+    }, {
         key: 'initGl',
         value: function initGl() {
+            //webgl　默认初始化 option
             var option = {
                 preserveDrawingBuffer: true,
                 premultipliedAlpha: true,
@@ -1519,31 +1758,42 @@ var WebGLRender = function (_EventEmitter) {
 
             gl = canvas.getContext('experimental-webgl', option) || canvas.getContext('webgl', option);
 
-            if (!gl) {
-                throw 'browser not support webGl!';
-            }
+            if (!gl) throw 'browser not support WebGL!';
 
+            //加载　Extension
             gl.getExtension('OES_standard_derivatives');
             gl.getExtension('OES_element_index_uint');
 
             this.gl = gl;
         }
+
+        /**
+         * init event
+         */
+
     }, {
         key: 'initEvent',
         value: function initEvent() {
             var _this = this;
-            this.graph.on('change', function (type, ids, dirtyAttr) {
+            //graph node or edge 属性改变会触发　change 事件，
+            this.graph.on('change', function (type, ids, dirtyAttrs) {
                 if (type == 'node') {
-                    _this.updateNodeRenderData(ids, dirtyAttr);
+                    updateTextureText(dirtyAttrs);
+                    _this.updateNodeRenderData(ids, dirtyAttrs);
                 } else if (type == 'edge') {
-                    _this.updateEdgeRenderData(ids, dirtyAttr);
+                    updateTextureText(dirtyAttrs);
+                    _this.updateEdgeRenderData(ids, dirtyAttrs);
                 }
             });
+
+            // clear缓存，重新计算 icon 和　text texture
             this.graph.on('reset', function () {
                 _this.clearRenderCache();
                 _this.initIconTexture();
                 _this.initTextTexture();
             });
+
+            //node or edge 增加时，　需要重新计算cache, 更新text texture.
             this.graph.on('add', function (type, ids) {
                 if (!_util2.default.isArray(ids)) ids = [ids];
 
@@ -1555,34 +1805,52 @@ var WebGLRender = function (_EventEmitter) {
                     return _this.graph.edgesIndex[e];
                 });
 
-                var addtexts = getAddText(objs);
-                if (addtexts.length > 0) {
-                    _this.textureText.addTexts(addtexts);
-                    _this.textureText.attachGl(_this.gl);
-                }
+                updateTextureText(objs);
                 _this.clearRenderCache();
             });
+
+            // node or edge 移除时，　需要重新计算　index cache
             this.graph.on('remove', function (type, ids) {
                 _this.forceRender();
                 var contextRelativeLayers = _this.renderCache[type].layers;
                 var renderLayerMap = _this.renderLayerMap;
 
                 contextRelativeLayers.forEach(function (layer) {
-                    renderLayerMap[layer].indexCache = false;
+                    renderLayerMap[layer].indexCache = false; // 重新计算index cache
                 });
             });
+
+            //更新 text texture
+            function updateTextureText(objs) {
+                // debugger
+                var addtexts = getAddText(objs);
+                if (addtexts.length > 0) {
+                    // console.time('updateTextureText');
+                    //是否需要　resize text texture
+                    if (_this.textureText.needResize(addtexts.length)) {
+                        //clear cache
+                        _this.clearRenderCache();
+                    }
+                    //add texts
+                    _this.textureText.addTexts(addtexts);
+                    _this.textureText.attachGl(_this.gl);
+                    // console.timeEnd('updateTextureText');
+                }
+            }
 
             function getAddText(objs) {
                 var infos = _this.textureText.textinfo.infos;
                 var char, len;
                 var texts = [];
+                var map = {};
                 objs.forEach(function (e) {
                     if (!e.label) return;
                     len = e.label.length;
                     for (var i = 0; i < len; i++) {
                         char = e.label.charAt(i);
-                        if (!infos[char]) {
+                        if (!infos[char] && !map[char]) {
                             texts.push(char);
+                            map[char] = true;
                         }
                     }
                 });
@@ -1590,15 +1858,24 @@ var WebGLRender = function (_EventEmitter) {
                 return texts;
             }
         }
+
+        /**
+         * 初始化，text texture, 计算node.label 和　edge.label中的文字。
+         */
+
     }, {
         key: 'initTextTexture',
         value: function initTextTexture() {
 
+            console.time('initTextTexture');
+
+            //clear
             this.textureText.clear();
 
             var nodes = this.graph.nodes;
             var edges = this.graph.edges;
 
+            // node label
             var map = {};
             var texts = [];
             nodes.forEach(function (e) {
@@ -1613,6 +1890,7 @@ var WebGLRender = function (_EventEmitter) {
                 }
             });
 
+            //edge label
             edges.forEach(function (e) {
                 if (e.label) {
                     var chars = e.label.split('');
@@ -1625,33 +1903,48 @@ var WebGLRender = function (_EventEmitter) {
                 }
             });
 
-            this.textureText.createCanvasImg(texts);
+            // add text
+            this.textureText.addTexts(texts);
 
-            this.textureText.attachGl(this.gl);
+            console.timeEnd('initTextTexture');
         }
+
+        /**
+         * 初始化 icon texture ,计算node.icon 中的 icon
+         */
+
     }, {
         key: 'initIconTexture',
         value: function initIconTexture() {
 
+            //clear
             this.textureIcon.clear();
 
             var nodes = this.graph.nodes;
 
+            //node icon
             var map = {};
             var icons = [];
-            nodes.forEach(function (e) {
-                if (e.icon) {
-                    if (!map[e.icon]) {
-                        map[e.icon] = true;
-                        icons.push(e.icon);
+
+            if (this.config.textureIcons && this.config.textureIcons.length > 0) icons = this.config.textureIcons;else {
+                nodes.forEach(function (e) {
+                    if (e.icon) {
+                        if (!map[e.icon]) {
+                            map[e.icon] = true;
+                            icons.push(e.icon);
+                        }
                     }
-                }
-            });
+                });
+            }
 
+            //create icon texture
             this.textureIcon.createIcons(icons);
-
-            this.textureIcon.attachGl(this.gl);
         }
+
+        /**
+         * 初始化render layer
+         */
+
     }, {
         key: 'initRenderLayer',
         value: function initRenderLayer() {
@@ -1666,38 +1959,50 @@ var WebGLRender = function (_EventEmitter) {
 
                 layer.subLayers.forEach(function (subLayer) {
 
+                    //default value
                     if (subLayer.enable == undefined) subLayer.enable = true;
                     if (subLayer.show == undefined) subLayer.show = true;
                     if (subLayer.option == undefined) subLayer.option = {};
                     if (subLayer.filters == undefined) subLayer.filters = [];
 
+                    //layer map
                     renderLayerMap[subLayer.name] = subLayer;
 
+                    //自定义layer ,没有下面的参数
                     if (subLayer.custom) return;
 
+                    //create WebGLProgram
                     program = (0, _GLUtil.loadProgram)(gl, [(0, _GLUtil.loadShader)(gl, subLayer.render.shaderVert, gl.VERTEX_SHADER), (0, _GLUtil.loadShader)(gl, subLayer.render.shaderFrag, gl.FRAGMENT_SHADER)]);
 
+                    // attributes in shader
                     program.activeAttributes = (0, _GLUtil.getActiveAttributes)(gl, program);
+                    // uniforms in shader
                     program.activeUniforms = (0, _GLUtil.getActiveUniforms)(gl, program);
 
+                    //strip of a point in the render layer。
                     strip = subLayer.render.strip;
 
+                    //如果不存在strip ,　从attributes　config 中计算
                     if (!subLayer.render.strip) strip = (0, _GLUtil.calculateStrip)(subLayer.render.attributes);
 
+                    //attributes offset in strip
                     program.offsetConfig = { config: subLayer.render.attributes, strip: strip };
                     program.uniforms = null;
+                    //VBO buffer
                     program.vertexBuffer = gl.createBuffer();
+                    //IBO buffer
                     program.indexBuffer = gl.createBuffer();
+                    //IBO length
                     program.indexN = 0;
 
                     subLayer.mainLayer = layer.name;
                     subLayer.program = program;
-                    subLayer.initBuffer = false;
                     subLayer.tempVertex = [];
                     subLayer.tempIndex = [];
-                    subLayer.index = [];
                     subLayer.indexCache = false;
+                    subLayer.needResize = false;
 
+                    //layer check when create cache
                     if (subLayer.check == undefined) subLayer.check = function () {
                         return true;
                     };
@@ -1706,22 +2011,83 @@ var WebGLRender = function (_EventEmitter) {
                 });
             }.bind(this));
         }
-        //render
+    }, {
+        key: 'clearRenderMap',
+        value: function clearRenderMap() {
+            var renderLayerMap = this.renderLayerMap;
+            var gl = this.gl;
+            var layer;
+
+            for (var name in renderLayerMap) {
+                layer = renderLayerMap[name];
+
+                layer.option = null;
+                layer.filters = null;
+
+                if (layer.custom) continue;
+
+                layer.tempVertex = null;
+                layer.tempIndex = null;
+
+                layer.program.offsetConfig = null;
+                layer.program.activeAttributes = null;
+                layer.program.activeUniforms = null;
+                layer.program.uniforms = null;
+
+                for (var name1 in layer.program.shaders) {
+                    gl.deleteShader(layer.program.shaders[name1]);
+                }gl.deleteBuffer(layer.program.vertexBuffer);
+                gl.deleteBuffer(layer.program.indexBuffer);
+
+                gl.deleteProgram(layer.program);
+
+                layer.program = null;
+            }
+        }
+
+        /**
+         * prepare the render data and draw
+         */
 
     }, {
         key: 'render',
         value: function render() {
-            // debugger
+
+            if (this._destroy || !this.needUpdate) return;
+
+            // resize canvas width and height ,update projectMatrix
+
             this.resizeCanvas();
-            // setTimeout(this.render2.bind(this),500);
             // console.time('render');
 
-            this.updateLayerData();
+            this.updateChange();
+
+            //更新node 相关的render layer的　cache.
+
+            // console.time('updateContextCacheNode');
+            this.updateContextCache('node');
+            // console.timeEnd('updateContextCacheNode');
+
+            //更新edge 相关的render layer的　cache.
+
+            // console.time('updateContextCacheEdge');
+            this.updateContextCache('edge');
+            // console.timeEnd('updateContextCacheEdge');
+
+            //计算uniforms
 
             // console.time('updateLayerUniformData');
             this.updateLayerUniformData();
             // console.timeEnd('updateLayerUniformData');
 
+            //resize vertex buffer(VBO).
+
+            // console.time('resizeLayerVertexData');
+            this.resizeLayerVertexData('node');
+            this.resizeLayerVertexData('edge');
+            // console.timeEnd('resizeLayerVertexData');
+
+            //update index buffer(IBO)
             this.updateLayerIndex('node'); //node first
             this.updateLayerIndex('edge');
 
@@ -1737,36 +2103,62 @@ var WebGLRender = function (_EventEmitter) {
 
             this.needUpdate = false;
         }
+
+        /**
+         * set default render flags
+         */
+
     }, {
-        key: 'setDefaultRenderFlag',
-        value: function setDefaultRenderFlag() {
+        key: '_setFlag',
+        value: function _setFlag() {
             var gl = this.gl;
             // gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
             gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
             // gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA,gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);
             gl.enable(gl.BLEND);
             gl.disable(gl.DEPTH_TEST);
-            gl.clearColor(1, 1, 1, 1);
         }
+    }, {
+        key: '_clear',
+        value: function _clear() {
+            var gl = this.gl;
+            var bgColor = _util2.default.parseColor(this.config.defaultBackgroundColor);
+            gl.clearColor(bgColor.r / 255, bgColor.g / 255, bgColor.b / 255, bgColor.a / 255);
+
+            //clear viewport
+            gl.clear(gl.COLOR_BUFFER_BIT);
+        }
+
+        /**
+         * draw layer data
+         */
+
     }, {
         key: 'draw',
         value: function draw() {
 
-            var num = 0;
             var mainLayer, subLayers, layer, gl, err, renderLayerMap, program;
             renderLayerMap = this.renderLayerMap;
 
             gl = this.gl;
-            gl.clear(gl.COLOR_BUFFER_BIT);
-            this.setDefaultRenderFlag();
+            //clear
 
+            this._clear();
+
+            //emit event
             this.emit('renderBefore', [this]);
 
             for (var i = 0; i < this.renderLayersConfig.length; i++) {
+
                 mainLayer = this.renderLayersConfig[i];
                 subLayers = mainLayer.subLayers;
 
+                //for each layer
                 for (var j = 0; j < subLayers.length; j++) {
+
+                    this._setFlag();
+
+                    layer = subLayers[j].name;
 
                     if (!subLayers[j].enable || !subLayers[j].show) continue;
 
@@ -1776,102 +2168,226 @@ var WebGLRender = function (_EventEmitter) {
                         continue;
                     }
 
-                    if (subLayers[j].render.renderBefore && _util2.default.isFunction(subLayers[j].render.renderBefore)) {
-                        subLayers[j].renderBefore.render.call(subLayers[j], this, subLayers[j].option);
-                    }
-
-                    layer = subLayers[j].name;
-
+                    //WebGLProgram
                     program = renderLayerMap[layer].program;
 
                     if (program.indexN == 0) continue;
 
+                    //call renderBefore if exist
+                    if (subLayers[j].render.renderBefore && _util2.default.isFunction(subLayers[j].render.renderBefore)) {
+                        subLayers[j].render.renderBefore.call(subLayers[j], this, subLayers[j].option);
+                    }
+
+                    //gl call, use program
                     gl.useProgram(program);
 
+                    //bind VBO IBO
                     gl.bindBuffer(gl.ARRAY_BUFFER, program.vertexBuffer);
                     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, program.indexBuffer);
 
+                    //set attributes offset and enable attributes location
                     if (err = (0, _GLUtil.vertexAttribPointer)(gl, program.activeAttributes, program.offsetConfig)) {
                         throw new Error('render layer[ ' + layer + ' ] err:\n ' + err);
                     }
 
+                    //set uniform values
                     if (err = (0, _GLUtil.setUniforms)(gl, program.activeUniforms, program.uniforms)) {
                         throw new Error('render layer[ ' + layer + ' ] err:\n ' + err);
                     }
 
+                    //draw data
                     gl.drawElements(gl.TRIANGLES, program.indexN, gl.UNSIGNED_INT, 0);
 
+                    //call renderAfter if exist
                     if (subLayers[j].render.renderAfter && _util2.default.isFunction(subLayers[j].render.renderAfter)) {
                         subLayers[j].render.renderAfter.call(subLayers[j], this, subLayers[j].option);
                     }
 
+                    //clear bind status
                     gl.bindBuffer(gl.ARRAY_BUFFER, null);
                     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
                 }
             }
 
+            //emit event
             this.emit('renderAfter', [this]);
 
             // console.log('render count:',num);
         }
+
+        /**
+         * update change
+         */
+
+    }, {
+        key: 'updateChange',
+        value: function updateChange() {
+
+            //update node
+            var update, id, map;
+            update = this.renderCache.node.update;
+            if (update.data && update.data.length > 0) {
+                map = update.map;
+                for (id in map) {
+                    this.updateCacheByData('node', this.graph.nodesIndex[id], map[id]);
+                }update.data = null;
+                update.map = null;
+            }
+
+            //update edge
+            update = this.renderCache.edge.update;
+            if (update.data && update.data.length > 0) {
+                map = update.map;
+                for (id in map) {
+                    this.updateCacheByData('edge', this.graph.edgesIndex[id], map[id]);
+                }update.data = null;
+                update.map = null;
+            }
+        }
+
+        /**
+         * add change
+         */
+
+    }, {
+        key: 'addChange',
+        value: function addChange(context, id, changeData) {
+            if (context != 'node' && context != 'edge' && context != 'graph') return;
+
+            var map, data, temp;
+            if (context === 'graph') {
+                //reserve
+            } else {
+                map = this.renderCache[context].update.map = this.renderCache[context].update.map || Object.create(null);
+                data = this.renderCache[context].update.data = this.renderCache[context].update.data || [];
+
+                if (!map[id]) map[id] = temp = {}, data.push(temp);else temp = map[id];
+
+                for (var attr in changeData) {
+                    temp[attr] = changeData[attr];
+                }
+            }
+        }
+
+        /**
+         * 计算cache chunk,
+         * @param context : node ,edge ,graph etc;
+         * @param data: a node or a edge obj,
+         * @param dirtyAttr : changed attributes
+         * @param needUpdateLayers : need update layers
+         */
+
     }, {
         key: 'updateCacheByData',
         value: function updateCacheByData(context, data, dirtyAttr, needUpdateLayers) {
 
-            var cacheIndex, temp, points;
+            var cacheIndex, temp, points, startBytes, strip;
             var contextRelativeLayers = this.renderCache[context].layers;
             var renderLayerMap = this.renderLayerMap;
             var gl = this.gl;
 
+            //index map
             cacheIndex = this.renderCache[context].index[data.id] = this.renderCache[context].index[data.id] || {};
 
             needUpdateLayers = needUpdateLayers || contextRelativeLayers;
 
-            // debugger
+            //update cache
             needUpdateLayers.forEach(function (layer) {
 
                 if (!renderLayerMap[layer].check(data) || !renderLayerMap[layer].enable) return;
 
-                //dirtyAttr setData update
+                //dirtyAttr setData update,ignore update cache ,
                 if (dirtyAttr && !renderLayerMap[layer].cache) return;
 
+                //calculate cache
                 temp = renderLayerMap[layer].render.getRenderData({
-                    dirtyAttr: dirtyAttr,
-                    oldData: cacheIndex[layer] ? cacheIndex[layer].data : null,
-                    data: data,
+                    dirtyAttr: dirtyAttr, //dirty attributes
+                    oldData: cacheIndex[layer] ? cacheIndex[layer].data : null, //cache data, 可以看情况复用
+                    data: data, //a node or a edge
                     config: this.config,
                     graph: this.graph,
                     textureText: this.textureText,
-                    option: renderLayerMap[layer].option,
+                    option: renderLayerMap[layer].option, //custom  args
                     // textureLoader: this.textureLoader,
                     textureIcon: this.textureIcon
                 });
 
-                if (!temp) return;
+                strip = renderLayerMap[layer].program.offsetConfig.strip;
 
+                //cache 有效时，进行局部更新
                 if (renderLayerMap[layer].cache) {
-                    gl.bindBuffer(gl.ARRAY_BUFFER, renderLayerMap[layer].program.vertexBuffer);
-                    gl.bufferSubData(gl.ARRAY_BUFFER, cacheIndex[layer].vertexStart, new Float32Array(temp.vertices));
+                    //updateNodeRenderData　updateEdgeRenderData　进行局部更新　主要执行这一部分
 
-                    cacheIndex[layer].data.vertices = temp.vertices; //cache old data
+                    //no data
+                    if (!temp) {
+                        if (cacheIndex[layer].data) {
+                            //need update index cache;
+                            renderLayerMap[layer].indexCache = false;
+                            cacheIndex[layer].data = null;
+                        }
+                        return;
+                    }
+
+                    //vertex size 和上一次不一致的时候，会resize vertex buffer
+                    if (renderLayerMap[layer].needResize || temp && temp.vertices.length !== cacheIndex[layer].oldVertexLength) {
+                        renderLayerMap[layer].indexCache = false;
+                        renderLayerMap[layer].needResize = true; //set resize flag
+                        cacheIndex[layer].data = temp;
+                        cacheIndex[layer].oldVertexLength = temp.vertices.length;
+                        cacheIndex[layer].oldIndexLength = temp.indices.length;
+                    } else {
+
+                        //每个float占4个bytes
+                        startBytes = cacheIndex[layer].vertexStart * strip * 4; //float 4 bytes
+
+                        //bind vertex buffer,局部更新vertex buffer data
+                        gl.bindBuffer(gl.ARRAY_BUFFER, renderLayerMap[layer].program.vertexBuffer);
+                        gl.bufferSubData(gl.ARRAY_BUFFER, startBytes, new Float32Array(temp.vertices));
+
+                        cacheIndex[layer].data = temp;
+
+                        //如果indices size 和　上一次不一致，需要更新index buffer
+                        if (temp.indices.length !== cacheIndex[layer].oldIndexLength) renderLayerMap[layer].indexCache = false;
+                    }
                 } else {
-                    points = renderLayerMap[layer].tempVertex.length / renderLayerMap[layer].program.offsetConfig.strip;
+                    //cache　无效时，　把数据保存到　temp array.
 
-                    cacheIndex[layer] = cacheIndex[layer] || { vertexStart: -1, data: null };
+                    //updateContextCache 主要执行这一部分
+
+                    //temp array中的point数
+                    points = renderLayerMap[layer].tempVertex.length / strip;
+
+                    /**
+                     * chunk info
+                     * vertexStart: 这个vertex chunk在vertex buffer中的第几个point，
+                     * oldVertexLength: vertex chunk size，
+                     * oldIndexLength: index chunk size，
+                     */
+                    cacheIndex[layer] = { vertexStart: -1, data: null, oldVertexLength: -1, oldIndexLength: -1 };
+
+                    if (!temp) return;
+
+                    //检查chunk中point 属性长度是否一致
+                    if (!_util2.default.isInteger(temp.vertices.length / strip)) throw new Error('points num not bound to a integer');
 
                     cacheIndex[layer].data = temp; //cache old data
+                    cacheIndex[layer].vertexStart = points;
+                    cacheIndex[layer].oldVertexLength = temp.vertices.length;
+                    cacheIndex[layer].oldIndexLength = temp.indices.length;
 
-                    cacheIndex[layer].vertexStart = renderLayerMap[layer].tempVertex.length * 4;
+                    //add vertex chunk to temp array
                     temp.vertices.forEach(function (e) {
                         renderLayerMap[layer].tempVertex.push(e);
-                    });
-                    temp.indices.forEach(function (e, i) {
-                        temp.indices[i] = e + points;
-                        // renderLayerMap[layer].tempIndex.push(temp.indices[i])
                     });
                 }
             }.bind(this));
         }
+
+        /**
+         * 计算context 相关layer的cache.
+         * @param context : node ,edge ,graph etc.
+         */
+
     }, {
         key: 'updateContextCache',
         value: function updateContextCache(context) {
@@ -1881,8 +2397,11 @@ var WebGLRender = function (_EventEmitter) {
             var gl = this.gl;
             var renderLayerMap = this.renderLayerMap;
 
-            if (context === 'graph') {} else {
+            if (context === 'graph') {
+                //reserve
+            } else {
 
+                //寻找需要计算cache　的layers
                 needUpdateLayers = [];
                 contextRelativeLayers = this.renderCache[context].layers;
                 contextRelativeLayers.forEach(function (layer) {
@@ -1893,47 +2412,114 @@ var WebGLRender = function (_EventEmitter) {
 
                 datas = context == 'node' ? this.graph.nodes : this.graph.edges;
                 for (var i = 0, len = datas.length; i < len; i++) {
+                    //create cache for a node or a edge
                     this.updateCacheByData(context, datas[i], null, needUpdateLayers);
                 }
 
+                //创建vertex buffer 从 temp array
                 needUpdateLayers.forEach(function (layer) {
 
+                    //bind and crate buffer
                     gl.bindBuffer(gl.ARRAY_BUFFER, renderLayerMap[layer].program.vertexBuffer);
-                    // gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, renderLayerMap[layer].program.indexBuffer);
-
                     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(renderLayerMap[layer].tempVertex), gl.DYNAMIC_DRAW);
-                    // gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint32Array(renderLayerMap[layer].tempIndex), gl.STATIC_DRAW);
 
+                    //set flag
                     renderLayerMap[layer].cache = true;
 
                     renderLayerMap[layer].tempVertex = [];
-                    renderLayerMap[layer].tempIndex = [];
+                    // renderLayerMap[layer].tempIndex = [];
                 });
             }
         }
+
+        /**
+         * resize layer vertex buffer,
+         * @param context
+         */
+
     }, {
-        key: 'updateLayerData',
-        value: function updateLayerData() {
-            // console.time('updateContextCacheNode');
-            this.updateContextCache('node');
-            // console.timeEnd('updateContextCacheNode');
+        key: 'resizeLayerVertexData',
+        value: function resizeLayerVertexData(context) {
+            if (context != 'node' && context != 'edge' && context != 'graph') return;
 
-            // console.time('updateContextCacheEdge');
-            this.updateContextCache('edge');
-            // console.timeEnd('updateContextCacheEdge');
+            var datas, contextRelativeLayers, cacheIndex;
+            var data, needResizeLayer, points, strip, vertexLen;
+            var gl = this.gl;
+            var renderLayerMap = this.renderLayerMap;
 
-            this.clearAllFlag = false;
+            if (context === 'graph') {} else {
+                datas = context == 'node' ? this.graph.nodes : this.graph.edges;
+                contextRelativeLayers = this.renderCache[context].layers;
+
+                //find need resize vertex layers
+                needResizeLayer = [];
+                contextRelativeLayers.forEach(function (layer) {
+                    if (renderLayerMap[layer].needResize) {
+                        needResizeLayer.push(layer);
+                        renderLayerMap[layer].tempVertex = [];
+                        renderLayerMap[layer].tempIndex = [];
+                    }
+                });
+
+                if (needResizeLayer.length > 0) {
+                    for (var i = 0, len = datas.length; i < len; i++) {
+                        data = datas[i];
+
+                        cacheIndex = this.renderCache[context].index[data.id];
+
+                        //create temp array data from vertex chunk
+                        for (var layer in cacheIndex) {
+                            if (!renderLayerMap[layer].needResize) continue;
+
+                            strip = renderLayerMap[layer].program.offsetConfig.strip;
+                            points = renderLayerMap[layer].tempVertex.length / strip; //points in tempVertex
+                            vertexLen = cacheIndex[layer].oldVertexLength; //vertex len
+
+                            //当data 为null时候　，oldVertexLength > 0，说明上一次这个chunk有数据，暂时保留chunk的位置，初始化为０
+                            if (vertexLen > 0) {
+                                cacheIndex[layer].vertexStart = points;
+                                for (var j = 0; j < vertexLen; j++) {
+                                    renderLayerMap[layer].tempVertex.push(cacheIndex[layer].data ? cacheIndex[layer].data.vertices[j] : 0 //no data fill with 0
+                                    );
+                                }
+                            }
+                        }
+                    }
+
+                    //创建vertex buffer 从 temp array
+                    needResizeLayer.forEach(function (layer) {
+
+                        gl.bindBuffer(gl.ARRAY_BUFFER, renderLayerMap[layer].program.vertexBuffer);
+                        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(renderLayerMap[layer].tempVertex), gl.DYNAMIC_DRAW);
+
+                        renderLayerMap[layer].cache = true;
+                        renderLayerMap[layer].needResize = false;
+
+                        renderLayerMap[layer].tempVertex = [];
+                        // renderLayerMap[layer].tempIndex = [];
+                    });
+                }
+            }
         }
+
+        /**
+         * update index buffer.
+         * @param context : node ,edge ,graph etc.
+         */
+
     }, {
         key: 'updateLayerIndex',
         value: function updateLayerIndex(context) {
             if (context != 'node' && context != 'edge' && context != 'graph') return;
 
-            var datas, contextRelativeLayers, cacheIndex, data, needUpdateLayer, check;
+            var datas, contextRelativeLayers, cacheIndex, data, needUpdateLayer, check, startPoint;
             var gl = this.gl;
             var renderLayerMap = this.renderLayerMap;
 
-            if (context === 'graph') {} else {
+            if (context === 'graph') {
+                //reserve
+                //todo
+            } else {
                 datas = context == 'node' ? this.graph.nodes : this.graph.edges;
                 contextRelativeLayers = this.renderCache[context].layers;
 
@@ -1947,6 +2533,9 @@ var WebGLRender = function (_EventEmitter) {
                     for (var i = 0, len = datas.length; i < len; i++) {
                         data = datas[i];
 
+                        cacheIndex = this.renderCache[context].index[data.id];
+
+                        //如果contex是edge的时候，edge的source,target中一个别过滤了，这条edge也会被过滤。
                         if (context == 'edge') {
                             if (this.graph.nodesIndex[data.source].filter || this.graph.nodesIndex[data.target].filter) {
                                 data.filter = true;
@@ -1959,31 +2548,40 @@ var WebGLRender = function (_EventEmitter) {
                             if (data.filter = this._checkFilters(this.renderCache[context].filters, data)) continue;
                         } else data.filter = false;
 
-                        cacheIndex = this.renderCache[context].index[data.id];
+                        //crate temp array from index chunk data
                         for (var layer in cacheIndex) {
-                            if (renderLayerMap[layer].indexCache) continue;
+                            if (renderLayerMap[layer].indexCache || !cacheIndex[layer].data) continue;
 
                             //layer filters
                             if (renderLayerMap[layer].filters && renderLayerMap[layer].filters.length) {
                                 if (check = this._checkFilters(renderLayerMap[layer].filters, data)) continue;
                             }
 
+                            startPoint = cacheIndex[layer].vertexStart;
+
                             cacheIndex[layer].data.indices.forEach(function (id) {
-                                renderLayerMap[layer].index.push(id);
+                                renderLayerMap[layer].tempIndex.push(id + startPoint);
                             });
                         }
                     }
 
+                    //crate index buffer from temp array
                     needUpdateLayer.forEach(function (layer) {
+                        //bind and create buffer
                         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, renderLayerMap[layer].program.indexBuffer);
-                        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint32Array(renderLayerMap[layer].index), gl.STATIC_DRAW);
-                        renderLayerMap[layer].program.indexN = renderLayerMap[layer].index.length;
-                        renderLayerMap[layer].index = [];
-                        renderLayerMap[layer].indexCache = true;
+                        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint32Array(renderLayerMap[layer].tempIndex), gl.STATIC_DRAW);
+                        renderLayerMap[layer].program.indexN = renderLayerMap[layer].tempIndex.length;
+                        renderLayerMap[layer].tempIndex = [];
+                        renderLayerMap[layer].indexCache = true; //set flag
                     });
                 }
             }
         }
+
+        /**
+         * calculate uniforms every render frame.
+         */
+
     }, {
         key: 'updateLayerUniformData',
         value: function updateLayerUniformData() {
@@ -1993,10 +2591,10 @@ var WebGLRender = function (_EventEmitter) {
             for (var layer in renderLayerMap) {
                 if (renderLayerMap[layer].custom) continue;
                 uniforms = renderLayerMap[layer].render.getUniforms({
-                    matrix: _Matrix2.default.multiMatrix([this.getCameraMatrix(true), this.projectMatrix]),
-                    camera: this.camera,
+                    matrix: _Matrix2.default.multiMatrix([this.getCameraMatrix(true), this.projectMatrix]), //matrix transform from camera to gl
+                    camera: this.camera, //camera info
                     config: this.config,
-                    option: renderLayerMap[layer].option,
+                    option: renderLayerMap[layer].option, //custom args
                     sampleRatio: this.sampleRatio,
                     textureText: this.textureText,
                     textureIcon: this.textureIcon
@@ -2010,25 +2608,52 @@ var WebGLRender = function (_EventEmitter) {
                 renderLayerMap[layer].program.uniforms = uniforms;
             }
         }
+
+        /**
+         * 局部更新node data
+         * @param ids: node ids
+         * @param dirtyAttrs: dirty attributes
+         */
+
     }, {
         key: 'updateNodeRenderData',
-        value: function updateNodeRenderData(id, dirtyAttr) {
-            // debugger
+        value: function updateNodeRenderData(ids, dirtyAttrs) {
+
+            if (!_util2.default.isArray(ids)) ids = [ids];
+            if (!_util2.default.isArray(dirtyAttrs)) dirtyAttrs = [dirtyAttrs];
+
             this.forceRender();
-            // if(this.clearAllFlag) return;
-            this.updateCacheByData('node', this.graph.nodesIndex[id], dirtyAttr);
-        }
-    }, {
-        key: 'updateEdgeRenderData',
-        value: function updateEdgeRenderData(ids, dirtyAttr) {
-            this.forceRender();
-            // if(this.clearAllFlag) return;
-            if (!Array.isArray(ids)) ids = [ids];
-            ids.forEach(function (id) {
-                this.updateCacheByData('edge', this.graph.edgesIndex[id], dirtyAttr);
+
+            ids.forEach(function (id, i) {
+                // this.updateCacheByData('node',this.graph.nodesIndex[id],dirtyAttrs[i]);
+                this.addChange('node', id, dirtyAttrs[i]);
             }.bind(this));
         }
-        //cache update
+
+        /**
+         * 局部更新edge data
+         * @param ids: edge ids
+         * @param dirtyAttrs: dirty attributes
+         */
+
+    }, {
+        key: 'updateEdgeRenderData',
+        value: function updateEdgeRenderData(ids, dirtyAttrs) {
+            if (!Array.isArray(ids)) ids = [ids];
+            if (!Array.isArray(dirtyAttrs)) dirtyAttrs = [dirtyAttrs];
+
+            this.forceRender();
+
+            ids.forEach(function (id, i) {
+                // this.updateCacheByData('edge',this.graph.edgesIndex[id],dirtyAttrs[i]);
+                this.addChange('edge', id, dirtyAttrs[i]);
+            }.bind(this));
+        }
+
+        /**
+         * clear layer cache, if layers omitted, clear all layer cache.
+         * @param layers {string | [string]} :  layer name.
+         */
 
     }, {
         key: 'clearRenderCache',
@@ -2041,6 +2666,7 @@ var WebGLRender = function (_EventEmitter) {
                     if (_this.renderLayerMap[layer].custom) return;
 
                     _this.renderLayerMap[layer].cache = false;
+                    _this.renderLayerMap[layer].needResize = false;
                     _this.renderLayerMap[layer].indexCache = false;
                     _this.renderLayerMap[layer].program.indexN = 0;
                 });
@@ -2049,6 +2675,7 @@ var WebGLRender = function (_EventEmitter) {
                     if (_this.renderLayerMap[layer].custom) continue;
 
                     _this.renderLayerMap[layer].cache = false;
+                    _this.renderLayerMap[layer].needResize = false;
                     _this.renderLayerMap[layer].indexCache = false;
                     _this.renderLayerMap[layer].program.indexN = 0;
                 }
@@ -2057,6 +2684,12 @@ var WebGLRender = function (_EventEmitter) {
                 _this.renderCache.edge.index = {};
             }
         }
+
+        /**
+         *  disable layer，disable之后，不会render，layer data也不会更新
+         * @param layers {string | [string]}
+         */
+
     }, {
         key: 'disableRenderLayer',
         value: function disableRenderLayer(layers) {
@@ -2072,11 +2705,15 @@ var WebGLRender = function (_EventEmitter) {
                 }
             });
         }
+
+        /**
+         *  enable layer，enable之后，layer cache 会重新计算一次
+         * @param layers {string | [string]}
+         */
+
     }, {
         key: 'enableRenderLayer',
         value: function enableRenderLayer(layers) {
-            var updateCache = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : true;
-
             this.forceRender();
 
             var renderLayerMap = this.renderLayerMap;
@@ -2086,14 +2723,58 @@ var WebGLRender = function (_EventEmitter) {
             layers.forEach(function (layer) {
                 if (renderLayerMap[layer]) {
                     renderLayerMap[layer].enable = true;
-                    if (updateCache) {
-                        renderLayerMap[layer].cache = false;
-                        renderLayerMap[layer].indexCache = false;
-                        renderLayerMap[layer].program.indexN = 0;
-                    }
+                    renderLayerMap[layer].cache = false;
+                    renderLayerMap[layer].indexCache = false;
+                    renderLayerMap[layer].program.indexN = 0;
                 }
             });
         }
+
+        /**
+         * hide layer, 不会render　layer ,　但是layer cache data 会更新
+         * @param layers {string | [string]}
+         */
+
+    }, {
+        key: 'hideRenderLayer',
+        value: function hideRenderLayer(layers) {
+            this.forceRender();
+
+            var renderLayerMap = this.renderLayerMap;
+
+            if (!_util2.default.isArray(layers)) layers = [layers];
+            layers.forEach(function (layer) {
+                if (renderLayerMap[layer]) {
+                    renderLayerMap[layer].show = false;
+                }
+            });
+        }
+
+        /**
+         * show layer
+         * @param layers {string | [string]}
+         */
+
+    }, {
+        key: 'showRenderLayer',
+        value: function showRenderLayer(layers) {
+            this.forceRender();
+
+            var renderLayerMap = this.renderLayerMap;
+
+            if (!_util2.default.isArray(layers)) layers = [layers];
+            layers.forEach(function (layer) {
+                if (renderLayerMap[layer]) {
+                    renderLayerMap[layer].show = true;
+                }
+            });
+        }
+
+        /**
+         * 对layer 触发一次layer filter 更新，重新计算index buffer
+         * @param layers {string | [string]}
+         */
+
     }, {
         key: 'updateByLayerFilter',
         value: function updateByLayerFilter(layers) {
@@ -2109,6 +2790,12 @@ var WebGLRender = function (_EventEmitter) {
                 renderLayerMap[layer].indexCache = false;
             });
         }
+
+        /**
+         * 对 context 相关的layer触发一次更新，重新计算index buffer
+         * @param context
+         */
+
     }, {
         key: 'updateByContextFilter',
         value: function updateByContextFilter(context) {
@@ -2121,6 +2808,13 @@ var WebGLRender = function (_EventEmitter) {
                 renderLayerMap[layer].indexCache = false;
             });
         }
+
+        /**
+         * set layer filter
+         * @param layer {string}
+         * @param filters {[fun]}
+         */
+
     }, {
         key: 'setLayerFilters',
         value: function setLayerFilters(layer, filters) {
@@ -2135,11 +2829,24 @@ var WebGLRender = function (_EventEmitter) {
             renderLayerMap[layer].indexCache = false;
             renderLayerMap[layer].filters = filters;
         }
+
+        /**
+         * get layer filter
+         * @param layer
+         */
+
     }, {
         key: 'getLayerFilters',
         value: function getLayerFilters(layer) {
             return this.renderLayerMap[layer] ? this.renderLayerMap[layer].filters : null;
         }
+
+        /**
+         * set context filter
+         * @param context
+         * @param filters
+         */
+
     }, {
         key: 'setContextFilters',
         value: function setContextFilters(context, filters) {
@@ -2157,11 +2864,25 @@ var WebGLRender = function (_EventEmitter) {
 
             this.renderCache[context].filters = filters;
         }
+
+        /**
+         * get context filter
+         * @param context
+         * @returns {null}
+         */
+
     }, {
         key: 'getContextFilters',
         value: function getContextFilters(context) {
             return this.renderCache[context] ? this.renderCache[context].filters : null;
         }
+
+        /**
+         * set layer custom args
+         * @param layer
+         * @param option
+         */
+
     }, {
         key: 'setLayerOption',
         value: function setLayerOption(layer, option) {
@@ -2174,6 +2895,12 @@ var WebGLRender = function (_EventEmitter) {
                 renderLayerMap[layer].option[attr] = option[attr];
             }
         }
+
+        /**
+         * set mouse type
+         * @param type
+         */
+
     }, {
         key: 'setMouseType',
         value: function setMouseType(type) {
@@ -2181,40 +2908,25 @@ var WebGLRender = function (_EventEmitter) {
             this.container.style.cursor = type;
             // }
         }
-    }, {
-        key: 'hideRenderLayer',
-        value: function hideRenderLayer(layers) {
-            this.forceRender();
 
-            var renderLayerMap = this.renderLayerMap;
+        /**
+         * get camera matrix ,
+         * @param isInvert
+         * @returns {*}
+         */
 
-            if (!_util2.default.isArray(layers)) layers = [layers];
-            layers.forEach(function (layer) {
-                if (renderLayerMap[layer]) {
-                    renderLayerMap[layer].show = false;
-                }
-            });
-        }
-    }, {
-        key: 'showRenderLayer',
-        value: function showRenderLayer(layers) {
-            this.forceRender();
-
-            var renderLayerMap = this.renderLayerMap;
-
-            if (!_util2.default.isArray(layers)) layers = [layers];
-            layers.forEach(function (layer) {
-                if (renderLayerMap[layer]) {
-                    renderLayerMap[layer].show = true;
-                }
-            });
-        }
     }, {
         key: 'getCameraMatrix',
         value: function getCameraMatrix(isInvert) {
             var mat = _Matrix2.default.multiMatrix([_Matrix2.default.matrixFromScale(this.camera.scale, this.camera.scale), _Matrix2.default.matrixFromRotation(this.camera.rotation), _Matrix2.default.matrixFromTranslate(this.camera.positionX, this.camera.positionY)]);
             return isInvert ? _Matrix2.default.invert(mat) : mat;
         }
+
+        /**
+         * resize render canvas and set viewport , update  projectMatrix
+         * @private
+         */
+
     }, {
         key: 'resizeCanvas',
         value: function resizeCanvas() {
@@ -2270,14 +2982,29 @@ var WebGLRender = function (_EventEmitter) {
             var p = isVector ? _Matrix2.default.rotateVector([pos.x, pos.y], this.getCameraMatrix()) : _Matrix2.default.transformPoint([pos.x, pos.y], this.getCameraMatrix());
             return { x: p[0], y: p[1] };
         }
+
+        /**
+         * force render
+         */
+
     }, {
         key: 'forceRender',
         value: function forceRender() {
             this.needUpdate = true;
         }
+
+        /**
+         * zoom from a point
+         * @private
+         * @param ratio
+         * @param x
+         * @param y
+         * @param animation
+         */
+
     }, {
-        key: 'zoomFromPostion',
-        value: function zoomFromPostion(ratio, x, y, animation) {
+        key: 'zoomFromPosition',
+        value: function zoomFromPosition(ratio, x, y, animation) {
             // debugger
 
             var scale = this.camera.scale;
@@ -2294,28 +3021,24 @@ var WebGLRender = function (_EventEmitter) {
             }
 
             if (animation) {
-                this.zoomToAnimation({
+                this.zoomTo({
                     positionX: positionX,
                     positionY: positionY,
                     scale: newscale
-                });
+                }, animation);
             } else {
                 this.camera.positionX = positionX;
                 this.camera.positionY = positionY;
                 this.camera.scale = newscale;
             }
         }
-    }, {
-        key: 'zoomToAnimation',
-        value: function zoomToAnimation(option, time) {
-            _tween2.default.removeByType('camera');
-            time = time || 100;
 
-            var _this = this;
-            new _tween2.default(this.camera, 'camera').to(option).duration(time).on('change', function () {
-                _this.forceRender();
-            });
-        }
+        /**
+         * zoom camera info
+         * @param option
+         * @param duration
+         */
+
     }, {
         key: 'zoomTo',
         value: function zoomTo(option, duration) {
@@ -2379,6 +3102,12 @@ var WebGLRender = function (_EventEmitter) {
                 saveAs(blob, "test.png");
             });
         }
+
+        /**
+         * check filter
+         * @private
+         */
+
     }, {
         key: '_checkFilters',
         value: function _checkFilters(filters, data) {
@@ -2396,10 +3125,16 @@ var WebGLRender = function (_EventEmitter) {
 exports.default = WebGLRender;
 
 /***/ }),
+/* 7 */
+/***/ (function(module, exports) {
+
+module.exports = " precision mediump float;\n\nvarying vec2 v_texCoord;\nvarying float size;\nvarying vec4 label_color;\n\n\nuniform sampler2D u_image;\nuniform vec4 u_text_bg;\nuniform float u_camera_scale;\n\n\nvoid main() {\n    vec4 color = label_color / 255.0;\n    vec4 color_bg = u_text_bg/255.0;\n\n\n    float cutoff = 0.76;\n    float offset = 6.0/size * u_camera_scale;\n\n    offset = pow(offset,1.2);\n\n    offset = min((1.0-cutoff),offset);\n\n   float dist = texture2D(u_image, v_texCoord).r;\n   float alpha = smoothstep(cutoff - offset, cutoff + offset, dist);\n//   gl_FragColor = color *alpha;\n   gl_FragColor = mix(color_bg,color,alpha);\n}"
+
+/***/ }),
 /* 8 */
 /***/ (function(module, exports) {
 
-module.exports = "attribute vec2 a_position;\nattribute vec2 a_uv;\nattribute float a_size;\n\nuniform mat3 u_matrix;\nuniform sampler2D u_image;\n\n\nvarying vec2 v_texCoord;\nvarying float size;\n\nvoid main() {\ngl_Position = vec4((u_matrix*vec3(a_position,1)).xy,0,1);\nv_texCoord = a_uv;\nsize = a_size;\n}\n"
+module.exports = "attribute vec2 a_position;\nattribute vec2 a_uv;\nattribute float a_size;\nattribute vec4 a_color;\n\nuniform mat3 u_matrix;\nuniform sampler2D u_image;\n\n\nvarying vec2 v_texCoord;\nvarying vec4 label_color;\nvarying float size;\n\nvoid main() {\ngl_Position = vec4((u_matrix*vec3(a_position,1)).xy,0,1);\nv_texCoord = a_uv;\nsize = a_size;\nlabel_color = a_color;\n}\n"
 
 /***/ }),
 /* 9 */
@@ -2415,11 +3150,11 @@ Object.defineProperty(exports, "__esModule", {
 
 var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
 
-var _Graph = __webpack_require__(6);
+var _Graph = __webpack_require__(5);
 
 var _Graph2 = _interopRequireDefault(_Graph);
 
-var _render2 = __webpack_require__(7);
+var _render2 = __webpack_require__(6);
 
 var _render3 = _interopRequireDefault(_render2);
 
@@ -2457,10 +3192,13 @@ var Core = function () {
 
         this.config = _util2.default.extend(option.config || {}, _config2.default);
 
-        this.graph = new _Graph2.default({
+        this.graph = option.graph ? option.graph : new _Graph2.default({
             nodes: option.nodes,
             edges: option.edges
         });
+
+        this.debug = false;
+        this._destroy = false;
 
         this.canvas = {};
         this.initCanvas();
@@ -2478,6 +3216,21 @@ var Core = function () {
     }
 
     _createClass(Core, [{
+        key: 'destroy',
+        value: function destroy() {
+
+            if (this._destroy) return;
+
+            this.graph.clear();
+            this.graph.clearListeners();
+
+            this.render.destroy();
+
+            this.selection.destroy();
+
+            this._destroy = true;
+        }
+    }, {
         key: 'initCanvas',
         value: function initCanvas() {
 
@@ -2524,7 +3277,7 @@ var Core = function () {
                     n++;
                     time = time / 1000;
                     if (time - start > 1) {
-                        // console.log(n);
+                        _this.debug && console.log('frames:' + n);
                         n = -1;
                         start = time;
                     }
@@ -2532,6 +3285,9 @@ var Core = function () {
             }
 
             function render(time) {
+
+                if (_this.render._destroy) return;
+
                 _this._render();
                 frames(time);
                 requestAnimationFrame(render);
@@ -2543,8 +3299,7 @@ var Core = function () {
         key: '_render',
         value: function _render() {
             this.resize();
-
-            if (this.render && this.render.needUpdate) {
+            if (this.render) {
                 // console.time('render')
                 // debugger
                 this.render.render();
@@ -2558,10 +3313,6 @@ var Core = function () {
             this.render.on('nodeMouseDown', function (node, e) {
                 // debugger
                 if (!_this.selection.isNodeSelected(node.id)) _this.selection.selectNodes(node.id, e.shiftKey);else if (e.shiftKey) _this.selection.unSelectNode(node.id);
-            });
-
-            this.render.on('nodeRightClick', function (type, node, e) {
-                if (type == 'node' && !_this.selection.isNodeSelected(node)) _this.selection.selectNodes(node);
             });
         }
     }, {
@@ -2698,7 +3449,7 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 
-var _render = __webpack_require__(7);
+var _render = __webpack_require__(6);
 
 var _render2 = _interopRequireDefault(_render);
 
@@ -2939,14 +3690,255 @@ function initEvent() {
         mouseup: handlerWrap(_upHandler),
         mousewheel: handlerWrap(_wheelHandler),
         DOMMouseScroll: handlerWrap(_wheelHandler) };
+
     for (var e in events) {
         this.container.addEventListener(e, events[e], false);
-    }events.click = handlerWrap(_clickHandler);
+    } //custom simulate click event
+    events.click = handlerWrap(_clickHandler);
 
     //some little situation maybe need the trigger function.
     this.trigger = function (type, event) {
         if (events[type]) events[type](event);
     };
+
+    //handler
+    function _clickHandler(e) {
+        var graphPos = _this.cameraToGraphPos({ x: e.cameraX, y: e.cameraY });
+        var edge, node;
+
+        node = getNode(graphPos);
+        if (node) {
+            _this.emit('nodeClick', [node, e]);
+        } else if (config.enableEdgeEvent && (edge = getEdge(graphPos))) {
+            _this.emit('edgeClick', [edge, e]);
+        } else {
+            _this.emit('stageClick', [e]);
+        }
+    }
+
+    function _downHandler(e) {
+
+        disableDocSelect();
+
+        //right click
+
+        if (!mouseLeft(e)) return;
+
+        mouseDown = true;
+        disableMove = true;
+
+        var graphPos = _this.cameraToGraphPos({ x: e.cameraX, y: e.cameraY });
+        var node = getNode(graphPos);
+        var nodeSelected = node ? _this.context.selection.isNodeSelected(node.id) : false;
+
+        handleDrag(!node);
+        // _this.forceRender();
+
+        function handleDrag(isCamera) {
+            var moveFlag = false;
+            var startx = graphPos.x,
+                starty = graphPos.y;
+
+            if (!isCamera) {
+                _this.emit('nodeMouseDown', [node, e]);
+            }
+
+            var onmousemove = docPosToRelativePos(_this.container, handlerWrap(function (e) {
+
+                if (!isCamera && !moveFlag) {
+                    _this.emit('nodeDragStart', [node, e]);
+                    moveFlag = true;
+                }
+
+                _this.forceRender();
+
+                var graphPos = _this.cameraToGraphPos({ x: e.cameraX, y: e.cameraY }),
+                    temp;
+                var offsetx = graphPos.x - startx;
+                var offsety = graphPos.y - starty;
+
+                if (isCamera) {
+                    _this.camera.positionX -= offsetx;
+                    _this.camera.positionY -= offsety;
+                    _this.setMouseType(_this.mouseType.MOVE);
+                } else {
+
+                    if (nodeSelected) {
+                        _this.context.selection.data.nodes.forEach(function (id) {
+                            temp = _this.context.graph.nodesIndex[id];
+                            _this.graph.setNodeData(id, { x: temp.x + offsetx, y: temp.y + offsety });
+                        });
+                    } else _this.graph.setNodeData(node.id, { x: node.x + offsetx, y: node.y + offsety });
+
+                    // fit(e);
+                }
+
+                if (isCamera) {
+                    var newgraphPos = _this.cameraToGraphPos({ x: e.cameraX, y: e.cameraY });
+                    startx = newgraphPos.x;
+                    starty = newgraphPos.y;
+                } else {
+                    startx = graphPos.x;
+                    starty = graphPos.y;
+                }
+                // console.timeEnd('move')
+            }));
+
+            var onmouseup = docPosToRelativePos(_this.container, handlerWrap(function (e) {
+
+                if (!isCamera && moveFlag) _this.emit('nodeDragEnd', [node, e]);
+
+                moveFlag = false;
+
+                clear();
+            }));
+
+            document.addEventListener('mousemove', onmousemove);
+            document.addEventListener('mouseup', onmouseup);
+
+            function clear() {
+                // _this.setMouseType(_this.mouseType.DEFAULT);
+                onmousemove && document.removeEventListener('mousemove', onmousemove);
+                onmouseup && document.removeEventListener('mouseup', onmouseup);
+
+                onmouseup = onmousemove = null;
+
+                disableMove = false;
+            }
+        }
+    }
+
+    function _moveHandler(e) {
+        if (mouseDown) mouseMove = true;
+
+        if (disableMove || !_this.config.enableOverEvent) return;
+
+        var graphPos = _this.cameraToGraphPos({ x: e.cameraX, y: e.cameraY });
+        var node = getNode(graphPos);
+        var old;
+
+        if (node && node !== overInfo.currentNode) {
+            old = overInfo.currentNode;
+            overInfo.currentNode = node;
+
+            if (old) _this.emit('nodeOut', [old, e]);
+            if (overInfo.currentEdge) {
+                old = overInfo.currentEdge;
+                overInfo.currentEdge = null;
+                _this.emit('edgeOut', [old, e]);
+            }
+            _this.emit('nodeOver', [node, e]);
+        } else if (!node && overInfo.currentNode) {
+            old = overInfo.currentNode;
+            overInfo.currentNode = null;
+            _this.emit('nodeOut', [old, e]);
+        }
+
+        var edge;
+        if (!node && config.enableEdgeEvent) {
+            edge = getEdge(graphPos);
+            if (edge && edge !== overInfo.currentEdge) {
+                old = overInfo.currentEdge;
+                overInfo.currentEdge = edge;
+
+                if (old) _this.emit('edgeOut', [old, e]);
+                _this.emit('edgeOver', [edge, e]);
+            } else if (!edge && overInfo.currentEdge) {
+                old = overInfo.currentEdge;
+                overInfo.currentEdge = null;
+                _this.emit('edgeOut', [old, e]);
+            }
+        }
+
+        if (node || edge) {
+            _this.setMouseType(_this.mouseType.POINTER);
+        } else {
+            _this.setMouseType(_this.mouseType.DEFAULT);
+        }
+    }
+
+    function _upHandler(e) {
+
+        //no move ,simulate click event
+        if (mouseDown && !mouseMove && mouseLeft(e)) {
+            _clickHandler(e);
+        }
+
+        if (mouseRight(e)) {
+            var graphPos = _this.cameraToGraphPos({ x: e.cameraX, y: e.cameraY });
+            var node = getNode(graphPos);
+            var edge;
+            if (node) {
+                _this.emit('nodeRightClick', [node, e]);
+            } else if (config.enableEdgeEvent && (edge = getEdge(graphPos))) {
+                _this.emit('edgeRightClick', [edge, e]);
+            } else {
+                _this.emit('stageRightClick', [e]);
+            }
+        }
+
+        mouseDown = false;
+        mouseMove = false;
+    }
+
+    function _wheelHandler(e) {
+        var value = e.wheelDelta !== undefined && e.wheelDelta || e.detail !== undefined && -e.detail;
+
+        if (value == 0) return; // Mac OS maybe -0;
+
+
+        _this.forceRender();
+        var ratio = _this.config.zoomRatio;
+
+        if (value > 0) {
+            _this.zoomFromPosition(1 / ratio, e.cameraX, e.cameraY);
+            _this.emit('zoom', [1 / ratio, _this.camera.scale, e]);
+        } else {
+            _this.zoomFromPosition(ratio, e.cameraX, e.cameraY);
+            _this.emit('zoom', [ratio, _this.camera.scale, e]);
+        }
+    }
+
+    //to camera pos
+    function handlerWrap(handle) {
+        return function (e) {
+
+            if (!config.enableMouseEvent) return;
+
+            var pos = _this.domToCameraPos({ x: e.offsetX, y: e.offsetY });
+            e.cameraX = pos.x;
+            e.cameraY = pos.y;
+            handle(e);
+        };
+    }
+
+    function docPosToRelativePos(dom, handle) {
+        return function (e) {
+            var bbox = dom.getBoundingClientRect();
+            var newEvent = Object.create(null);
+
+            for (var attr in e) {
+                if (e.hasOwnProperty(attr)) newEvent[attr] = e[attr];
+            }newEvent.offsetX = e.clientX - bbox.left;
+            newEvent.offsetY = e.clientY - bbox.top;
+
+            handle(newEvent);
+        };
+    }
+
+    function disableDocSelect() {
+        var oldOnSelect = document.onselectstart;
+        document.onselectstart = function () {
+            return false;
+        };
+
+        document.addEventListener('mouseup', onMouseUp);
+
+        function onMouseUp() {
+            document.onselectstart = oldOnSelect;
+            document.removeEventListener('mouseup', onMouseUp);
+        }
+    }
 
     //default check function
     function defaultNodeCheck(posx, posy, node) {
@@ -2969,9 +3961,11 @@ function initEvent() {
         var target = _this.graph.nodesIndex[edge.target];
         var ctrolP;
 
+        //line
         if (edge.curveCount == 0) {
             check = _util2.default.inLine(posx, posy, source.x, source.y, target.x, target.y, (edge.size || config.defaultEdgeSize) / 2);
         } else {
+            //curve
             // debugger
             ctrolP = _util2.default.getControlPos(source.x, source.y, target.x, target.y, edge.curveCount, edge.curveOrder);
             check = _util2.default.isPointOnQuadraticCurve(posx, posy, source.x, source.y, target.x, target.y, ctrolP[0], ctrolP[1], (edge.size || config.defaultEdgeSize) / 2);
@@ -3030,7 +4024,6 @@ function initEvent() {
         // console.timeEnd('getNode')
         return findNode;
     }
-
     function getEdge(pos) {
         // console.time('getEdge')
         var edges = _this.graph.edges;
@@ -3056,251 +4049,11 @@ function initEvent() {
         return findEdge;
     }
 
-    function _clickHandler(e) {
-        var graphPos = _this.cameraToGraphPos({ x: e.cameraX, y: e.cameraY });
-        var edge, node;
-
-        node = getNode(graphPos);
-        if (node) {
-            _this.emit('nodeClick', [node, e]);
-        } else if (config.enableEdgeEvent && (edge = getEdge(graphPos))) {
-            _this.emit('edgeClick', [edge, e]);
-        } else {
-            _this.emit('stageClick', [e]);
-        }
+    function mouseLeft(e) {
+        return e.which && e.which == 1 || e.button && e.button == 0;
     }
-
-    function _downHandler(e) {
-
-        var isRight = e.which && e.which == 3 || e.button && e.button == 2;
-
-        if (isRight) return;
-
-        mouseDown = true;
-        disableMove = true;
-
-        var graphPos = _this.cameraToGraphPos({ x: e.cameraX, y: e.cameraY });
-        var node = getNode(graphPos);
-
-        if (node) _this.emit('nodeMouseDown', [node, e]);
-
-        handleDrag(!node);
-        // _this.forceRender();
-
-        function handleDrag(isCamera) {
-            var isDown = true;
-            var startx = graphPos.x,
-                starty = graphPos.y;
-
-            var onmousemove = handlerWrap(function (e) {
-                if (!isDown) return;
-                // console.time('move')
-
-                _this.forceRender();
-
-                var graphPos = _this.cameraToGraphPos({ x: e.cameraX, y: e.cameraY }),
-                    temp;
-                var offsetx = graphPos.x - startx;
-                var offsety = graphPos.y - starty;
-
-                if (isCamera) {
-                    _this.camera.positionX -= offsetx;
-                    _this.camera.positionY -= offsety;
-                    _this.setMouseType(_this.mouseType.MOVE);
-                } else {
-
-                    if (_this.context.selection.isNodeSelected(node.id)) {
-                        _this.context.selection.data.nodes.forEach(function (id) {
-                            temp = _this.context.graph.nodesIndex[id];
-                            _this.graph.setNodeData(id, { x: temp.x + offsetx, y: temp.y + offsety });
-                        });
-                    } else _this.graph.setNodeData(node.id, { x: node.x + offsetx, y: node.y + offsety });
-
-                    // fit(e);
-                }
-
-                if (isCamera) {
-                    var newgraphPos = _this.cameraToGraphPos({ x: e.cameraX, y: e.cameraY });
-                    startx = newgraphPos.x;
-                    starty = newgraphPos.y;
-                } else {
-                    startx = graphPos.x;
-                    starty = graphPos.y;
-                }
-                // console.timeEnd('move')
-            });
-
-            var onmouseup = handlerWrap(function (e) {
-                e.preventDefault();
-                isDown = false;
-                clear();
-            });
-
-            var onmouseout = handlerWrap(function (e) {
-                isDown = false;
-                clear();
-            });
-
-            _this.container.removeEventListener('mousemove', onmousemove);
-            _this.container.removeEventListener('mouseup', onmouseup);
-            _this.container.removeEventListener('mouseout', onmouseout);
-
-            _this.container.addEventListener('mousemove', onmousemove);
-            _this.container.addEventListener('mouseup', onmouseup);
-            _this.container.addEventListener('mouseout', onmouseout);
-
-            function clear() {
-                // _this.setMouseType(_this.mouseType.DEFAULT);
-                onmousemove && _this.container.removeEventListener('mousemove', onmousemove);
-                onmouseup && _this.container.removeEventListener('mouseup', onmouseup);
-                onmouseout && _this.container.removeEventListener('mouseout', onmouseout);
-                onmousemove = onmouseup = onmouseout = null;
-
-                disableMove = false;
-            }
-        }
-    }
-
-    function _moveHandler(e) {
-        if (mouseDown) mouseMove = true;
-
-        if (disableMove || !_this.config.enableOverEvent) return;
-
-        var graphPos = _this.cameraToGraphPos({ x: e.cameraX, y: e.cameraY });
-        var node = getNode(graphPos);
-        var old;
-
-        if (node && node !== overInfo.currentNode) {
-            old = overInfo.currentNode;
-            overInfo.currentNode = node;
-
-            if (old) _this.emit('nodeOut', [old, e]);
-            if (overInfo.currentEdge) {
-                old = overInfo.currentEdge;
-                overInfo.currentEdge = null;
-                _this.emit('edgeOut', [old, e]);
-            }
-            _this.emit('nodeOver', [node, e]);
-        } else if (!node && overInfo.currentNode) {
-            old = overInfo.currentNode;
-            overInfo.currentNode = null;
-            _this.emit('nodeOut', [old, e]);
-        }
-
-        var edge;
-        if (!node && config.enableEdgeEvent) {
-            edge = getEdge(graphPos);
-            if (edge && edge !== overInfo.currentEdge) {
-                old = overInfo.currentEdge;
-                overInfo.currentEdge = edge;
-
-                if (old) _this.emit('edgeOut', [old, e]);
-                _this.emit('edgeOver', [edge, e]);
-            } else if (!edge && overInfo.currentEdge) {
-                old = overInfo.currentEdge;
-                overInfo.currentEdge = null;
-                _this.emit('edgeOut', [old, e]);
-            }
-        }
-
-        if (node || edge) {
-            _this.setMouseType(_this.mouseType.POINTER);
-        } else {
-            _this.setMouseType(_this.mouseType.DEFAULT);
-        }
-    }
-
-    function _upHandler(e) {
-
-        var isRight = e.which && e.which == 3 || e.button && e.button == 2;
-
-        if (mouseDown && !mouseMove && !isRight) {
-            _clickHandler(e);
-        }
-
-        if (isRight) {
-            var graphPos = _this.cameraToGraphPos({ x: e.cameraX, y: e.cameraY });
-            var node = getNode(graphPos);
-            var edge;
-            if (node) {
-                _this.emit('nodeRightClick', [node, e]);
-            } else if (edge = getEdge(graphPos)) {
-                _this.emit('edgeRightClick', [edge, e]);
-            } else {
-                _this.emit('stageRightClick', [e]);
-            }
-        }
-
-        mouseDown = false;
-        mouseMove = false;
-    }
-
-    function _wheelHandler(e) {
-        var value = e.wheelDelta !== undefined && e.wheelDelta || e.detail !== undefined && -e.detail;
-
-        if (value == 0) return; // Mac OS maybe -0;
-
-
-        _this.forceRender();
-        var ratio = _this.config.zoomRatio;
-
-        if (value > 0) {
-            _this.zoomFromPostion(1 / ratio, e.cameraX, e.cameraY);
-            _this.emit('zoom', [1 / ratio, _this.camera.scale, e]);
-        } else {
-            _this.zoomFromPostion(ratio, e.cameraX, e.cameraY);
-            _this.emit('zoom', [ratio, _this.camera.scale, e]);
-        }
-    }
-
-    //drag
-
-    function handlerWrap(handle) {
-        return function (e) {
-            var pos = _this.domToCameraPos({ x: e.offsetX, y: e.offsetY });
-            e.cameraX = pos.x;
-            e.cameraY = pos.y;
-            handle(e);
-        };
-    }
-
-    function fit(e) {
-        var x = e.offsetX,
-            y = e.offsetY;
-
-        var camearaX = _this.camera.positionX;
-        var camearaY = _this.camera.positionY;
-        var scale = _this.camera.scale;
-
-        var offset = 20 / scale;
-        var update = false;
-
-        if (x < 100) {
-            update = true;
-            camearaX -= offset;
-        }
-        if (x > _this.container.clientWidth - 100) {
-            update = true;
-            camearaX += offset;
-        }
-
-        if (y < 100) {
-            update = true;
-            camearaY += offset;
-        }
-
-        if (y > _this.container.clientHeight - 100) {
-            update = true;
-            camearaY -= offset;
-        }
-
-        // if(update) _this.zoomToAnimation({
-        //     positionX:camearaX,
-        //     positionY:camearaY,
-        //     scale:scale
-        // });
-
-        if (update) _this.zoomTo(1.01, e.cameraX, e.cameraY, true);
+    function mouseRight(e) {
+        return e.which && e.which == 3 || e.button && e.button == 2;
     }
 }
 
@@ -3347,9 +4100,12 @@ var Selection = function (_EventEmitter) {
         _this2.canvas = canvas;
         _this2.ctx = _this2.canvas.getContext('2d');
 
-        _this2.canvas.addEventListener('mousedown', _this2.mouseDown.bind(_this2));
+        _this2._mouseDownHandler = _this2.mouseDown.bind(_this2);
+        _this2.canvas.addEventListener('mousedown', _this2._mouseDownHandler);
 
+        _this2.flag = 0; // 0 rect 1 path
         _this2.rect = null;
+        _this2.path = null;
 
         _this2.data = {
             edges: [],
@@ -3361,22 +4117,54 @@ var Selection = function (_EventEmitter) {
     }
 
     _createClass(Selection, [{
+        key: 'destroy',
+        value: function destroy() {
+            this.context = null;
+
+            this.canvas.removeEventListener('mousedown', this._mouseDownHandler);
+            this.canvas.parentNode.removeChild(this.canvas);
+            this.canvas = null;
+
+            this.ctx = null;
+
+            this.rect = null;
+            this.path = null;
+
+            this.data = null;
+        }
+    }, {
         key: 'enable',
         value: function enable() {
+            var flag = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : 0;
+
+
+            this.flag = flag;
+
             this.canvas.style.display = 'block';
             this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         }
     }, {
-        key: 'renderRect',
-        value: function renderRect() {
-            var rect = this.rect;
+        key: 'render',
+        value: function render() {
+
             var ctx = this.ctx;
             var config = this.context.config;
             ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
             ctx.fillStyle = config.selectionFillStyle;
             ctx.strokeStyle = config.selectionStrokeStyle;
             ctx.beginPath();
-            ctx.rect(rect.x, rect.y, rect.w, rect.h);
+
+            if (this.flag == 0) {
+                var rect = this.rect;
+                ctx.rect(rect.x, rect.y, rect.w, rect.h);
+            } else if (this.flag == 1) {
+                var first = this.path[0];
+                ctx.moveTo(first.x, first.y);
+                for (var i = 1; i < this.path.length; i++) {
+                    ctx.lineTo(this.path[i].x, this.path[i].y);
+                }
+            }
+
             ctx.closePath();
             ctx.fill();
             ctx.stroke();
@@ -3425,20 +4213,29 @@ var Selection = function (_EventEmitter) {
         value: function mouseDown(e) {
             var _this = this;
 
-            this.rect = { x: 0, y: 0, w: 0, h: 0 };
-
-            this.rect.x = e.offsetX;
-            this.rect.y = e.offsetY;
+            if (this.flag == 0) {
+                this.rect = { x: 0, y: 0, w: 0, h: 0 };
+                this.rect.x = e.offsetX;
+                this.rect.y = e.offsetY;
+            } else if (this.flag == 1) {
+                this.path = [];
+                this.path.push({ x: e.offsetX, y: e.offsetY });
+            }
 
             _this.emit('selectStart', [_this]);
 
             document.addEventListener('mousemove', mouseMove);
             document.addEventListener('mouseup', mouseUp);
             function mouseMove(e) {
-                _this.rect.w = e.offsetX - _this.rect.x;
-                _this.rect.h = e.offsetY - _this.rect.y;
 
-                _this.renderRect();
+                if (_this.flag == 0) {
+                    _this.rect.w = e.offsetX - _this.rect.x;
+                    _this.rect.h = e.offsetY - _this.rect.y;
+                } else if (_this.flag == 1) {
+                    _this.path.push({ x: e.offsetX, y: e.offsetY });
+                }
+
+                _this.render();
             }
             function mouseUp(e) {
                 mouseMove(e);
@@ -3535,6 +4332,30 @@ var Selection = function (_EventEmitter) {
             _this.emit('select', ['node', _this.getNodes()]);
         }
     }, {
+        key: 'unSelectEdge',
+        value: function unSelectEdge(edgesid) {
+
+            if (this.data.edges.length == 0 || !edgesid) return;
+
+            var _this = this;
+            if (!_util2.default.isArray(edgesid)) edgesid = [edgesid];
+
+            var map = {};
+
+            edgesid.forEach(function (id) {
+                map[id] = true;
+            });
+
+            var newSelected = [];
+            this.data.edges.forEach(function (id) {
+                if (map[id]) _this.context.graph.setEdgeData(id, { selected: false });else newSelected.push(id);
+            });
+
+            this.data.edges = newSelected;
+
+            _this.emit('select', ['edge', _this.getEdges()]);
+        }
+    }, {
         key: 'getNodes',
         value: function getNodes() {
             var _this3 = this;
@@ -3589,13 +4410,32 @@ var Selection = function (_EventEmitter) {
         }
     }, {
         key: 'delete',
-        value: function _delete() {
+        value: function _delete(type) {
             var _this = this;
-            var nodes = this.data.nodes;
-            this.data.nodes = [];
-            nodes.forEach(function (id) {
-                _this.context.graph.removeNode(id);
-            });
+
+            var clearNode = type === 'node';
+            var clearEdge = type === 'edge';
+
+            if (!type) {
+                clearEdge = true;
+                clearNode = true;
+            }
+
+            if (clearNode) {
+                var nodes = this.data.nodes;
+                this.data.nodes = [];
+                nodes.forEach(function (id) {
+                    _this.context.graph.removeNode(id);
+                });
+            }
+
+            if (clearEdge) {
+                var edges = this.data.edges;
+                this.data.edges = [];
+                edges.forEach(function (id) {
+                    _this.context.graph.removeEdge(id);
+                });
+            }
         }
     }]);
 
@@ -3617,14 +4457,22 @@ Object.defineProperty(exports, "__esModule", {
 exports.default = {
 
     //default
-    defaultNodeBorder: '#d4525f',
+    defaultBackgroundColor: '#ffffff',
+    defaultTextBgColor: 'rgba(0,0,0,0)',
+    defaultNodeSelectedBorder: '#d4525f',
+    defaultEdgeSelectedColor: '#d4525f',
+
     // node
     defaultNodeSize: 10,
     defaultNodeColor: "#3a82a8",
+    defaultNodeIconColor: "#ffffff",
+    defaultNodeLabelColor: "#474d57",
+
     //edge
     defaultEdgeColor: "rgba(100,100,100,0.3)",
     defaultEdgeSize: 1.6,
     defaultEdgeArrowSize: 5,
+    defaultEdgeLabelColor: "#474d57",
 
     zoomRatio: 1.2,
     zoomMin: 0.05,
@@ -3635,7 +4483,10 @@ exports.default = {
     textureIconFontFamily: 'FontAwesome',
 
     textureTextFontFamily: 'Arial',
+    textureTextWidth: 1024,
+    textureTextHeight: 1024,
 
+    enableMouseEvent: true,
     enableOverEvent: true,
     enableEdgeEvent: true,
     enableSelectEdge: false,
@@ -3655,9 +4506,17 @@ exports.default = {
 Object.defineProperty(exports, "__esModule", {
     value: true
 });
-/**
- * Created by chengang on 17-2-20.
- */
+
+var _util = __webpack_require__(0);
+
+var _util2 = _interopRequireDefault(_util);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+var defaultConfig = {
+    width: 40
+};
+
 function CircularLayout() {
     this.nodes = null;
     // this.links = null;
@@ -3668,13 +4527,18 @@ function CircularLayout() {
     this.nodeHeights = {};
     this.node2BiComp = {};
 
-    this.width = 60;
+    this.width = defaultConfig.width;
 }
 
 var p = CircularLayout.prototype;
 
 //必须有的方法
-p.layout = function (nodes, edges) {
+p.layout = function (nodes, edges, option, cb) {
+
+    option = option || {};
+
+    if (option.width) this.width = option.width;
+
     this.init(nodes, edges);
 
     this.posSet = new Array(this.nodes.length);
@@ -3684,10 +4548,23 @@ p.layout = function (nodes, edges) {
     // var test = this.bc.filter(function (e) {
     //     return e.length > 3;
     // });
+
+    if (!this.bc) {
+        console.log('layout err');
+        return null;
+    }
+
     this.__layout(this.bc);
-    return this.nodes.map(function (e) {
+
+    var data = this.nodes.map(function (e) {
         return { x: e.x || 0, y: e.y || 0 };
     });
+
+    // if(cb){
+    //     cb(null,data);
+    // }
+
+    return data;
 };
 p.init = function (nodes, edges) {
     var oldNodes = nodes,
@@ -3728,6 +4605,7 @@ p.createBicconnects = function () {
         pre = new Array(this.nodes.length);
 
     var biComponents = [];
+    var totalN = 0;
 
     pre[0] = -1;
     var num = 0;
@@ -3736,9 +4614,11 @@ p.createBicconnects = function () {
     }
 
     dfs(0);
-    return biComponents;
+
+    return totalN == nodes.length ? biComponents : null;
 
     function dfs(current) {
+        totalN++;
         states[current] = 1;
         low[current] = dfsn[current] = ++num;
 
@@ -3777,7 +4657,8 @@ p.createBicconnects = function () {
                         singleComponent.push(current);
                         map[current] = true;
                     }
-                    /*singleComponent.length > 2 && */biComponents.push(singleComponent);
+                    /*singleComponent.length > 2 && */
+                    biComponents.push(singleComponent);
                     //                        }
                 }
                 //                    states[neigh]
@@ -4454,11 +5335,21 @@ Object.defineProperty(exports, "__esModule", {
 
 var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
 
+var _util = __webpack_require__(0);
+
+var _util2 = _interopRequireDefault(_util);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
-/**
- * Created by chengang on 17-4-12.
- */
+var defaultConfig = {
+    BBox: [1000, 1000],
+    linkDistance: 10,
+    initIterations: 20,
+    userIterations: 0,
+    allIterations: 2
+};
 
 var ColaLayout = function () {
     function ColaLayout() {
@@ -4467,13 +5358,18 @@ var ColaLayout = function () {
 
     _createClass(ColaLayout, [{
         key: 'layout',
-        value: function layout(nodes, edges) {
+        value: function layout(nodes, edges, option) {
             if (!cola || !cola.Layout) throw 'please add cola lib first';
-            this.cola = new cola.Layout().convergenceThreshold(1e-4).size([1000, 1000]);
+
+            option = option || {};
+
+            this.option = _util2.default.extend(option, defaultConfig);
+
+            this.cola = new cola.Layout().convergenceThreshold(1e-4).size(this.option.BBox);
 
             var data = this._init(nodes, edges);
 
-            this.cola.nodes(data.nodes).links(data.edges).symmetricDiffLinkLengths(30).start(60, 0, 0, 0, false);
+            this.cola.nodes(data.nodes).links(data.edges).symmetricDiffLinkLengths(this.option.linkDistance).start(this.option.initIterations, this.option.userIterations, this.option.allIterations, 0, false);
 
             return data.nodes.map(function (e) {
                 return { x: e.x, y: e.y };
@@ -4525,11 +5421,20 @@ Object.defineProperty(exports, "__esModule", {
 
 var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
 
+var _util = __webpack_require__(0);
+
+var _util2 = _interopRequireDefault(_util);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
-/**
- * Created by chengang on 17-4-12.
- */
+var defaultConfig = {
+    rankdir: 'TB',
+    nodesep: 10,
+    ranksep: 40,
+    ranker: 'longest-path' //network-simplex  longest-path tight-tree
+};
 
 var DargeLayout = function () {
     function DargeLayout() {
@@ -4538,17 +5443,14 @@ var DargeLayout = function () {
 
     _createClass(DargeLayout, [{
         key: 'layout',
-        value: function layout(nodes, edges) {
+        value: function layout(nodes, edges, option) {
             // debugger
             if (!dagre || !dagre.graphlib) throw 'please add dagre lib first';
             var g = new dagre.graphlib.Graph();
 
-            g.setGraph({
-                rankdir: 'TB',
-                nodesep: 15,
-                ranksep: 40,
-                ranker: 'longest-path' //network-simplex  longest-path tight-tree
-            });
+            this.option = _util2.default.extend(option || {}, defaultConfig);
+
+            g.setGraph(this.option);
 
             g.setDefaultEdgeLabel(function () {
                 return {};
@@ -4591,11 +5493,23 @@ Object.defineProperty(exports, "__esModule", {
 
 var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
 
+var _util = __webpack_require__(0);
+
+var _util2 = _interopRequireDefault(_util);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
-/**
- * Created by chengang on 17-4-12.
- */
+var defaultConfig = {
+    BBox: [1000, 1000],
+    flowAxis: 'y',
+    flowSeparation: 30,
+    linkDistance: 30,
+    initIterations: 10,
+    userIterations: 0,
+    allIterations: 2
+};
 
 var FlowLayout = function () {
     function FlowLayout() {
@@ -4603,21 +5517,26 @@ var FlowLayout = function () {
     }
 
     _createClass(FlowLayout, [{
-        key: "layout",
-        value: function layout(nodes, edges) {
+        key: 'layout',
+        value: function layout(nodes, edges, option) {
             if (!cola || !cola.Layout) throw 'please add cola lib first';
-            this.cola = new cola.Layout().convergenceThreshold(1e-4).size([1000, 800]);
+
+            option = option || {};
+
+            this.option = _util2.default.extend(option, defaultConfig);
+
+            this.cola = new cola.Layout().convergenceThreshold(1e-4).size(this.option.BBox);
 
             var data = this._init(nodes, edges);
 
-            this.cola.nodes(data.nodes).links(data.edges).flowLayout("y", 30).symmetricDiffLinkLengths(30).start(10, 20, 20, 0, false);
+            this.cola.nodes(data.nodes).links(data.edges).flowLayout(this.option.flowAxis, this.option.flowSeparation).symmetricDiffLinkLengths(this.option.linkDistance).start(this.option.initIterations, this.option.userIterations, this.option.allIterations, 0, false);
 
             return data.nodes.map(function (e) {
                 return { x: e.x, y: -1 * e.y };
             });
         }
     }, {
-        key: "_init",
+        key: '_init',
         value: function _init(_nodes, _edges) {
 
             // var filterEdge = this._filterEdge(nodes,edges);
@@ -4646,7 +5565,7 @@ var FlowLayout = function () {
             };
         }
     }, {
-        key: "_filterEdge",
+        key: '_filterEdge',
         value: function _filterEdge(nodes, edges) {
             var filterEdges = [];
 
@@ -4712,29 +5631,44 @@ Object.defineProperty(exports, "__esModule", {
 
 var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
 
+var _util = __webpack_require__(0);
+
+var _util2 = _interopRequireDefault(_util);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+var defaultConfig = {
+    forceManyBody: -50,
+    forceLink: 100,
+    forceCollide: 20,
+    iterations: 100
+};
 
 function id(d) {
     return d.id;
 }
 
-var ColaLayout = function () {
-    function ColaLayout() {
-        _classCallCheck(this, ColaLayout);
+var ForceD3Layout = function () {
+    function ForceD3Layout() {
+        _classCallCheck(this, ForceD3Layout);
     }
 
-    _createClass(ColaLayout, [{
+    _createClass(ForceD3Layout, [{
         key: 'layout',
-        value: function layout(nodes, edges) {
+        value: function layout(nodes, edges, option) {
             if (!d3 || !d3.forceSimulation) throw 'please add d3 lib first';
+
+            this.option = _util2.default.extend(option || {}, defaultConfig);
 
             var data = this._init(nodes, edges);
 
-            this.simulation = d3.forceSimulation(data.nodes).force("charge", d3.forceManyBody(-50)).force("link", d3.forceLink(data.edges).id(id).distance(100)).force("collide", d3.forceCollide(20)).force("center", d3.forceCenter());
+            this.simulation = d3.forceSimulation(data.nodes).force("charge", d3.forceManyBody(this.option.forceManyBody)).force("link", d3.forceLink(data.edges).id(id).distance(this.option.forceLink)).force("collide", d3.forceCollide(this.option.forceCollide)).force("center", d3.forceCenter());
 
             this.simulation.stop();
 
-            var n = 100;
+            var n = this.option.iterations;
             while (n--) {
                 this.simulation.tick();
             }return data.nodes.map(function (e) {
@@ -4766,10 +5700,10 @@ var ColaLayout = function () {
         }
     }]);
 
-    return ColaLayout;
+    return ForceD3Layout;
 }();
 
-exports.default = ColaLayout;
+exports.default = ForceD3Layout;
 
 /***/ }),
 /* 20 */
@@ -4784,11 +5718,18 @@ Object.defineProperty(exports, "__esModule", {
 
 var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
 
+var _util = __webpack_require__(0);
+
+var _util2 = _interopRequireDefault(_util);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
-/**
- * Created by chengang on 17-4-12.
- */
+var defaultConfig = {
+    offsetX: 50,
+    offsetY: 50
+};
 
 var Grid = function () {
     function Grid() {
@@ -4796,13 +5737,15 @@ var Grid = function () {
     }
 
     _createClass(Grid, [{
-        key: "layout",
-        value: function layout(_nodes, _edges) {
+        key: 'layout',
+        value: function layout(_nodes, _edges, option) {
 
             var nodes = [];
 
-            var width = 50;
-            var height = 50;
+            this.option = _util2.default.extend(option || {}, defaultConfig);
+
+            var width = this.option.offsetX;
+            var height = this.option.offsetY;
 
             var num = (Math.sqrt(_nodes.length) | 0) + 1;
 
@@ -4915,9 +5858,18 @@ function TextSDF(fontSize, buffer, radius, cutoff, fontFamily) {
 
     // hack around https://bugzilla.mozilla.org/show_bug.cgi?id=737852
     this.middle = Math.round(size / 2 * (navigator.userAgent.indexOf('Gecko/') >= 0 ? 1.2 : 1));
+
+    this.cache = {
+        map: {},
+        len: 0
+    };
 }
 
 TextSDF.prototype.draw = function (char) {
+    var cache = this.cache;
+
+    if (cache.map[char]) return cache.map[char];
+
     this.ctx.clearRect(0, 0, this.size, this.size);
     this.ctx.fillText(char, this.buffer, this.middle);
 
@@ -4943,10 +5895,31 @@ TextSDF.prototype.draw = function (char) {
         data[4 * i + 3] = 255;
     }
 
-    return {
+    var data = {
         data: imgData,
         charWidth: charSize + this.buffer * 2
     };
+
+    this.addCache(char, data);
+
+    return data;
+};
+
+TextSDF.maxCacheSize = 1024;
+
+TextSDF.prototype.addCache = function (key, data) {
+    var maxSize = TextSDF.maxCacheSize;
+    var cache = this.cache;
+    if (cache.len < maxSize && !cache.map[key]) {
+        cache.map[key] = data;
+        cache.len++;
+    }
+};
+
+TextSDF.prototype.clearCache = function () {
+    var cache = this.cache;
+    cache.len = 0;
+    cache.map = {};
 };
 
 // 2D Euclidean distance transform by Felzenszwalb & Huttenlocher https://cs.brown.edu/~pff/dt/
@@ -5026,13 +5999,12 @@ function _inherits(subClass, superClass) { if (typeof superClass !== "function" 
 var TextureIcon = function (_EventEmitter) {
     _inherits(TextureIcon, _EventEmitter);
 
-    function TextureIcon(config, unit) {
+    function TextureIcon(config, gl, unit) {
         _classCallCheck(this, TextureIcon);
 
-        // this.gl = gl;
         var _this = _possibleConstructorReturn(this, (TextureIcon.__proto__ || Object.getPrototypeOf(TextureIcon)).call(this));
 
-        _this.texture = null;
+        _this.gl = gl;
         _this.unit = unit || 0;
 
         _this.textureIconWidth = config.textureIconWidth;
@@ -5051,6 +6023,8 @@ var TextureIcon = function (_EventEmitter) {
         _this.iconinfo = null;
         _this.icons = [];
         _this.iconsToCreate = [];
+
+        _this.texture = null;
 
         _this.fontLoaded = true;
 
@@ -5092,8 +6066,6 @@ var TextureIcon = function (_EventEmitter) {
 
             icons = icons || this.iconsToCreate;
 
-            if (icons.length == 0) return;
-
             if (!this.fontLoaded) {
                 icons.forEach(function (e) {
                     this.iconsToCreate.push(e);
@@ -5105,6 +6077,8 @@ var TextureIcon = function (_EventEmitter) {
                 this.createIcon(icons[i]);
             }
             this.computeAlpha();
+
+            this.attachGl();
 
             // document.body.appendChild(this.canvas);
             // this.updateGPUTexture();
@@ -5152,10 +6126,13 @@ var TextureIcon = function (_EventEmitter) {
         }
     }, {
         key: 'attachGl',
-        value: function attachGl(gl, unit) {
-            if (unit !== undefined && unit !== null) this.unit = unit;
+        value: function attachGl() {
+
+            var gl = this.gl;
+
             gl.activeTexture(gl.TEXTURE0 + this.unit);
-            gl.bindTexture(gl.TEXTURE_2D, this.createTexture(gl, this.icons.length == 0));
+            this.createTexture(this.icons.length == 0);
+            gl.bindTexture(gl.TEXTURE_2D, this.texture);
         }
     }, {
         key: 'addIcons',
@@ -5177,11 +6154,14 @@ var TextureIcon = function (_EventEmitter) {
         }
     }, {
         key: 'createTexture',
-        value: function createTexture(gl, empty) {
+        value: function createTexture(empty) {
 
-            var texture = gl.createTexture();
+            var gl = this.gl;
+
+            if (!this.texture) this.texture = gl.createTexture();
+
             gl.activeTexture(gl.TEXTURE0 + this.unit);
-            gl.bindTexture(gl.TEXTURE_2D, texture);
+            gl.bindTexture(gl.TEXTURE_2D, this.texture);
 
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
@@ -5189,7 +6169,6 @@ var TextureIcon = function (_EventEmitter) {
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
 
             if (empty) gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 4, 4, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);else gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, this.iconinfo.img);
-            return texture;
         }
     }, {
         key: 'clear',
@@ -5205,6 +6184,20 @@ var TextureIcon = function (_EventEmitter) {
             ctx.fillStyle = "#000000";
             ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
             ctx.restore();
+        }
+    }, {
+        key: 'destroy',
+        value: function destroy() {
+
+            if (this.texture) this.gl.deleteTexture(this.texture);
+
+            this.ctx = null;
+            this.gl = null;
+            this.canvas = null;
+            this.iconinfo = null;
+            this.icons = [];
+            this.iconsToCreate = [];
+            this.texture = null;
         }
     }]);
 
@@ -5236,10 +6229,7 @@ function _classCallCheck(instance, Constructor) { if (!(instance instanceof Cons
 
 function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
 
-function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; } /**
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                * Created by chengang on 17-4-5.
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                */
-
+function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
 
 var TextureLoader = function (_EventEmitter) {
     _inherits(TextureLoader, _EventEmitter);
@@ -5352,162 +6342,219 @@ function _inherits(subClass, superClass) { if (typeof superClass !== "function" 
 var TextureText = function (_EventEmitter) {
     _inherits(TextureText, _EventEmitter);
 
-    function TextureText(config, unit) {
+    function TextureText(config, gl, unit) {
         _classCallCheck(this, TextureText);
 
         var _this = _possibleConstructorReturn(this, (TextureText.__proto__ || Object.getPrototypeOf(TextureText)).call(this));
 
         _this.border = 2;
 
+        _this.gl = gl;
+
         _this.unit = unit || 1;
         _this.fontSize = 48;
         _this.fontFamily = config.textureTextFontFamily;
 
-        _this.canvas = null;
+        _this.textureTextWidth = config.textureTextWidth;
+        _this.textureTextHeight = config.textureTextHeight;
 
+        _this.canvas = null;
         _this.textinfo = null;
+        _this.texture = null;
+
+        _this.startx = _this.border;
+        _this.starty = _this.border;
 
         _this.texts = [];
 
         _this.sdf = new _TextSDF2.default(_this.fontSize, _this.fontSize / 8, _this.fontSize / 3, null, _this.fontFamily);
+
+        _this.init();
 
         // test();
         return _this;
     }
 
     _createClass(TextureText, [{
-        key: 'createCanvasImg',
-        value: function createCanvasImg(texts) {
-
-            if (!this.canvas) this.canvas = document.createElement('canvas');
-
-            var c = this.canvas;
-
-            var width = this.sdf.size;
-            var height = width;
-            var num = Math.ceil(Math.sqrt(texts.length));
-
-            c.width = (num + 1) * width + 2 * this.border;
-            c.height = (num + 1) * height + 2 * this.border;
-
-            var ctx = c.getContext("2d");
+        key: 'init',
+        value: function init() {
+            this.canvas = document.createElement('canvas');
+            this.ctx = this.canvas.getContext("2d");
+            this.resize(this.textureTextWidth, this.textureTextHeight);
+        }
+    }, {
+        key: 'resize',
+        value: function resize(width, height) {
+            var ctx = this.ctx;
+            this.canvas.width = width;
+            this.canvas.height = height;
 
             ctx.fillStyle = "#000000";
-            ctx.fillRect(0, 0, c.width, c.height);
+            ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
             ctx.font = 'bold ' + this.fontSize + 'px ' + this.fontFamily;
             ctx.textAlign = "left";
             ctx.textBaseline = "top";
             ctx.fillStyle = "#ff0000";
 
-            var startx = this.border;
-            var starty = this.border;
-            var infos = {},
-                px,
-                py,
+            this.textinfo = {
+                fontSize: this.fontSize,
+                img: this.canvas,
+                width: this.canvas.width,
+                height: this.canvas.height,
+                infos: {}
+            };
+
+            this.startx = this.border;
+            this.starty = this.border;
+
+            this.texts = [];
+        }
+    }, {
+        key: 'needResize',
+        value: function needResize(num) {
+            var width = this.canvas.width;
+            var height = this.canvas.height;
+
+            var size = this.sdf.size + 2;
+
+            //leave column of no use in y
+            var leaveNumY = Math.floor((height - this.starty - size - this.border) / size);
+            //num of char in a row
+            var numN = Math.floor((width - 2 * this.border) / size);
+            // total num
+            var leaveNum = leaveNumY * numN /*+ (width - this.startx - this.border) / this.sdf.size*/;
+
+            return leaveNum <= num;
+        }
+    }, {
+        key: 'getSize',
+        value: function getSize(totalN) {
+            var width = this.canvas.width;
+            var height = this.canvas.height;
+            var numY, numN, totalNum;
+            var size = this.sdf.size + 2;
+
+            do {
+                if (width <= height) width *= 2;else height *= 2;
+
+                numY = Math.floor((height - 2 * this.border) / size);
+                numN = Math.floor((width - 2 * this.border) / size);
+                totalNum = numY * numN;
+            } while (totalNum < totalN);
+
+            return { width: width, height: height };
+        }
+    }, {
+        key: 'addTexts',
+        value: function addTexts(texts) {
+
+            if (!texts || texts.length < 1) return;
+
+            var oldTexts, resizeInfo;
+            if (this.needResize(texts.length)) {
+                oldTexts = this.texts;
+                // debugger
+                resizeInfo = this.getSize(texts.length + this.texts.length);
+                this.resize(resizeInfo.width, resizeInfo.height);
+
+                texts.forEach(function (e) {
+                    return oldTexts.push(e);
+                });
+
+                texts = oldTexts;
+            }
+
+            var c = this.canvas;
+            var ctx = this.ctx;
+
+            var startx = this.startx;
+            var starty = this.starty;
+            var infos = this.textinfo.infos,
                 charWidth,
                 data;
 
-            this.texts = [];
-
             for (var i = 0; i < texts.length; i++) {
 
-                if (this.textinfo && this.textinfo.infos[texts[i]]) continue;
+                if (this.textinfo && infos[texts[i]]) continue;
 
                 data = this.sdf.draw(texts[i]);
                 charWidth = data.charWidth;
 
-                // charWidth = ctx.measureText(texts[i]).width;
-
                 if (startx + charWidth > c.width) {
                     startx = this.border;
-                    starty += height;
+                    starty += this.sdf.size;
+                    if (starty + this.sdf.size > this.canvas.height) console.error('texture text height err');
                 }
 
-                ctx.putImageData(data.data, startx, starty, 0, 0, charWidth, data.data.height);
-
-                // ctx.fillText(texts[i], startx, starty);
-
+                ctx.putImageData(data.data, startx, starty, 0, 0, charWidth, this.sdf.size);
 
                 infos[texts[i]] = {
-                    uvs: [startx / c.width, starty / c.height, (startx + charWidth) / c.width, (starty + height) / c.height],
-                    width: charWidth / width
+                    uvs: [startx / c.width, starty / c.height, (startx + charWidth) / c.width, (starty + this.sdf.size) / c.height],
+                    width: charWidth / this.sdf.size
                 };
 
                 this.texts.push(texts[i]);
 
                 startx += charWidth;
             }
-            // this.computeAlpha(ctx);
-            this.textinfo = {
-                fontSize: this.fontSize,
-                img: c,
-                width: c.width,
-                height: c.height,
-                infos: infos
-            };
+
+            this.startx = startx;
+            this.starty = starty;
 
             // document.body.appendChild(c);
             // c.style.position = 'absolute';
             // c.style.top = '100px';
 
-            // this.updateGPUTexture();
-        }
-    }, {
-        key: 'computeAlpha',
-        value: function computeAlpha(ctx) {
-
-            var imgData = ctx.getImageData(0, 0, ctx.canvas.width, ctx.canvas.height);
-            for (var i = 0; i < imgData.data.length; i += 4) {
-                imgData.data[i + 3] = imgData.data[i];
-            }
-
-            ctx.putImageData(imgData, 0, 0);
+            this.attachGl();
         }
     }, {
         key: 'attachGl',
-        value: function attachGl(gl, unit) {
-            if (unit !== undefined && unit !== null) this.unit = unit;
+        value: function attachGl() {
+            var gl = this.gl;
+
             gl.activeTexture(gl.TEXTURE0 + this.unit);
-            gl.bindTexture(gl.TEXTURE_2D, this.createTexture(gl));
-        }
-    }, {
-        key: 'addTexts',
-        value: function addTexts(strs) {
-            if (strs.length == 0) return;
-
-            strs.forEach(function (e) {
-                this.texts.push(e);
-            }.bind(this));
-
-            var texts = this.texts;
-
-            this.clear();
-            this.createCanvasImg(texts);
+            this.createTexture();
+            gl.bindTexture(gl.TEXTURE_2D, this.texture);
         }
     }, {
         key: 'createTexture',
-        value: function createTexture(gl) {
+        value: function createTexture() {
+            var gl = this.gl;
 
-            var texture = gl.createTexture();
+            if (!this.texture) this.texture = gl.createTexture();
 
             gl.activeTexture(gl.TEXTURE0 + this.unit);
-            gl.bindTexture(gl.TEXTURE_2D, texture);
+            gl.bindTexture(gl.TEXTURE_2D, this.texture);
 
+            //NEAREST LINEAR
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
 
             gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, this.textinfo.img);
-
-            return texture;
         }
     }, {
         key: 'clear',
         value: function clear() {
+            this.resize(this.canvas.width, this.canvas.height);
+        }
+    }, {
+        key: 'destroy',
+        value: function destroy() {
+
+            if (this.texture) this.gl.deleteTexture(this.texture);
+
+            this.canvas = null;
             this.textinfo = null;
+            this.texture = null;
+            this.gl = null;
             this.texts = [];
+
+            this.sdf.clearCache();
+
+            this.sdf = null;
         }
     }]);
 
@@ -5552,19 +6599,22 @@ function renderLayerData(_ref) {
         renderLayerMap = _ref.renderLayerMap;
 
 
-    var temp, program;
+    var temp, program, startPoint;
     var layerIndexMap = {};
     var _this = this;
 
     data.forEach(function (e) {
         if (e.filter) return;
         layers.forEach(function (layer) {
-            if (!cacheIndex[e.id][layer] || !renderLayerMap[layer].enable || !renderLayerMap[layer].show) return;
+            if (!cacheIndex[e.id][layer] || !cacheIndex[e.id][layer].data || !renderLayerMap[layer].enable || !renderLayerMap[layer].show) return;
 
             layerIndexMap[layer] = layerIndexMap[layer] || [];
             temp = cacheIndex[e.id][layer].data.indices;
+
+            startPoint = cacheIndex[e.id][layer].vertexStart;
+
             temp && temp.forEach(function (index) {
-                layerIndexMap[layer].push(index);
+                layerIndexMap[layer].push(index + startPoint);
             });
         });
     });
@@ -5716,7 +6766,7 @@ Object.defineProperty(exports, "__esModule", {
 exports.default = function (WebGLRender) {
     WebGLRender.defaultLayersConfig = [{
         name: 'base',
-        subLayers: [{ name: 'edge', context: 'edge', render: WebGLRender.edge.default, check: edgeCount(0) }, { name: 'edgeCurve', context: 'edge', render: WebGLRender.edge.curve, check: edgeCount(0, true) }, { name: 'edgeLabel', context: 'edge', render: WebGLRender.edgeLabel.default, check: edgeCount(0) }, { name: 'edgeCurveLabel', context: 'edge', render: WebGLRender.edgeLabel.curve, check: edgeCount(0, true) }, { name: 'node', context: 'node', render: WebGLRender.node.default, check: layerCheckDefault() }, { name: 'rectNode', context: 'node', render: WebGLRender.node.rect, check: layerCheck('rect') }, { name: 'nodeLabel', context: 'node', render: WebGLRender.nodeLabel.default }, { name: 'nodeOver', custom: true, render: _customOverRender2.default, option: { over: false } }]
+        subLayers: [{ name: 'nodeLabel', context: 'node', render: WebGLRender.nodeLabel.default }, { name: 'edge', context: 'edge', render: WebGLRender.edge.default, check: edgeCount(0) }, { name: 'edgeCurve', context: 'edge', render: WebGLRender.edge.curve, check: edgeCount(0, true) }, { name: 'edgeLabel', context: 'edge', render: WebGLRender.edgeLabel.default, check: edgeCount(0) }, { name: 'edgeCurveLabel', context: 'edge', render: WebGLRender.edgeLabel.curve, check: edgeCount(0, true) }, { name: 'node', context: 'node', render: WebGLRender.node.default, check: layerCheckDefault() }, { name: 'rectNode', context: 'node', render: WebGLRender.node.rect, check: layerCheck('rect') }, { name: 'nodeOver', custom: true, render: _customOverRender2.default, option: { over: false } }]
     }];
 };
 
@@ -5783,7 +6833,8 @@ exports.default = {
         a_color: { components: 4, start: 6 },
         a_dashed: { components: 1, start: 10 },
         a_size: { components: 1, start: 11 },
-        a_ratio: { components: 1, start: 12 }
+        a_end_ratio: { components: 1, start: 12 },
+        a_start_ratio: { components: 1, start: 13 }
     },
     getUniforms: function getUniforms(_ref) {
         var matrix = _ref.matrix,
@@ -5811,26 +6862,34 @@ exports.default = {
         var renderData = [];
         var indices = [];
 
-        var dx = target.x - source.x;
-        var dy = target.y - source.y;
+        // var dx = target.x - source.x;
+        // var dy = target.y - source.y;
 
         var dis = _util2.default.getDistance(source.x, source.y, target.x, target.y);
-        var tNodeW, tNodeH, tSize;
-        tNodeW = _util2.default.getNodeSizeX(target);
-        tNodeH = _util2.default.getNodeSizeY(target);
+        var tNodeW, tNodeH, sNodeW, sNodeH, targetSize, sourceSize;
+        sNodeW = _util2.default.getNodeSizeX(source) || defaultSize;
+        sNodeH = _util2.default.getNodeSizeY(source) || defaultSize;
+        tNodeW = _util2.default.getNodeSizeX(target) || defaultSize;
+        tNodeH = _util2.default.getNodeSizeY(target) || defaultSize;
 
-        if (tNodeH && tNodeW && tNodeH == tNodeW) {
-            tSize = tNodeW;
+        if (source.type == 'rect') {
+            sourceSize = Math.sqrt(Math.pow(sNodeW, 2) + Math.pow(sNodeH, 2));
         } else {
-            tSize = Math.sqrt(Math.pow(tNodeW || defaultSize, 2) + Math.pow(tNodeH || defaultSize, 2));
+            sourceSize = sNodeW;
+        }
+
+        if (target.type == 'rect') {
+            targetSize = Math.sqrt(Math.pow(tNodeW, 2) + Math.pow(tNodeH, 2));
+        } else {
+            targetSize = tNodeW;
         }
 
         var size = (data.size || config.defaultEdgeSize) / 2;
         var aSize = data.arrowSize || config.defaultEdgeArrowSize;
         var vX, vY;
 
-        // var tX = target.x - tSize / dis * dx;
-        // var tY = target.y - tSize / dis * dy;
+        // var tX = target.x - targetSize / dis * dx;
+        // var tY = target.y - targetSize / dis * dy;
         var tX = target.x;
         var tY = target.y;
 
@@ -5838,7 +6897,10 @@ exports.default = {
 
         //arrow
         var dis1 = _util2.default.getDistance(tX, tY, ctrlP[0], ctrlP[1]);
-        var arrowPosRatio = (1 - (tSize + aSize) / dis1) * 0.5 + 0.5;
+
+        var startPosRatio = sourceSize / dis1 * 0.5;
+        var arrowPosRatio = (1 - (targetSize + aSize) / dis1) * 0.5 + 0.5;
+
         var arrowPos = _util2.default.getPointOnQuadraticCurve(arrowPosRatio, source.x, source.y, tX, tY, ctrlP[0], ctrlP[1]);
         var aTangent = _util2.default.getPointTangentOnQuadraticCurve(arrowPosRatio, source.x, source.y, tX, tY, ctrlP[0], ctrlP[1]);
 
@@ -5849,7 +6911,12 @@ exports.default = {
             arrowY = arrowPos[1];
 
         //curve
-        var color = _util2.default.parseColor(data.color || source.color || config.defaultEdgeColor);
+        var color;
+        if (data.selected) {
+            color = _util2.default.parseColor(config.defaultEdgeSelectedColor);
+        } else {
+            color = _util2.default.parseColor(data.color || source.color || config.defaultEdgeColor);
+        }
 
         var scalePos = scaleTrangles([source.x, source.y, ctrlP[0], ctrlP[1], tX, tY]);
         var scaleUV = scaleTrangles([1, 1, 0.5, 0, 0, 0]);
@@ -5857,16 +6924,16 @@ exports.default = {
         var dashed = data.dashed ? 1 : 0;
         // debugger
         //curve
-        addData(renderData, [scalePos[0], scalePos[1], scaleUV[0], scaleUV[1], dis, 0, color.r, color.g, color.b, color.a, dashed, size, arrowPosRatio]);
-        addData(renderData, [scalePos[2], scalePos[3], scaleUV[2], scaleUV[3], dis, 0, color.r, color.g, color.b, color.a, dashed, size, arrowPosRatio]);
-        addData(renderData, [scalePos[4], scalePos[5], scaleUV[4], scaleUV[5], dis, 0, color.r, color.g, color.b, color.a, dashed, size, arrowPosRatio]);
+        addData(renderData, [scalePos[0], scalePos[1], scaleUV[0], scaleUV[1], dis, 0, color.r, color.g, color.b, color.a, dashed, size, arrowPosRatio, startPosRatio]);
+        addData(renderData, [scalePos[2], scalePos[3], scaleUV[2], scaleUV[3], dis, 0, color.r, color.g, color.b, color.a, dashed, size, arrowPosRatio, startPosRatio]);
+        addData(renderData, [scalePos[4], scalePos[5], scaleUV[4], scaleUV[5], dis, 0, color.r, color.g, color.b, color.a, dashed, size, arrowPosRatio, startPosRatio]);
 
         addIndices(indices, [0, 1, 2]);
 
         //arrow
-        addData(renderData, [arrowX + vX, arrowY + vY, 0, 0, 0, 1, color.r, color.g, color.b, color.a, dashed, size, arrowPosRatio]);
-        addData(renderData, [arrowX + vY * 0.6, arrowY - vX * 0.6, 0, 0, 0, 1, color.r, color.g, color.b, color.a, dashed, size, arrowPosRatio]);
-        addData(renderData, [arrowX - vY * 0.6, arrowY + vX * 0.6, 0, 0, 0, 1, color.r, color.g, color.b, color.a, dashed, size, arrowPosRatio]);
+        addData(renderData, [arrowX + vX, arrowY + vY, 0, 0, 0, 1, color.r, color.g, color.b, color.a, dashed, size, arrowPosRatio, startPosRatio]);
+        addData(renderData, [arrowX + vY * 0.6, arrowY - vX * 0.6, 0, 0, 0, 1, color.r, color.g, color.b, color.a, dashed, size, arrowPosRatio, startPosRatio]);
+        addData(renderData, [arrowX - vY * 0.6, arrowY + vX * 0.6, 0, 0, 0, 1, color.r, color.g, color.b, color.a, dashed, size, arrowPosRatio, startPosRatio]);
 
         addIndices(indices, [3, 4, 5]);
 
@@ -5891,7 +6958,7 @@ function addIndices(indices, attrIndex) {
 }
 
 function scaleTrangles(points, scale) {
-    scale = scale || 1.6;
+    scale = scale || 1.4;
     var p1_x = points[0],
         p1_y = points[1],
         p2_x = points[2],
@@ -5950,6 +7017,18 @@ exports.default = {
         a_flag: { components: 1, start: 11 },
         a_u: { components: 1, start: 12 }
     },
+    renderBefore: function renderBefore(render, option) {
+        var gl = render.gl;
+
+        // gl.clearDepth(1.0);
+        // gl.clear(gl.DEPTH_BUFFER_BIT);
+        // //
+        // gl.enable(gl.DEPTH_TEST);
+        // gl.depthFunc(gl.LESS);
+        //
+        // gl.enable(gl.BLEND);
+        // gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+    },
     getUniforms: function getUniforms(_ref) {
         var matrix = _ref.matrix,
             camera = _ref.camera,
@@ -5969,10 +7048,9 @@ exports.default = {
 
         var target = graph.nodesIndex[data.target];
         var source = graph.nodesIndex[data.source];
-        var edge = data;
         var dx = target.x - source.x;
         var dy = target.y - source.y;
-        // var dis = util.getDistance(source.x,source.y,target.x,target.y);
+        var norV = _util2.default.normalize([dx, dy]);
         var dashed = data.dashed ? 1 : 0;
 
         var defaultSize = config.defaultNodeSize;
@@ -5982,27 +7060,40 @@ exports.default = {
         var crossVector = _util2.default.normalize([-dy, dx]);
 
         //arrow
-        var tNodeW, tNodeH, targetSize;
-        tNodeW = _util2.default.getNodeSizeX(target);
-        tNodeH = _util2.default.getNodeSizeY(target);
+        var tNodeW, tNodeH, sNodeW, sNodeH, targetSize, sourceSize;
+        sNodeW = _util2.default.getNodeSizeX(source) || defaultSize;
+        sNodeH = _util2.default.getNodeSizeY(source) || defaultSize;
+        tNodeW = _util2.default.getNodeSizeX(target) || defaultSize;
+        tNodeH = _util2.default.getNodeSizeY(target) || defaultSize;
 
-        if (tNodeH && tNodeW && tNodeH == tNodeW) {
-            targetSize = tNodeW;
+        if (source.type == 'rect') {
+            sourceSize = Math.sqrt(Math.pow(sNodeW, 2) + Math.pow(sNodeH, 2));
         } else {
-            targetSize = Math.sqrt(Math.pow(tNodeW || defaultSize, 2) + Math.pow(tNodeH || defaultSize, 2));
+            sourceSize = sNodeW;
+        }
+
+        if (target.type == 'rect') {
+            targetSize = Math.sqrt(Math.pow(tNodeW, 2) + Math.pow(tNodeH, 2));
+        } else {
+            targetSize = tNodeW;
         }
 
         var dis = _util2.default.getDistance(source.x, source.y, target.x, target.y);
         var arrowX = target.x - (targetSize + arrowSize) / dis * dx;
         var arrowY = target.y - (targetSize + arrowSize) / dis * dy;
 
-        var color = _util2.default.parseColor(edge.color || source.color || config.defaultEdgeColor);
+        var color;
+        if (data.selected) {
+            color = _util2.default.parseColor(config.defaultEdgeSelectedColor);
+        } else {
+            color = _util2.default.parseColor(data.color || source.color || config.defaultEdgeColor);
+        }
 
         var renderData = [];
         var indices = [];
 
-        addData(renderData, [source.x, source.y, crossVector[0], crossVector[1], size, color.r, color.g, color.b, color.a, dis, dashed, 0, 0]);
-        addData(renderData, [source.x, source.y, -crossVector[0], -crossVector[1], size, color.r, color.g, color.b, color.a, dis, dashed, 0, 0]);
+        addData(renderData, [source.x + norV[0] * sourceSize, source.y + norV[1] * sourceSize, crossVector[0], crossVector[1], size, color.r, color.g, color.b, color.a, dis, dashed, 0, 0]);
+        addData(renderData, [source.x + norV[0] * sourceSize, source.y + norV[1] * sourceSize, -crossVector[0], -crossVector[1], size, color.r, color.g, color.b, color.a, dis, dashed, 0, 0]);
         addData(renderData, [arrowX, arrowY, crossVector[0], crossVector[1], size, color.r, color.g, color.b, color.a, dis, dashed, 0, 1]);
         addData(renderData, [arrowX, arrowY, -crossVector[0], -crossVector[1], size, color.r, color.g, color.b, color.a, dis, dashed, 0, 1]);
 
@@ -6058,9 +7149,9 @@ var _edgeLabelVert = __webpack_require__(8);
 
 var _edgeLabelVert2 = _interopRequireDefault(_edgeLabelVert);
 
-var _labelFrag = __webpack_require__(5);
+var _edgeLabelFrag = __webpack_require__(7);
 
-var _labelFrag2 = _interopRequireDefault(_labelFrag);
+var _edgeLabelFrag2 = _interopRequireDefault(_edgeLabelFrag);
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
@@ -6070,23 +7161,27 @@ function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { de
 
 exports.default = {
     shaderVert: _edgeLabelVert2.default,
-    shaderFrag: _labelFrag2.default,
+    shaderFrag: _edgeLabelFrag2.default,
     attributes: {
         a_position: { components: 2, start: 0 },
         a_uv: { components: 2, start: 2 },
-        a_size: { components: 1, start: 4 }
+        a_size: { components: 1, start: 4 },
+        a_color: { components: 4, start: 5 }
     },
     getUniforms: function getUniforms(_ref) {
         var matrix = _ref.matrix,
             camera = _ref.camera,
+            config = _ref.config,
             sampleRatio = _ref.sampleRatio,
             textureLoader = _ref.textureLoader,
             textureText = _ref.textureText;
 
+        var color = _util2.default.parseColor(config.defaultTextBgColor);
         return {
             u_matrix: matrix,
             u_camera_scale: camera.scale,
-            u_image: textureText.unit
+            u_image: textureText.unit,
+            u_text_bg: [color.r, color.g, color.b, color.a]
         };
     },
     getRenderData: function getRenderData(_ref2) {
@@ -6103,6 +7198,7 @@ exports.default = {
         if (!data.label) return null;
 
         var defaultSize = config.defaultNodeSize;
+        var labelColor = _util2.default.parseColor(data.labelColor || config.defaultEdgeLabelColor);
 
         // debugger
         var str = data.label.split('');
@@ -6110,7 +7206,8 @@ exports.default = {
         var renderData = [];
         var indices = [];
 
-        var size = data.fontSize || Math.max(_util2.default.getNodeSizeX(source) || defaultSize, _util2.default.getNodeSizeY(source) || defaultSize) / 3;
+        var ratio = 0.33;
+        var size = data.fontSize || Math.max(_util2.default.getNodeSizeX(source) || defaultSize, _util2.default.getNodeSizeY(source) || defaultSize) * ratio;
         var infos = textureText.textinfo.infos,
             charWidth = size,
             charHeight = size,
@@ -6122,7 +7219,6 @@ exports.default = {
         for (var i = 0; i < str.length; i++) {
             char = str[i];
             if (!infos[char]) {
-                console.log(1);
                 continue;
             }
             totalWidht += infos[char].width * charWidth;
@@ -6154,10 +7250,10 @@ exports.default = {
             uv = infos[char].uvs;
             x1 = uv[0], y1 = uv[1], x2 = uv[2], y2 = uv[3];
 
-            addData(renderData, [startx, starty, x1, y1, width], centerX, centerY, angle);
-            addData(renderData, [startx, starty - charHeight, x1, y2, width], centerX, centerY, angle);
-            addData(renderData, [startx + width, starty, x2, y1, width], centerX, centerY, angle);
-            addData(renderData, [startx + width, starty - charHeight, x2, y2, width], centerX, centerY, angle);
+            addData(renderData, [startx, starty, x1, y1, width, labelColor.r, labelColor.g, labelColor.b, labelColor.a], centerX, centerY, angle);
+            addData(renderData, [startx, starty - charHeight, x1, y2, width, labelColor.r, labelColor.g, labelColor.b, labelColor.a], centerX, centerY, angle);
+            addData(renderData, [startx + width, starty, x2, y1, width, labelColor.r, labelColor.g, labelColor.b, labelColor.a], centerX, centerY, angle);
+            addData(renderData, [startx + width, starty - charHeight, x2, y2, width, labelColor.r, labelColor.g, labelColor.b, labelColor.a], centerX, centerY, angle);
 
             addIndices(indices, [points + 0, points + 1, points + 2, points + 1, points + 2, points + 3]);
 
@@ -6199,11 +7295,11 @@ Object.defineProperty(exports, "__esModule", {
     value: true
 });
 
-var _nodeLabelVert = __webpack_require__(41);
+var _nodeLabelVert = __webpack_require__(42);
 
 var _nodeLabelVert2 = _interopRequireDefault(_nodeLabelVert);
 
-var _labelFrag = __webpack_require__(5);
+var _labelFrag = __webpack_require__(41);
 
 var _labelFrag2 = _interopRequireDefault(_labelFrag);
 
@@ -6219,7 +7315,8 @@ exports.default = {
     attributes: {
         a_position: { components: 2, start: 0 },
         a_uv: { components: 2, start: 2 },
-        a_size: { components: 1, start: 4 }
+        a_size: { components: 1, start: 4 },
+        a_color: { components: 4, start: 5 }
     },
     getUniforms: function getUniforms(_ref) {
         var matrix = _ref.matrix,
@@ -6246,66 +7343,84 @@ exports.default = {
         if (!data.label) return null;
 
         var defaultSize = config.defaultNodeSize;
+        var labelColor = _util2.default.parseColor(data.labelColor || config.defaultNodeLabelColor);
 
         var str = data.label.split('');
 
         var renderData = [];
         var indices = [];
 
+        var labelSizeRatio = 0.4;
         var sizeX = _util2.default.getNodeSizeX(data) || defaultSize,
             sizeY = _util2.default.getNodeSizeY(data) || defaultSize;
         var size = Math.max(sizeX, sizeY);
         var infos = textureText.textinfo.infos,
-            charWidth = size / 2,
-            charHeight = size / 2,
+            charWidth = size * labelSizeRatio,
+            charHeight = size * labelSizeRatio,
             char,
             uv,
             width;
 
-        var totalWidht = 0;
-        for (var i = 0; i < str.length; i++) {
-            char = str[i];
-            if (!infos[char]) {
-                // console.log(1);
-                continue;
-            }
-            totalWidht += infos[char].width * charWidth;
-        }
+        var lines = getLines(str, 20, infos, charWidth);
 
-        var startx = totalWidht / 2 * -1 + data.x;
-        var starty = data.y - sizeY;
-        var x1, y1, x2, y2;
-
+        var x1, y1, x2, y2, startx, starty;
         var points = 0;
-        for (var i = 0; i < str.length; i++) {
-            char = str[i];
-            if (!infos[char]) {
-                // console.log(1);
-                continue;
-            }
 
-            width = infos[char].width * charWidth;
-            uv = infos[char].uvs;
-            x1 = uv[0], y1 = uv[1], x2 = uv[2], y2 = uv[3];
+        lines.forEach(function (line, i) {
+            startx = line.lineWidth / 2 * -1 + data.x;
+            starty = data.y - sizeY - i * charHeight * 7 / 8;
+            line.forEach(function (char) {
+                if (!infos[char]) return;
 
-            addData(renderData, [startx, starty, x1, y1, width]);
-            addData(renderData, [startx, starty - charHeight, x1, y2, width]);
-            addData(renderData, [startx + width, starty, x2, y1, width]);
-            addData(renderData, [startx + width, starty - charHeight, x2, y2, width]);
+                width = infos[char].width * charWidth;
+                uv = infos[char].uvs;
+                x1 = uv[0], y1 = uv[1], x2 = uv[2], y2 = uv[3];
 
-            addIndices(indices, [points + 0, points + 1, points + 2, points + 1, points + 2, points + 3]);
+                addData(renderData, [startx, starty, x1, y1, width, labelColor.r, labelColor.g, labelColor.b, labelColor.a]);
+                addData(renderData, [startx, starty - charHeight, x1, y2, width, labelColor.r, labelColor.g, labelColor.b, labelColor.a]);
+                addData(renderData, [startx + width, starty, x2, y1, width, labelColor.r, labelColor.g, labelColor.b, labelColor.a]);
+                addData(renderData, [startx + width, starty - charHeight, x2, y2, width, labelColor.r, labelColor.g, labelColor.b, labelColor.a]);
 
-            startx += width * 7 / 8;
-            points += 4;
-        }
-        return {
-            vertices: renderData,
-            indices: indices
-        };
+                addIndices(indices, [points + 0, points + 1, points + 2, points + 1, points + 2, points + 3]);
+
+                startx += width * 7 / 8;
+                points += 4;
+            });
+        });
+
+        return renderData.length > 0 ? { vertices: renderData, indices: indices } : null;
     }
 }; /**
     * Created by chengang on 17-4-7.
     */
+
+function getLines(str, lineChars, infos, charWidth) {
+    var lines = [];
+    var line = [];
+    var lineWidth = 0;
+    str.forEach(function (char) {
+        if (line.length >= lineChars) {
+
+            line.lineWidth = lineWidth;
+            lines.push(line);
+
+            line = [];
+            lineWidth = 0;
+        }
+
+        if (!infos[char]) return;
+
+        lineWidth += infos[char].width * charWidth * 7 / 8;
+        line.push(char);
+    });
+
+    if (lineWidth > 0) {
+        line.lineWidth = lineWidth;
+        lines.push(line);
+    }
+
+    return lines;
+}
 
 function addData(arr, attrData) {
     for (var i = 0; i < attrData.length; i++) {
@@ -6342,9 +7457,9 @@ var _edgeLabelVert = __webpack_require__(8);
 
 var _edgeLabelVert2 = _interopRequireDefault(_edgeLabelVert);
 
-var _labelFrag = __webpack_require__(5);
+var _edgeLabelFrag = __webpack_require__(7);
 
-var _labelFrag2 = _interopRequireDefault(_labelFrag);
+var _edgeLabelFrag2 = _interopRequireDefault(_edgeLabelFrag);
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
@@ -6354,23 +7469,27 @@ function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { de
 
 exports.default = {
     shaderVert: _edgeLabelVert2.default,
-    shaderFrag: _labelFrag2.default,
+    shaderFrag: _edgeLabelFrag2.default,
     attributes: {
         a_position: { components: 2, start: 0 },
         a_uv: { components: 2, start: 2 },
-        a_size: { components: 1, start: 4 }
+        a_size: { components: 1, start: 4 },
+        a_color: { components: 4, start: 5 }
     },
     getUniforms: function getUniforms(_ref) {
         var matrix = _ref.matrix,
             camera = _ref.camera,
+            config = _ref.config,
             sampleRatio = _ref.sampleRatio,
             textureLoader = _ref.textureLoader,
             textureText = _ref.textureText;
 
+        var color = _util2.default.parseColor(config.defaultTextBgColor);
         return {
             u_matrix: matrix,
             u_camera_scale: camera.scale,
-            u_image: textureText.unit
+            u_image: textureText.unit,
+            u_text_bg: [color.r, color.g, color.b, color.a]
         };
     },
     getRenderData: function getRenderData(_ref2) {
@@ -6387,6 +7506,7 @@ exports.default = {
         if (!data.label) return null;
 
         var defaultSize = config.defaultNodeSize;
+        var labelColor = _util2.default.parseColor(data.labelColor || config.defaultEdgeLabelColor);
 
         // debugger
         var str = data.label.split('');
@@ -6394,7 +7514,8 @@ exports.default = {
         var renderData = [];
         var indices = [];
 
-        var size = data.fontSize || Math.max(_util2.default.getNodeSizeX(source) || defaultSize, _util2.default.getNodeSizeY(source) || defaultSize) / 3;
+        var ratio = 0.33;
+        var size = data.fontSize || Math.max(_util2.default.getNodeSizeX(source) || defaultSize, _util2.default.getNodeSizeY(source) || defaultSize) * ratio;
         var infos = textureText.textinfo.infos,
             charWidth = size,
             charHeight = size,
@@ -6453,10 +7574,10 @@ exports.default = {
             uv = infos[char].uvs;
             x1 = uv[0], y1 = uv[1], x2 = uv[2], y2 = uv[3];
 
-            addData(renderData, [startx, starty, x1, y1, width], centerX, centerY, angle);
-            addData(renderData, [startx, starty - charHeight, x1, y2, width], centerX, centerY, angle);
-            addData(renderData, [startx + width, starty, x2, y1, width], centerX, centerY, angle);
-            addData(renderData, [startx + width, starty - charHeight, x2, y2, width], centerX, centerY, angle);
+            addData(renderData, [startx, starty, x1, y1, width, labelColor.r, labelColor.g, labelColor.b, labelColor.a], centerX, centerY, angle);
+            addData(renderData, [startx, starty - charHeight, x1, y2, width, labelColor.r, labelColor.g, labelColor.b, labelColor.a], centerX, centerY, angle);
+            addData(renderData, [startx + width, starty, x2, y1, width, labelColor.r, labelColor.g, labelColor.b, labelColor.a], centerX, centerY, angle);
+            addData(renderData, [startx + width, starty - charHeight, x2, y2, width, labelColor.r, labelColor.g, labelColor.b, labelColor.a], centerX, centerY, angle);
 
             addIndices(indices, [points + 0, points + 1, points + 2, points + 1, points + 2, points + 3]);
 
@@ -6502,11 +7623,11 @@ var _util = __webpack_require__(0);
 
 var _util2 = _interopRequireDefault(_util);
 
-var _defaultVert = __webpack_require__(43);
+var _defaultVert = __webpack_require__(44);
 
 var _defaultVert2 = _interopRequireDefault(_defaultVert);
 
-var _defaultFrag = __webpack_require__(42);
+var _defaultFrag = __webpack_require__(43);
 
 var _defaultFrag2 = _interopRequireDefault(_defaultFrag);
 
@@ -6523,7 +7644,8 @@ exports.default = {
         a_flag: { components: 1, start: 9 },
         a_size: { components: 1, start: 10 },
         a_showicon: { components: 1, start: 11 },
-        a_center: { components: 2, start: 12 }
+        a_center: { components: 2, start: 12 },
+        a_icon_color: { components: 4, start: 14 }
     },
     getUniforms: function getUniforms(_ref) {
         var matrix = _ref.matrix,
@@ -6533,7 +7655,7 @@ exports.default = {
             textureLoader = _ref.textureLoader,
             textureIcon = _ref.textureIcon;
 
-        var color = _util2.default.parseColor(config.defaultNodeBorder);
+        var color = _util2.default.parseColor(config.defaultNodeSelectedBorder);
         return {
             u_matrix: matrix,
             u_camera_scale: camera.scale,
@@ -6546,36 +7668,39 @@ exports.default = {
     getRenderData: function getRenderData(_ref2) {
         var data = _ref2.data,
             config = _ref2.config,
-            textureLoader = _ref2.textureLoader,
             textureIcon = _ref2.textureIcon,
             oldData = _ref2.oldData,
             dirtyAttr = _ref2.dirtyAttr;
 
-
-        data.size = data.size || config.defaultNodeSize;
-        var isSelected = data.selected ? 1.0 : 0.0;
-        var color = _util2.default.parseColor(data.color || config.defaultNodeColor);
-
-        // debugger
-        // var img = -1;
-        // if (data.img && textureLoader.cache[data.img])
-        //     img = textureLoader.cache[data.img];
-
+        //reuse old data
         if (oldData && dirtyAttr && Object.keys(dirtyAttr).length == 2 && dirtyAttr.hasOwnProperty('x') && dirtyAttr.hasOwnProperty('y')) {
             // debugger
-            var offset = 14;
+            var offset = 18;
             var oldVertices = oldData.vertices;
             for (var i = 0; i < oldVertices.length; i += offset) {
-                oldVertices[i + 12] = data.x;
-                oldVertices[i + 13] = data.y;
+                oldVertices[i + 12] = data.x; //x
+                oldVertices[i + 13] = data.y; //y
             }
             return {
-                vertices: oldVertices
+                vertices: oldVertices,
+                indices: oldData.indices
             };
         }
 
+        /**
+         * width height selected color iconOrImg uv center
+         */
+
+        //init data
+        data.size = data.size || config.defaultNodeSize;
+
+        var isSelected = data.selected ? 1.0 : 0.0; //selected flag
+        var color = _util2.default.parseColor(data.color || config.defaultNodeColor); //node color
+
+        var iColor = _util2.default.parseColor(data.iconColor || config.defaultNodeIconColor); //icon color
         var hasIcon = data.icon && textureIcon.iconinfo.infos[data.icon],
             uvs;
+
         uvs = hasIcon ? textureIcon.iconinfo.infos[data.icon].uvs : [0, 0];
         hasIcon = hasIcon ? 1 : 0;
 
@@ -6588,30 +7713,29 @@ exports.default = {
         // debugger
 
         //background
-        addData(vertices, [-1 * data.size * bgScale, +1 * data.size * bgScale, color.r, color.g, color.b, color.a, 0, 0, isSelected, 0, data.size, hasIcon, data.x, data.y]);
-        addData(vertices, [+1 * data.size * bgScale, +1 * data.size * bgScale, color.r, color.g, color.b, color.a, 1, 0, isSelected, 0, data.size, hasIcon, data.x, data.y]);
-        addData(vertices, [-1 * data.size * bgScale, -1 * data.size * bgScale, color.r, color.g, color.b, color.a, 0, 1, isSelected, 0, data.size, hasIcon, data.x, data.y]);
-        addData(vertices, [+1 * data.size * bgScale, -1 * data.size * bgScale, color.r, color.g, color.b, color.a, 1, 1, isSelected, 0, data.size, hasIcon, data.x, data.y]);
+        addData(vertices, [-1 * data.size * bgScale, +1 * data.size * bgScale, color.r, color.g, color.b, color.a, 0, 0, isSelected, 0, data.size, hasIcon, data.x, data.y, iColor.r, iColor.g, iColor.b, iColor.a]);
+        addData(vertices, [+1 * data.size * bgScale, +1 * data.size * bgScale, color.r, color.g, color.b, color.a, 1, 0, isSelected, 0, data.size, hasIcon, data.x, data.y, iColor.r, iColor.g, iColor.b, iColor.a]);
+        addData(vertices, [-1 * data.size * bgScale, -1 * data.size * bgScale, color.r, color.g, color.b, color.a, 0, 1, isSelected, 0, data.size, hasIcon, data.x, data.y, iColor.r, iColor.g, iColor.b, iColor.a]);
+        addData(vertices, [+1 * data.size * bgScale, -1 * data.size * bgScale, color.r, color.g, color.b, color.a, 1, 1, isSelected, 0, data.size, hasIcon, data.x, data.y, iColor.r, iColor.g, iColor.b, iColor.a]);
 
         addIndices(indices, [points + 0, points + 1, points + 2, points + 1, points + 2, points + 3]);
         points += 4;
 
         //base
-        addData(vertices, [-1 * data.size, +1 * data.size, color.r, color.g, color.b, color.a, 0, 0, isSelected, 1, data.size, hasIcon, data.x, data.y]);
-        addData(vertices, [+1 * data.size, +1 * data.size, color.r, color.g, color.b, color.a, 1, 0, isSelected, 1, data.size, hasIcon, data.x, data.y]);
-        addData(vertices, [-1 * data.size, -1 * data.size, color.r, color.g, color.b, color.a, 0, 1, isSelected, 1, data.size, hasIcon, data.x, data.y]);
-        addData(vertices, [+1 * data.size, -1 * data.size, color.r, color.g, color.b, color.a, 1, 1, isSelected, 1, data.size, hasIcon, data.x, data.y]);
+        addData(vertices, [-1 * data.size, +1 * data.size, color.r, color.g, color.b, color.a, 0, 0, isSelected, 1, data.size, hasIcon, data.x, data.y, iColor.r, iColor.g, iColor.b, iColor.a]);
+        addData(vertices, [+1 * data.size, +1 * data.size, color.r, color.g, color.b, color.a, 1, 0, isSelected, 1, data.size, hasIcon, data.x, data.y, iColor.r, iColor.g, iColor.b, iColor.a]);
+        addData(vertices, [-1 * data.size, -1 * data.size, color.r, color.g, color.b, color.a, 0, 1, isSelected, 1, data.size, hasIcon, data.x, data.y, iColor.r, iColor.g, iColor.b, iColor.a]);
+        addData(vertices, [+1 * data.size, -1 * data.size, color.r, color.g, color.b, color.a, 1, 1, isSelected, 1, data.size, hasIcon, data.x, data.y, iColor.r, iColor.g, iColor.b, iColor.a]);
 
         addIndices(indices, [points + 0, points + 1, points + 2, points + 1, points + 2, points + 3]);
         points += 4;
 
-        var scale = 0.7;
-
         //icon
-        addData(vertices, [-1 * data.size * scale, +1 * data.size * scale, color.r, color.g, color.b, color.a, uvs[0], uvs[1], isSelected, 2, data.size, hasIcon, data.x, data.y]);
-        addData(vertices, [+1 * data.size * scale, +1 * data.size * scale, color.r, color.g, color.b, color.a, uvs[2], uvs[1], isSelected, 2, data.size, hasIcon, data.x, data.y]);
-        addData(vertices, [-1 * data.size * scale, -1 * data.size * scale, color.r, color.g, color.b, color.a, uvs[0], uvs[3], isSelected, 2, data.size, hasIcon, data.x, data.y]);
-        addData(vertices, [+1 * data.size * scale, -1 * data.size * scale, color.r, color.g, color.b, color.a, uvs[2], uvs[3], isSelected, 2, data.size, hasIcon, data.x, data.y]);
+        var iconInfo = data.icon ? getIconInfo(data) : { left: -1 * data.size, top: data.size, right: data.size, bottom: -1 * data.size };
+        addData(vertices, [iconInfo.left, iconInfo.top, color.r, color.g, color.b, color.a, uvs[0], uvs[1], isSelected, 2, data.size, hasIcon, data.x, data.y, iColor.r, iColor.g, iColor.b, iColor.a]);
+        addData(vertices, [iconInfo.right, iconInfo.top, color.r, color.g, color.b, color.a, uvs[2], uvs[1], isSelected, 2, data.size, hasIcon, data.x, data.y, iColor.r, iColor.g, iColor.b, iColor.a]);
+        addData(vertices, [iconInfo.left, iconInfo.bottom, color.r, color.g, color.b, color.a, uvs[0], uvs[3], isSelected, 2, data.size, hasIcon, data.x, data.y, iColor.r, iColor.g, iColor.b, iColor.a]);
+        addData(vertices, [iconInfo.right, iconInfo.bottom, color.r, color.g, color.b, color.a, uvs[2], uvs[3], isSelected, 2, data.size, hasIcon, data.x, data.y, iColor.r, iColor.g, iColor.b, iColor.a]);
 
         addIndices(indices, [points + 0, points + 1, points + 2, points + 1, points + 2, points + 3]);
         points += 4;
@@ -6637,6 +7761,21 @@ function addIndices(indices, attrIndex) {
     });
 }
 
+function getIconInfo(data) {
+    var icon = data.icon;
+    var defaultConfig = { content: '', offsetX: 0, offsetY: 0, scale: 0.65 };
+    icon = _util2.default.isString(icon) ? _util2.default.extend({ content: icon }, defaultConfig) : _util2.default.extend(icon, defaultConfig);
+
+    var size = data.size;
+
+    return {
+        left: size * -1 * icon.scale + icon.offsetX,
+        right: size * icon.scale + icon.offsetX,
+        top: size * icon.scale + icon.offsetY,
+        bottom: size * -1 * icon.scale + icon.offsetY
+    };
+}
+
 /***/ }),
 /* 34 */
 /***/ (function(module, exports, __webpack_require__) {
@@ -6652,11 +7791,11 @@ var _util = __webpack_require__(0);
 
 var _util2 = _interopRequireDefault(_util);
 
-var _vert = __webpack_require__(45);
+var _vert = __webpack_require__(46);
 
 var _vert2 = _interopRequireDefault(_vert);
 
-var _frag = __webpack_require__(44);
+var _frag = __webpack_require__(45);
 
 var _frag2 = _interopRequireDefault(_frag);
 
@@ -6672,7 +7811,8 @@ exports.default = {
         a_img: { components: 1, start: 8 },
         a_selected: { components: 1, start: 9 },
         a_flag: { components: 1, start: 10 },
-        a_showicon: { components: 1, start: 11 }
+        a_showicon: { components: 1, start: 11 },
+        a_icon_color: { components: 4, start: 12 }
     },
     getUniforms: function getUniforms(_ref) {
         var matrix = _ref.matrix,
@@ -6682,7 +7822,7 @@ exports.default = {
             textureLoader = _ref.textureLoader,
             textureIcon = _ref.textureIcon;
 
-        var color = _util2.default.parseColor(config.defaultNodeBorder);
+        var color = _util2.default.parseColor(config.defaultNodeSelectedBorder);
         return {
             u_matrix: matrix,
             u_camera_scale: camera.scale,
@@ -6701,12 +7841,13 @@ exports.default = {
 
 
         var color = _util2.default.parseColor(data.color || config.defaultNodeColor);
+        var iColor = _util2.default.parseColor(data.iconColor || config.defaultNodeIconColor);
 
         var img = -1;
         if (data.img && textureLoader.cache.hasOwnProperty(data.img)) img = textureLoader.cache[data.img];
 
-        var sizeX = data.width || data.size || config.defaultNodeSize;
-        var sizeY = data.height || data.size || config.defaultNodeSize;
+        var sizeX = data.width = data.width || data.size || config.defaultNodeSize;
+        var sizeY = data.height = data.height || data.size || config.defaultNodeSize;
         var iconSize = Math.min(sizeX, sizeY);
         var bgSize = Math.max(sizeX, sizeY) * 1.414;
         var isSelected = data.selected ? 1.0 : 0.0;
@@ -6720,21 +7861,21 @@ exports.default = {
         var indices = [];
 
         var points = 0;
-        var bgScale = 1.2;
+        var bgScale = 1;
 
-        addData(renderData, [data.x - bgSize * bgScale, data.y + bgSize * bgScale, color.r, color.g, color.b, color.a, 0, 0, img, isSelected, 0, hasIcon]);
-        addData(renderData, [data.x + bgSize * bgScale, data.y + bgSize * bgScale, color.r, color.g, color.b, color.a, 1, 0, img, isSelected, 0, hasIcon]);
-        addData(renderData, [data.x - bgSize * bgScale, data.y - bgSize * bgScale, color.r, color.g, color.b, color.a, 0, 1, img, isSelected, 0, hasIcon]);
-        addData(renderData, [data.x + bgSize * bgScale, data.y - bgSize * bgScale, color.r, color.g, color.b, color.a, 1, 1, img, isSelected, 0, hasIcon]);
+        addData(renderData, [data.x - bgSize * bgScale, data.y + bgSize * bgScale, color.r, color.g, color.b, color.a, 0, 0, img, isSelected, 0, hasIcon, iColor.r, iColor.g, iColor.b, iColor.a]);
+        addData(renderData, [data.x + bgSize * bgScale, data.y + bgSize * bgScale, color.r, color.g, color.b, color.a, 1, 0, img, isSelected, 0, hasIcon, iColor.r, iColor.g, iColor.b, iColor.a]);
+        addData(renderData, [data.x - bgSize * bgScale, data.y - bgSize * bgScale, color.r, color.g, color.b, color.a, 0, 1, img, isSelected, 0, hasIcon, iColor.r, iColor.g, iColor.b, iColor.a]);
+        addData(renderData, [data.x + bgSize * bgScale, data.y - bgSize * bgScale, color.r, color.g, color.b, color.a, 1, 1, img, isSelected, 0, hasIcon, iColor.r, iColor.g, iColor.b, iColor.a]);
 
         addIndices(indices, [points + 0, points + 1, points + 2, points + 1, points + 2, points + 3]);
         points += 4;
 
         //base
-        addData(renderData, [data.x - sizeX, data.y + sizeY, color.r, color.g, color.b, color.a, 0, 0, img, isSelected, 1, hasIcon]);
-        addData(renderData, [data.x + sizeX, data.y + sizeY, color.r, color.g, color.b, color.a, 1, 0, img, isSelected, 1, hasIcon]);
-        addData(renderData, [data.x - sizeX, data.y - sizeY, color.r, color.g, color.b, color.a, 0, 1, img, isSelected, 1, hasIcon]);
-        addData(renderData, [data.x + sizeX, data.y - sizeY, color.r, color.g, color.b, color.a, 1, 1, img, isSelected, 1, hasIcon]);
+        addData(renderData, [data.x - sizeX, data.y + sizeY, color.r, color.g, color.b, color.a, 0, 0, img, isSelected, 1, hasIcon, iColor.r, iColor.g, iColor.b, iColor.a]);
+        addData(renderData, [data.x + sizeX, data.y + sizeY, color.r, color.g, color.b, color.a, 1, 0, img, isSelected, 1, hasIcon, iColor.r, iColor.g, iColor.b, iColor.a]);
+        addData(renderData, [data.x - sizeX, data.y - sizeY, color.r, color.g, color.b, color.a, 0, 1, img, isSelected, 1, hasIcon, iColor.r, iColor.g, iColor.b, iColor.a]);
+        addData(renderData, [data.x + sizeX, data.y - sizeY, color.r, color.g, color.b, color.a, 1, 1, img, isSelected, 1, hasIcon, iColor.r, iColor.g, iColor.b, iColor.a]);
 
         addIndices(indices, [points + 0, points + 1, points + 2, points + 1, points + 2, points + 3]);
         points += 4;
@@ -6742,11 +7883,11 @@ exports.default = {
         var scale = 0.85;
         //icon
 
-        // debugger
-        addData(renderData, [data.x - iconSize * scale, data.y + iconSize * scale, color.r, color.g, color.b, color.a, uvs[0], uvs[1], -2, isSelected, 2, hasIcon]);
-        addData(renderData, [data.x + iconSize * scale, data.y + iconSize * scale, color.r, color.g, color.b, color.a, uvs[2], uvs[1], -2, isSelected, 2, hasIcon]);
-        addData(renderData, [data.x - iconSize * scale, data.y - iconSize * scale, color.r, color.g, color.b, color.a, uvs[0], uvs[3], -2, isSelected, 2, hasIcon]);
-        addData(renderData, [data.x + iconSize * scale, data.y - iconSize * scale, color.r, color.g, color.b, color.a, uvs[2], uvs[3], -2, isSelected, 2, hasIcon]);
+        var iconInfo = data.icon ? getIconInfo(data) : { left: -1 * data.size, top: data.size, right: data.size, bottom: -1 * data.size };
+        addData(renderData, [data.x + iconInfo.left, data.y + iconInfo.top, color.r, color.g, color.b, color.a, uvs[0], uvs[1], -2, isSelected, 2, hasIcon, iColor.r, iColor.g, iColor.b, iColor.a]);
+        addData(renderData, [data.x + iconInfo.right, data.y + iconInfo.top, color.r, color.g, color.b, color.a, uvs[2], uvs[1], -2, isSelected, 2, hasIcon, iColor.r, iColor.g, iColor.b, iColor.a]);
+        addData(renderData, [data.x + iconInfo.left, data.y + iconInfo.bottom, color.r, color.g, color.b, color.a, uvs[0], uvs[3], -2, isSelected, 2, hasIcon, iColor.r, iColor.g, iColor.b, iColor.a]);
+        addData(renderData, [data.x + iconInfo.right, data.y + iconInfo.bottom, color.r, color.g, color.b, color.a, uvs[2], uvs[3], -2, isSelected, 2, hasIcon, iColor.r, iColor.g, iColor.b, iColor.a]);
 
         addIndices(indices, [points + 0, points + 1, points + 2, points + 1, points + 2, points + 3]);
         points += 4;
@@ -6772,6 +7913,21 @@ function addIndices(indices, attrIndex) {
     });
 }
 
+function getIconInfo(data) {
+    var icon = data.icon;
+    var defaultConfig = { content: '', offsetX: 0, offsetY: 0, scale: 0.65 };
+    icon = _util2.default.isString(icon) ? _util2.default.extend({ content: icon }, defaultConfig) : _util2.default.extend(icon, defaultConfig);
+
+    var size = Math.min(data.width, data.height);
+
+    return {
+        left: size * -1 * icon.scale + icon.offsetX,
+        right: size * icon.scale + icon.offsetX,
+        top: size * icon.scale + icon.offsetY,
+        bottom: size * -1 * icon.scale + icon.offsetY
+    };
+}
+
 /***/ }),
 /* 35 */
 /***/ (function(module, exports) {
@@ -6788,13 +7944,13 @@ module.exports = "attribute vec2 a_position;\n//attribute vec2 a_uv;\n\n//varyin
 /* 37 */
 /***/ (function(module, exports) {
 
-module.exports = "#ifdef GL_OES_standard_derivatives\n#extension GL_OES_standard_derivatives : enable\n#endif\n\nprecision mediump float;\nvarying vec4 color;\nvarying vec2 uv;\nvarying float dis;\nvarying float flag;\nvarying float dashed;\nvarying float size;\nvarying float ratio;\n\nuniform float u_camera_scale;\n\n\n\nvoid main(){\n        float width = size / u_camera_scale;\n        float blur = clamp(0.6,0.05,width*1.0) ;\n        width = width + blur;\n        float blur_ratio = blur / width;\n        float scale = 1.0;\n\n        if(flag > -0.5 && flag < 0.5){//curve\n                vec2 px = dFdx(uv);\n                vec2 py = dFdy(uv);\n\n                float fx = 2.0 * uv.x * px.x - px.y;\n                float fy = 2.0 * uv.y * py.x - py.y;\n\n                float sd = (uv.x * uv.x - uv.y) / sqrt(fx * fx + fy * fy);\n\n                float alpha = 1.0 - abs(sd) / width;\n                if (alpha < 0.0 || uv.x < ratio || uv.x > 1.0) discard;\n\n                float n = 800.0/dis;\n                float dot = mod(uv.x*100.0,n);\n                if(dashed > 0.5 && dot > n*0.5 && dot < n) discard;\n\n                if(alpha < blur_ratio) scale = smoothstep(0.0,blur_ratio,alpha);\n\n                gl_FragColor = color*scale;\n\n        }else if(flag > 0.5 && flag < 1.5){//arrow\n                gl_FragColor = color;\n        }\n\n\n}"
+module.exports = "#ifdef GL_OES_standard_derivatives\n#extension GL_OES_standard_derivatives : enable\n#endif\n\nprecision mediump float;\nvarying vec4 color;\nvarying vec2 uv;\nvarying float dis;\nvarying float flag;\nvarying float dashed;\nvarying float size;\nvarying float end_ratio;\nvarying float start_ratio;\n\nuniform float u_camera_scale;\n\n\n\nvoid main(){\n        float width = size / u_camera_scale;\n        float blur = clamp(0.6,0.05,width*1.0) ;\n        width = width + blur;\n        float blur_ratio = blur / width;\n        float scale = 1.0;\n\n        if(flag > -0.5 && flag < 0.5){//curve\n                vec2 px = dFdx(uv);\n                vec2 py = dFdy(uv);\n\n                float fx = 2.0 * uv.x * px.x - px.y;\n                float fy = 2.0 * uv.y * py.x - py.y;\n\n                float sd = (uv.x * uv.x - uv.y) / sqrt(fx * fx + fy * fy);\n\n                float alpha = 1.0 - abs(sd) / width;\n                if (alpha < 0.0 || uv.x < end_ratio || uv.x > start_ratio) discard;\n\n                float n = 800.0/dis;\n                float dot = mod(uv.x*100.0,n);\n                if(dashed > 0.5 && dot > n*0.5 && dot < n) discard;\n\n                if(alpha < blur_ratio) scale = smoothstep(0.0,blur_ratio,alpha);\n\n                gl_FragColor = color*scale;\n\n        }else if(flag > 0.5 && flag < 1.5){//arrow\n                gl_FragColor = color;\n        }\n\n\n}"
 
 /***/ }),
 /* 38 */
 /***/ (function(module, exports) {
 
-module.exports = "attribute vec2 a_position;\n//attribute vec2 a_normal;\nattribute vec4 a_color;\n//attribute float a_size;\nattribute vec2 a_uv;\nattribute float a_dis;\nattribute float a_dashed;\nattribute float a_flag;\nattribute float a_size;\nattribute float a_ratio;\n\nuniform mat3 u_matrix;\n\nvarying vec4 color;\nvarying vec2 uv;\nvarying float dis;\nvarying float dashed;\nvarying float flag;\nvarying float size;\nvarying float ratio;\n\nvoid main() {\n\n//vec2 pos  = a_position + a_normal * a_size;\ngl_Position = vec4((u_matrix*vec3(a_position,1)).xy,0,1);\nuv = a_uv;\ndis = a_dis;\nflag = a_flag;\ncolor = a_color/255.0;\ncolor = vec4(color.rgb * color.a,color.a);\ndashed = a_dashed;\nsize = a_size;\nratio = 1.0 - a_ratio;\n}\n"
+module.exports = "attribute vec2 a_position;\n//attribute vec2 a_normal;\nattribute vec4 a_color;\n//attribute float a_size;\nattribute vec2 a_uv;\nattribute float a_dis;\nattribute float a_dashed;\nattribute float a_flag;\nattribute float a_size;\nattribute float a_end_ratio;\nattribute float a_start_ratio;\n\nuniform mat3 u_matrix;\n\nvarying vec4 color;\nvarying vec2 uv;\nvarying float dis;\nvarying float dashed;\nvarying float flag;\nvarying float size;\nvarying float end_ratio;\nvarying float start_ratio;\n\nvoid main() {\n\n//vec2 pos  = a_position + a_normal * a_size;\ngl_Position = vec4((u_matrix*vec3(a_position,1)).xy,0,1);\nuv = a_uv;\ndis = a_dis;\nflag = a_flag;\ncolor = a_color/255.0;\ncolor = vec4(color.rgb * color.a,color.a);\ndashed = a_dashed;\nsize = a_size;\nend_ratio = 1.0 - a_end_ratio;\nstart_ratio = 1.0 - a_start_ratio;\n}\n"
 
 /***/ }),
 /* 39 */
@@ -6806,40 +7962,46 @@ module.exports = "precision mediump float;\nvarying vec4 color;\nvarying float d
 /* 40 */
 /***/ (function(module, exports) {
 
-module.exports = "attribute vec2 a_position;\nattribute vec2 a_normal;\nattribute vec4 a_color;\nattribute float a_size;\nattribute float a_dis;\nattribute float a_dashed;\nattribute float a_flag;\nattribute float a_u;\n\nuniform mat3 u_matrix;\n\nvarying vec4 color;\nvarying float dis;\nvarying float dashed;\nvarying float flag;\nvarying float u;\n\nvoid main() {\n\nvec2 pos  = a_position + a_normal * a_size;\ngl_Position = vec4((u_matrix*vec3(pos,1)).xy,0,1);\ndis = a_dis;\ndashed = a_dashed;\nflag = a_flag;\ncolor = a_color/255.0;\nu = a_u;\n}\n"
+module.exports = "attribute vec2 a_position;\nattribute vec2 a_normal;\nattribute vec4 a_color;\nattribute float a_size;\nattribute float a_dis;\nattribute float a_dashed;\nattribute float a_flag;\nattribute float a_u;\n\nuniform mat3 u_matrix;\n\nvarying vec4 color;\nvarying float dis;\nvarying float dashed;\nvarying float flag;\nvarying float u;\n\nvoid main() {\n\nvec2 pos  = a_position + a_normal * a_size;\ngl_Position = vec4((u_matrix*vec3(pos,1)).xy,0.5,1);\ndis = a_dis;\ndashed = a_dashed;\nflag = a_flag;\ncolor = a_color/255.0;\nu = a_u;\n}\n"
 
 /***/ }),
 /* 41 */
 /***/ (function(module, exports) {
 
-module.exports = "attribute vec2 a_position;\nattribute vec2 a_uv;\nattribute float a_size;\n\nuniform mat3 u_matrix;\nuniform sampler2D u_image;\n\n\nvarying vec2 v_texCoord;\nvarying float size;\n\nvoid main() {\ngl_Position = vec4((u_matrix*vec3(a_position,1)).xy,0,1);\nv_texCoord = a_uv;\nsize = a_size;\n}\n"
+module.exports = " precision mediump float;\n\n//vec4 color = vec4(77, 72, 91,255);\n\nvarying vec2 v_texCoord;\nvarying float size;\nvarying vec4 label_color;\n\n\nuniform sampler2D u_image;\nuniform float u_camera_scale;\n\n\nvoid main() {\n    vec4 color = label_color / 255.0;\n\n    float cutoff = 0.72;\n    float offset = 6.0/size * u_camera_scale;\n\n    offset = pow(offset,1.4);\n\n    offset = min((1.0-cutoff),offset);\n\n   float dist = texture2D(u_image, v_texCoord).r;\n   float alpha = smoothstep(cutoff - offset, cutoff + offset, dist);\n   gl_FragColor = color *alpha;\n//   gl_FragColor =  vec4(0, 1,0,1);\n}"
 
 /***/ }),
 /* 42 */
 /***/ (function(module, exports) {
 
-module.exports = "//#ifdef GL_OES_standard_derivatives\n//#extension GL_OES_standard_derivatives : enable\n//#endif\n\n precision mediump float;\n\nvarying vec4 color;\nvarying float selected;\nvarying vec2 uv;\nvarying float flag;\nvarying float size;\nvarying float showicon;\n\n\n\nuniform sampler2D u_icons_texture;\nuniform vec4 u_borderColor;\nuniform float u_sample_ratio;\n\nvec4 borderColor = u_borderColor/255.0;\n\nvoid main()\n{\n   float r = 0.0;\n   float alpha = 1.0;\n   float blur = min(0.05,4.0/size) ;\n   float border = min(0.75,0.06*size) ;\n\nif(flag > 0.5 && flag < 1.5) //flag =1 base\n{\n    vec4 nodecolor = color;\n    vec2 cxy = 2.0 * uv - 1.0;\n    r = length(cxy);\n\n    if(r > 1.0 ){\n        discard;\n    }\n\n    if(r > 1.0-blur){\n        alpha = 1.0 -  smoothstep(1.0-blur, 1.0, r) ;\n     }\n\n\n     if( selected > 0.5  && r > border && r < border + blur){\n        nodecolor = mix(nodecolor,borderColor,smoothstep(border, border + blur, r));\n    }\n\n     if( selected > 0.5  &&  r >= border + blur){\n        nodecolor = borderColor;\n     }\n\n      gl_FragColor = nodecolor * alpha;\n\n}else if(flag > 1.5 && flag < 2.5) {//flag =2 icon\n    if(showicon < 0.5) discard;\n    gl_FragColor = texture2D(u_icons_texture,uv).w * vec4(1,1,1,1);\n}else if((flag > -0.5 && flag < 0.5)){//flat = 0 selected bg\n\n    if(selected < 0.5) discard;\n\n    vec2 cxy = 2.0 * uv - 1.0;\n    r = length(cxy);\n\n    if(r > 1.0 ){\n        discard;\n    }\n\n    r = smoothstep(0.7,1.0,r);\n\n     gl_FragColor = vec4(borderColor.rgb,0.8)*(1.0-r);\n//     gl_FragColor = vec4(1.0,0.0,0.0,0.8);\n}\n\n\n//     gl_FragColor = vec4(1.0,0.0,0.0,1.0);\n\n\n}\n"
+module.exports = "attribute vec2 a_position;\nattribute vec2 a_uv;\nattribute float a_size;\nattribute vec4 a_color;\n\nuniform mat3 u_matrix;\nuniform sampler2D u_image;\n\n\nvarying vec2 v_texCoord;\nvarying float size;\nvarying vec4 label_color;\n\nvoid main() {\ngl_Position = vec4((u_matrix*vec3(a_position,1)).xy,0,1);\nv_texCoord = a_uv;\nsize = a_size;\nlabel_color = a_color;\n}\n"
 
 /***/ }),
 /* 43 */
 /***/ (function(module, exports) {
 
-module.exports = "\n precision mediump float;\nattribute vec2 a_position;\nattribute vec4 a_color;\nattribute vec2 a_uv;\nattribute float a_selected;\nattribute float a_flag;\nattribute float a_size;\nattribute float a_showicon;\nattribute vec2 a_center;\n\nuniform mat3 u_matrix;\nuniform float u_camera_scale;\nuniform float u_sample_ratio;\n\nvarying vec4 color;\nvarying float selected;\nvarying vec2 uv;\nvarying float flag;\nvarying float size;\nvarying float showicon;\n\n\nvoid main() {\n\nfloat zindex = 0.1;\n\nif(a_selected > 0.5) zindex = 0.05;\n\n\ngl_Position = vec4((u_matrix*vec3((a_position+a_center),1)).xy,zindex,1);\ncolor = a_color/255.0;\nselected = a_selected;\nuv = a_uv;\nflag = a_flag;\n\nsize = a_size / u_camera_scale ;\nshowicon = a_showicon;\n}\n"
+module.exports = "//#ifdef GL_OES_standard_derivatives\n//#extension GL_OES_standard_derivatives : enable\n//#endif\n\n precision mediump float;\n\nvarying vec4 color;\nvarying float selected;\nvarying vec2 uv;\nvarying float flag;\nvarying float size;\nvarying float showicon;\nvarying vec4 icon_color;\n\n\nuniform sampler2D u_icons_texture;\nuniform vec4 u_borderColor;\nuniform float u_sample_ratio;\n\nvec4 borderColor = u_borderColor/255.0;\n\nvoid main()\n{\n   float r = 0.0;\n   float alpha = 1.0;\n   float blur = min(0.05,4.0/size) ;\n   float border = min(0.75,0.06*size) ;\n\n    if(flag > 0.5 && flag < 1.5) //flag =1 base\n    {\n        vec4 nodecolor = color;\n        vec2 cxy = 2.0 * uv - 1.0;\n        r = length(cxy);\n\n        if(r > 1.0 ){\n            discard;\n        }\n\n        if(r > 1.0-blur){\n            alpha = 1.0 -  smoothstep(1.0-blur, 1.0, r) ;\n         }\n\n\n         if( selected > 0.5  && r > border && r < border + blur){\n            nodecolor = mix(nodecolor,borderColor,smoothstep(border, border + blur, r));\n        }\n\n         if( selected > 0.5  &&  r >= border + blur){\n            nodecolor = borderColor;\n         }\n\n          gl_FragColor = nodecolor * alpha;\n\n    }else if(flag > 1.5 && flag < 2.5) {//flag =2 icon\n        if(showicon < 0.5) discard;\n        gl_FragColor = texture2D(u_icons_texture,uv).w * icon_color;\n    }else if((flag > -0.5 && flag < 0.5)){//flat = 0 selected bg\n\n    //    float scale = 1.35;\n    //    float border_start = 1.0/1.35;\n    //    float border_end = border_start * 1.1;\n\n        if(selected < 0.5) discard;//selected = 0 ingore\n\n        vec2 cxy = 2.0 * uv - 1.0;\n        r = length(cxy);\n\n        if(r > 1.0 ){\n            gl_FragColor = vec4(0,0,0,0);\n        }else{\n    //         if(r >= border_start && r <= border_end){\n    //                 gl_FragColor = vec4(borderColor.rgb,0.75);\n    //         }else{\n                     r = smoothstep(0.7,1.0,r);\n                     gl_FragColor = vec4(borderColor.rgb,0.65)*(1.0-r);\n    //         }\n        }\n    }\n\n}\n"
 
 /***/ }),
 /* 44 */
 /***/ (function(module, exports) {
 
-module.exports = "//#ifdef GL_OES_standard_derivatives\n//#extension GL_OES_standard_derivatives : enable\n//#endif\n\n precision mediump float;\n\nvarying vec4 color;\nvarying float img;\nvarying float selected;\nvarying vec2 uv;\nvarying float flag;\nvarying float showicon;\n\n\n//uniform sampler2D u_textures[10];\nuniform sampler2D u_icons_texture;\nuniform vec4 u_borderColor;\nuniform float u_sample_ratio;\n\n\nvec4 borderColor = u_borderColor/255.0;\n\nvoid main()\n{\n   float r = 0.0, alpha = 1.0,\n   blur = 0.05 ,\n   border = 0.75 ;\n\n\nif(flag > 0.5 && flag < 1.5) //flag =1\n{\n    vec4 nodecolor = color;\n    vec2 cxy = 2.0 * uv - 1.0;\n    cxy = abs(cxy);\n\n\n//     if( selected > 0.5  && r > border && r < border + blur){\n//        nodecolor = mix(nodecolor,borderColor,smoothstep(border, border + blur, r));\n//    }\n\n     if(  selected > 0.5 && (cxy.x > 0.65  ||  cxy.y > 0.65)){\n        nodecolor = borderColor;\n     }\n\n      gl_FragColor = nodecolor * alpha;\n\n}else if(flag > 1.5 && flag < 2.5) {//flag =2\n    if(showicon < 0.5) discard;\n    gl_FragColor = texture2D(u_icons_texture,uv).w * vec4(1,1,1,1);\n}else if((flag > -0.5 && flag < 0.5)){//flat = 0 selected background\n\n    if(selected < 0.5) discard;\n\n     vec2 cxy = 2.0 * uv - 1.0;\n     r = length(cxy);\n\n     if(r > 1.0 ){\n         discard;\n     }\n\n     r = smoothstep(0.6,1.0,r);\n\n      gl_FragColor = vec4(borderColor.rgb,0.8)*(1.0-r);\n }\n\n\n}\n"
+module.exports = "\n precision mediump float;\nattribute vec2 a_position;\nattribute vec4 a_color;\nattribute vec4 a_icon_color;\nattribute vec2 a_uv;\nattribute float a_selected;\nattribute float a_flag;\nattribute float a_size;\nattribute float a_showicon;\nattribute vec2 a_center;\n\nuniform mat3 u_matrix;\nuniform float u_camera_scale;\nuniform float u_sample_ratio;\n\nvarying vec4 color;\nvarying vec4 icon_color;\nvarying float selected;\nvarying vec2 uv;\nvarying float flag;\nvarying float size;\nvarying float showicon;\n\n\nvoid main() {\n\n    float zindex = 0.1;\n\n    if(a_selected > 0.5) zindex = 0.05;\n\n\n    gl_Position = vec4((u_matrix*vec3((a_position+a_center),1)).xy,zindex,1);\n    color = a_color/255.0;\n    selected = a_selected;\n    uv = a_uv;\n    flag = a_flag;\n\n    size = a_size / u_camera_scale ;\n    showicon = a_showicon;\n\n    icon_color = a_icon_color/255.0;\n}\n"
 
 /***/ }),
 /* 45 */
 /***/ (function(module, exports) {
 
-module.exports = "\n precision mediump float;\nattribute vec2 a_position;\nattribute vec4 a_color;\nattribute float a_img;\nattribute vec2 a_uv;\nattribute float a_selected;\nattribute float a_flag;\nattribute float a_showicon;\n\nuniform mat3 u_matrix;\nuniform float u_camera_scale;\nuniform float u_sample_ratio;\n\nvarying vec4 color;\nvarying float img;\nvarying float selected;\nvarying vec2 uv;\nvarying float flag;\nvarying float showicon;\n\n\nvoid main() {\n\n\ngl_Position = vec4((u_matrix*vec3(a_position,1)).xy,0,1);\ncolor = a_color/255.0;\nimg = a_img;\nselected = a_selected;\nuv = a_uv;\nflag = a_flag;\nshowicon = a_showicon;\n}\n"
+module.exports = "//#ifdef GL_OES_standard_derivatives\n//#extension GL_OES_standard_derivatives : enable\n//#endif\n\n precision mediump float;\n\nvarying vec4 color;\nvarying vec4 icon_color;\nvarying float img;\nvarying float selected;\nvarying vec2 uv;\nvarying float flag;\nvarying float showicon;\n\n\n//uniform sampler2D u_textures[10];\nuniform sampler2D u_icons_texture;\nuniform vec4 u_borderColor;\nuniform float u_sample_ratio;\n\n\nvec4 borderColor = u_borderColor/255.0;\n\nvoid main()\n{\n   float r = 0.0, alpha = 1.0,\n   blur = 0.05 ,\n   border = 0.75 ;\n\n\nif(flag > 0.5 && flag < 1.5) //flag =1\n{\n    vec4 nodecolor = color;\n    vec2 cxy = 2.0 * uv - 1.0;\n    cxy = abs(cxy);\n\n\n//     if( selected > 0.5  && r > border && r < border + blur){\n//        nodecolor = mix(nodecolor,borderColor,smoothstep(border, border + blur, r));\n//    }\n\n     if(  selected > 0.5 && (cxy.x > 0.65  ||  cxy.y > 0.65)){\n        nodecolor = borderColor;\n     }\n\n      gl_FragColor = nodecolor * alpha;\n\n}else if(flag > 1.5 && flag < 2.5) {//flag =2\n    if(showicon < 0.5) discard;\n    gl_FragColor = texture2D(u_icons_texture,uv).w * icon_color;\n}else if((flag > -0.5 && flag < 0.5)){//flat = 0 selected background\n\n    if(selected < 0.5) discard;\n\n     vec2 cxy = 2.0 * uv - 1.0;\n     r = length(cxy);\n\n     if(r > 1.0 ){\n         discard;\n     }\n\n     r = smoothstep(0.6,1.0,r);\n\n      gl_FragColor = vec4(borderColor.rgb,0.8)*(1.0-r);\n }\n\n\n}\n"
 
 /***/ }),
 /* 46 */
+/***/ (function(module, exports) {
+
+module.exports = "\n precision mediump float;\nattribute vec2 a_position;\nattribute vec4 a_color;\nattribute vec4 a_icon_color;\nattribute float a_img;\nattribute vec2 a_uv;\nattribute float a_selected;\nattribute float a_flag;\nattribute float a_showicon;\n\nuniform mat3 u_matrix;\nuniform float u_camera_scale;\nuniform float u_sample_ratio;\n\nvarying vec4 color;\nvarying vec4 icon_color;\nvarying float img;\nvarying float selected;\nvarying vec2 uv;\nvarying float flag;\nvarying float showicon;\n\n\nvoid main() {\n\n\n    gl_Position = vec4((u_matrix*vec3(a_position,1)).xy,0,1);\n    color = a_color/255.0;\n    img = a_img;\n    selected = a_selected;\n    uv = a_uv;\n    flag = a_flag;\n    showicon = a_showicon;\n    icon_color = a_icon_color/255.0;\n}\n"
+
+/***/ }),
+/* 47 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -6850,7 +8012,7 @@ Object.defineProperty(exports, "__esModule", {
 });
 exports.Tween = exports.GLUtil = exports.util = exports.GraphView = exports.WebGLRender = exports.Graph = undefined;
 
-var _Graph = __webpack_require__(6);
+var _Graph = __webpack_require__(5);
 
 Object.defineProperty(exports, 'Graph', {
   enumerable: true,

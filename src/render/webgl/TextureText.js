@@ -4,10 +4,12 @@ import EventEmitter from '../../base/EventEmitter'
 import TextSDF from './TextSDF'
 
 export default class TextureText extends EventEmitter{
-    constructor(config,unit){
+    constructor(config,gl,unit){
         super();
 
         this.border = 2;
+
+        this.gl = gl;
 
         this.unit = unit || 1;
         this.fontSize = 48;
@@ -18,6 +20,7 @@ export default class TextureText extends EventEmitter{
 
         this.canvas = null;
         this.textinfo = null;
+        this.texture = null;
 
         this.startx = this.border;
         this.starty = this.border;
@@ -160,19 +163,25 @@ export default class TextureText extends EventEmitter{
         // c.style.position = 'absolute';
         // c.style.top = '100px';
 
+        this.attachGl();
+
     }
 
-    attachGl(gl,unit){
-        if(unit !== undefined && unit !== null)  this.unit = unit;
+    attachGl(){
+        var gl = this.gl;
+
         gl.activeTexture(gl.TEXTURE0+this.unit);
-        gl.bindTexture(gl.TEXTURE_2D, this.createTexture(gl));
+        this.createTexture();
+        gl.bindTexture(gl.TEXTURE_2D, this.texture);
     }
 
-    createTexture(gl){
-        var texture = gl.createTexture();
+    createTexture(){
+        var gl = this.gl;
+
+        if(!this.texture) this.texture = gl.createTexture();
 
         gl.activeTexture(gl.TEXTURE0+this.unit);
-        gl.bindTexture(gl.TEXTURE_2D, texture);
+        gl.bindTexture(gl.TEXTURE_2D, this.texture);
 
         //NEAREST LINEAR
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
@@ -181,12 +190,28 @@ export default class TextureText extends EventEmitter{
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
 
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, this.textinfo.img);
-
-        return texture;
     }
 
     clear(){
         this.resize(this.canvas.width,this.canvas.height);
+    }
+
+    destroy(){
+
+        if(this.texture) this.gl.deleteTexture(this.texture);
+
+
+        this.canvas = null;
+        this.textinfo = null;
+        this.texture = null;
+        this.gl = null;
+        this.texts = [];
+
+        this.sdf.clearCache();
+
+        this.sdf =null;
+
+
     }
 
 }

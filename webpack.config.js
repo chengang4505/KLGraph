@@ -5,8 +5,8 @@ var path = require('path');
 module.exports = {
     entry: './src/index.js',
     output: {
-        path: 'build/js',
-        // path: 'docs/assert',
+        // path: 'build/js',
+        path: 'docs/assert',
         // path: path.resolve(__dirname, '../Demo/static/js'),
         filename: 'klgraph.js',
         library: 'KLGraph',
@@ -32,10 +32,5 @@ module.exports = {
                 use: 'raw-loader'
             }
         ]
-    },
-    // plugins: [
-    //     new CopyWebpackPlugin([
-    //         {from:'build/js/klgraph.js',to:path.resolve(__dirname, '../Demo/static/js')}
-    //     ])
-    // ]
+    }
 }

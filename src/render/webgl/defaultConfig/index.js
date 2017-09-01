@@ -24,6 +24,7 @@ export default function (WebGLRender) {
         {
             name:'base',
             subLayers:[
+                {name:'nodeLabel',context:'node',render:WebGLRender.nodeLabel.default},
                 {name:'edge',context:'edge',render:WebGLRender.edge.default,check:edgeCount(0)},
                 {name:'edgeCurve',context:'edge',render:WebGLRender.edge.curve,check:edgeCount(0,true)},
 
@@ -33,7 +34,6 @@ export default function (WebGLRender) {
                 {name:'node',context:'node',render:WebGLRender.node.default,check:layerCheckDefault()},
                 {name:'rectNode',context:'node',render:WebGLRender.node.rect,check:layerCheck('rect')},
 
-                {name:'nodeLabel',context:'node',render:WebGLRender.nodeLabel.default},
 
                 {name:'nodeOver',custom:true,render:nodeOverCustom,option:{over:false}},
             ]

@@ -3,7 +3,7 @@
 
 export default class EventEmitter {
     constructor(){
-        this._listener = {};
+        this.clearListeners();
     }
 
     on(type,cb){
@@ -48,6 +48,12 @@ export default class EventEmitter {
             fn.apply(null,args);
         }
     }
+
+    clearListeners(){
+        this._listener = {};
+    }
+
+
 }
 
 

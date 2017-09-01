@@ -199,10 +199,11 @@
 //            nodes: [],
 //            edges: [],
             container: canvas,
-		config:{
-                enableOverEvent:true,
-                enableEdgeEvent:true
-		}
+            config: {
+                defaultBackgroundColor:'#ffffff',
+                enableOverEvent: true,
+                enableEdgeEvent: true
+            }
         });
 
 //        gview.render.disableRenderLayer('nodeLabel');
@@ -230,26 +231,32 @@
 //            });
 //        });
 
-        function initEvent() {
-            gview.on('nodeMouseDown', function (node, e) {
-                // debugger
-                if (!gview.selection.isNodeSelected(node.id))
-                    gview.selection.selectNodes(node.id,e.shiftKey);
-                else if(e.shiftKey) gview.selection.unSelectNode(node.id);
-            });
+//        gview.on('nodeMouseDown', function (node, e) {
+//            // debugger
+//            if (!gview.selection.isNodeSelected(node.id))
+//                gview.selection.selectNodes(node.id,e.shiftKey);
+//            else if(e.shiftKey) gview.selection.unSelectNode(node.id);
+//        });
 
-            gview.on('edgeClick', function (edge, e) {
+        gview.on('edgeClick', function (edge, e) {
 //                console.time('edgeClick')
-                if (!gview.selection.isEdgeSelected(edge.id))
-                    gview.selection.selectEdges(edge.id,e.shiftKey);
-                else if(e.shiftKey) gview.selection.unSelectEdge(edge.id);
+            if (!gview.selection.isEdgeSelected(edge.id))
+                gview.selection.selectEdges(edge.id,e.shiftKey);
+            else if(e.shiftKey) gview.selection.unSelectEdge(edge.id);
 //                console.timeEnd('edgeClick')
 
-            });
+        });
 
-        }
+        gview.on('nodeDragStart',function (node,e) {
+            console.log('nodeDragStart',node,e);
+            gview.render.hideRenderLayer(['edge','edgeCurve','edgeCurveLabel','edgeLabel']);
+        });
 
-        initEvent();
+        gview.on('nodeDragEnd',function (node,e) {
+            gview.render.showRenderLayer(['edge','edgeCurve','edgeCurveLabel','edgeLabel']);
+            console.log('nodeDragEnd',node,e);
+        });
+
 
 
         var edges ,ids;
@@ -258,7 +265,7 @@
         var inOverColor = 'rgba(51, 111, 153, 0.8)';
         gview.on('nodeOver',function (node) {
 //            debugger
-            console.log('nodeOver',node);
+//            console.log('nodeOver',node);
 
             gview.render.forceRender();
 
@@ -285,7 +292,7 @@
         });
 
         gview.on('nodeOut',function (node) {
-            console.log('nodeOut',node);
+//            console.log('nodeOut',node);
 
             if(ids = gview.graph.inEdgesIndex[node.id]){
                 edges = ids .map(function (id) {return gview.graph.edgesIndex[id]});

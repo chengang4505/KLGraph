@@ -18,7 +18,7 @@ varying float u;
 void main() {
 
 vec2 pos  = a_position + a_normal * a_size;
-gl_Position = vec4((u_matrix*vec3(pos,1)).xy,0,1);
+gl_Position = vec4((u_matrix*vec3(pos,1)).xy,0.5,1);
 dis = a_dis;
 dashed = a_dashed;
 flag = a_flag;

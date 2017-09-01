@@ -31,12 +31,266 @@ export default function initEvent() {
     };
 
     for(var e in events)    this.container.addEventListener(e, events[e], false);
+
+    //custom simulate click event
     events.click = handlerWrap(_clickHandler);
 
     //some little situation maybe need the trigger function.
     this.trigger = function (type,event) {
         if(events[type]) events[type](event);
     };
+
+    //handler
+    function _clickHandler(e) {
+        var graphPos = _this.cameraToGraphPos({x:e.cameraX,y:e.cameraY});
+        var edge ,node;
+
+       node = getNode(graphPos);
+       if(node){
+           _this.emit('nodeClick',[node,e]);
+       }else if(config.enableEdgeEvent && (edge = getEdge(graphPos))){
+           _this.emit('edgeClick',[edge,e]);
+       }else {
+           _this.emit('stageClick',[e]);
+       }
+
+    }
+
+    function _downHandler(e) {
+
+        disableDocSelect();
+
+        //right click
+
+        if(!mouseLeft(e)) return;
+
+        mouseDown = true;
+        disableMove = true;
+
+        var graphPos = _this.cameraToGraphPos({x:e.cameraX,y:e.cameraY});
+        var node = getNode(graphPos);
+        var nodeSelected = node ? _this.context.selection.isNodeSelected(node.id) : false;
+
+         handleDrag(!node);
+        // _this.forceRender();
+
+        function handleDrag(isCamera) {
+            var moveFlag = false;
+            var startx = graphPos.x,starty = graphPos.y;
+
+            if(!isCamera){
+                _this.emit('nodeMouseDown',[node,e]);
+            }
+
+            var onmousemove =docPosToRelativePos(_this.container,handlerWrap(function(e) {
+
+                if(!isCamera && !moveFlag){
+                    _this.emit('nodeDragStart',[node,e]);
+                    moveFlag = true;
+                }
+
+                _this.forceRender();
+
+                var graphPos = _this.cameraToGraphPos({x:e.cameraX,y:e.cameraY}),temp;
+                var offsetx = graphPos.x - startx;
+                var offsety = graphPos.y - starty;
+
+                if(isCamera){
+                    _this.camera.positionX -= offsetx;
+                    _this.camera.positionY -= offsety;
+                    _this.setMouseType(_this.mouseType.MOVE);
+                }else {
+
+                    if(nodeSelected){
+                        _this.context.selection.data.nodes.forEach(function (id) {
+                            temp = _this.context.graph.nodesIndex[id];
+                            _this.graph.setNodeData(id,{x:temp.x+offsetx,y:temp.y+offsety});
+                        });
+                    }else _this.graph.setNodeData(node.id,{x:node.x+offsetx,y:node.y+offsety});
+
+                    // fit(e);
+                }
+
+
+                if(isCamera){
+                    var newgraphPos = _this.cameraToGraphPos({x:e.cameraX,y:e.cameraY});
+                    startx = newgraphPos.x;
+                    starty = newgraphPos.y;
+                }else {
+                    startx = graphPos.x;
+                    starty = graphPos.y;
+                }
+                // console.timeEnd('move')
+            }));
+
+            var onmouseup = docPosToRelativePos(_this.container,handlerWrap(function(e) {
+
+                if(!isCamera && moveFlag) _this.emit('nodeDragEnd',[node,e]);
+
+                moveFlag = false;
+
+                clear();
+            }));
+
+            document.addEventListener('mousemove',onmousemove);
+            document.addEventListener('mouseup',onmouseup);
+
+
+            function clear() {
+                // _this.setMouseType(_this.mouseType.DEFAULT);
+                onmousemove&&document.removeEventListener('mousemove',onmousemove);
+                onmouseup&&document.removeEventListener('mouseup',onmouseup);
+
+                onmouseup = onmousemove = null;
+
+                disableMove = false;
+            }
+
+
+        }
+
+    }
+
+    function _moveHandler(e) {
+        if(mouseDown)   mouseMove = true;
+        
+        if(disableMove || !_this.config.enableOverEvent) return;
+
+        var graphPos = _this.cameraToGraphPos({x:e.cameraX,y:e.cameraY});
+        var node = getNode(graphPos);
+        var old;
+
+        if(node && node !== overInfo.currentNode){
+            old = overInfo.currentNode;
+            overInfo.currentNode = node;
+
+           if(old) _this.emit('nodeOut', [old,e]);
+           if(overInfo.currentEdge){
+               old = overInfo.currentEdge;
+               overInfo.currentEdge = null;
+               _this.emit('edgeOut',[old,e]);
+           }
+            _this.emit('nodeOver', [node,e]);
+
+        }else if(!node && overInfo.currentNode){
+            old = overInfo.currentNode;
+            overInfo.currentNode = null;
+            _this.emit('nodeOut', [old,e]);
+        }
+
+        var edge;
+        if(!node && config.enableEdgeEvent){
+            edge = getEdge(graphPos);
+            if(edge && edge !== overInfo.currentEdge){
+                old = overInfo.currentEdge;
+                overInfo.currentEdge = edge;
+
+                if(old) _this.emit('edgeOut',[old,e]);
+                _this.emit('edgeOver',[edge,e]);
+            }else if(!edge && overInfo.currentEdge){
+                old = overInfo.currentEdge;
+                overInfo.currentEdge = null;
+                _this.emit('edgeOut',[old,e]);
+            }
+        }
+
+        if(node || edge){
+            _this.setMouseType(_this.mouseType.POINTER);
+        }else {
+            _this.setMouseType(_this.mouseType.DEFAULT);
+        }
+
+    }
+
+    function _upHandler(e) {
+
+        //no move ,simulate click event
+        if(mouseDown && !mouseMove && mouseLeft(e)){
+            _clickHandler(e);
+        }
+
+        if (mouseRight(e)){
+            var graphPos = _this.cameraToGraphPos({x:e.cameraX,y:e.cameraY});
+            var node = getNode(graphPos);
+            var edge;
+            if(node){
+                _this.emit('nodeRightClick',[node,e]);
+            }else if(config.enableEdgeEvent && (edge = getEdge(graphPos))) {
+                _this.emit('edgeRightClick',[edge,e]);
+            }else {
+                _this.emit('stageRightClick',[e]);
+            }
+        }
+
+        mouseDown = false;
+        mouseMove = false;
+
+    }
+
+    function _wheelHandler(e) {
+        var value = (
+            (e.wheelDelta !== undefined && e.wheelDelta) ||
+            (e.detail !== undefined && -e.detail)
+        );
+
+        if(value == 0) return; // Mac OS maybe -0;
+
+
+        _this.forceRender();
+        var ratio = _this.config.zoomRatio;
+
+
+        if(value > 0){
+            _this.zoomFromPosition(1/ratio,e.cameraX,e.cameraY);
+            _this.emit('zoom',[1/ratio,_this.camera.scale,e])
+        }else {
+            _this.zoomFromPosition(ratio,e.cameraX,e.cameraY);
+            _this.emit('zoom',[ratio,_this.camera.scale,e])
+        }
+    }
+
+
+    //to camera pos
+    function handlerWrap(handle) {
+        return function (e) {
+
+            if(!config.enableMouseEvent) return;
+
+            var pos = _this.domToCameraPos({x: e.offsetX, y: e.offsetY});
+            e.cameraX = pos.x;
+            e.cameraY = pos.y;
+            handle(e);
+        }
+    }
+
+    function docPosToRelativePos(dom,handle) {
+        return function (e) {
+            var bbox = dom.getBoundingClientRect();
+            var newEvent = Object.create(null);
+
+            for(var attr in e)
+                if(e.hasOwnProperty(attr)) newEvent[attr] = e[attr];
+
+            newEvent.offsetX = e.clientX - bbox.left;
+            newEvent.offsetY = e.clientY - bbox.top;
+
+            handle(newEvent);
+        }
+    }
+
+
+    function disableDocSelect() {
+        var oldOnSelect = document.onselectstart;
+        document.onselectstart = function () { return false };
+
+        document.addEventListener('mouseup',onMouseUp);
+
+        function onMouseUp() {
+            document.onselectstart = oldOnSelect;
+            document.removeEventListener('mouseup',onMouseUp);
+        }
+    }
+
 
     //default check function
     function defaultNodeCheck(posx,posy,node) {
@@ -59,9 +313,10 @@ export default function initEvent() {
         var target = _this.graph.nodesIndex[edge.target];
         var ctrolP;
 
+        //line
         if(edge.curveCount == 0){
             check = util.inLine(posx,posy,source.x,source.y,target.x,target.y,(edge.size || config.defaultEdgeSize)/2);
-        }else {
+        }else {//curve
             // debugger
             ctrolP = util.getControlPos(source.x,source.y,target.x,target.y,edge.curveCount,edge.curveOrder);
             check = util.isPointOnQuadraticCurve(
@@ -129,7 +384,6 @@ export default function initEvent() {
         // console.timeEnd('getNode')
         return findNode;
     }
-
     function getEdge(pos) {
         // console.time('getEdge')
         var edges = _this.graph.edges;
@@ -157,281 +411,7 @@ export default function initEvent() {
     }
 
 
+    function mouseLeft(e) {return (e.which && e.which == 1) || (e.button && e.button == 0);}
+    function mouseRight(e) {return (e.which && e.which == 3) || (e.button && e.button == 2);}
 
-    function _clickHandler(e) {
-        var graphPos = _this.cameraToGraphPos({x:e.cameraX,y:e.cameraY});
-        var edge ,node;
-
-       node = getNode(graphPos);
-       if(node){
-           _this.emit('nodeClick',[node,e]);
-       }else if(config.enableEdgeEvent && (edge = getEdge(graphPos))){
-           _this.emit('edgeClick',[edge,e]);
-       }else {
-           _this.emit('stageClick',[e]);
-       }
-
-    }
-
-    function _downHandler(e) {
-
-        disableDocSelect();
-
-        //right click
-        var isRight = (e.which && e.which == 3) || (e.button && e.button == 2);
-
-        if(isRight) return;
-
-        mouseDown = true;
-        disableMove = true;
-
-        var graphPos = _this.cameraToGraphPos({x:e.cameraX,y:e.cameraY});
-        var node = getNode(graphPos);
-
-        if(node) _this.emit('nodeMouseDown',[node,e]);
-
-         handleDrag(!node);
-        // _this.forceRender();
-
-        function handleDrag(isCamera) {
-            var isDown = true;
-            var startx = graphPos.x,starty = graphPos.y;
-
-            var onmousemove =handlerWrap(function(e) {
-                if(!isDown) return;
-                // console.time('move')
-
-                _this.forceRender();
-
-                var graphPos = _this.cameraToGraphPos({x:e.cameraX,y:e.cameraY}),temp;
-                var offsetx = graphPos.x - startx;
-                var offsety = graphPos.y - starty;
-
-                if(isCamera){
-                    _this.camera.positionX -= offsetx;
-                    _this.camera.positionY -= offsety;
-                    _this.setMouseType(_this.mouseType.MOVE);
-                }else {
-
-                    if(_this.context.selection.isNodeSelected(node.id)){
-                        _this.context.selection.data.nodes.forEach(function (id) {
-                            temp = _this.context.graph.nodesIndex[id];
-                            _this.graph.setNodeData(id,{x:temp.x+offsetx,y:temp.y+offsety});
-                        });
-                    }else _this.graph.setNodeData(node.id,{x:node.x+offsetx,y:node.y+offsety});
-
-                    // fit(e);
-                }
-
-
-                if(isCamera){
-                    var newgraphPos = _this.cameraToGraphPos({x:e.cameraX,y:e.cameraY});
-                    startx = newgraphPos.x;
-                    starty = newgraphPos.y;
-                }else {
-                    startx = graphPos.x;
-                    starty = graphPos.y;
-                }
-                // console.timeEnd('move')
-            });
-
-            var onmouseup = handlerWrap(function(e) {
-                e.preventDefault();
-                isDown = false;
-                clear();
-            });
-
-            var onmouseout = handlerWrap(function(e) {
-                isDown = false;
-                clear();
-            });
-
-
-            _this.container.removeEventListener('mousemove',onmousemove);
-            _this.container.removeEventListener('mouseup',onmouseup);
-            _this.container.removeEventListener('mouseout',onmouseout);
-
-            _this.container.addEventListener('mousemove',onmousemove);
-            _this.container.addEventListener('mouseup',onmouseup);
-            _this.container.addEventListener('mouseout',onmouseout);
-
-
-            function clear() {
-                // _this.setMouseType(_this.mouseType.DEFAULT);
-                onmousemove&&_this.container.removeEventListener('mousemove',onmousemove);
-                onmouseup&&_this.container.removeEventListener('mouseup',onmouseup);
-                onmouseout&&_this.container.removeEventListener('mouseout',onmouseout);
-                onmousemove = onmouseup = onmouseout= null;
-
-                disableMove = false;
-            }
-
-
-        }
-
-    }
-
-    function _moveHandler(e) {
-        if(mouseDown)   mouseMove = true;
-        
-        if(disableMove || !_this.config.enableOverEvent) return;
-
-        var graphPos = _this.cameraToGraphPos({x:e.cameraX,y:e.cameraY});
-        var node = getNode(graphPos);
-        var old;
-
-        if(node && node !== overInfo.currentNode){
-            old = overInfo.currentNode;
-            overInfo.currentNode = node;
-
-           if(old) _this.emit('nodeOut', [old,e]);
-           if(overInfo.currentEdge){
-               old = overInfo.currentEdge;
-               overInfo.currentEdge = null;
-               _this.emit('edgeOut',[old,e]);
-           }
-            _this.emit('nodeOver', [node,e]);
-
-        }else if(!node && overInfo.currentNode){
-            old = overInfo.currentNode;
-            overInfo.currentNode = null;
-            _this.emit('nodeOut', [old,e]);
-        }
-
-        var edge;
-        if(!node && config.enableEdgeEvent){
-            edge = getEdge(graphPos);
-            if(edge && edge !== overInfo.currentEdge){
-                old = overInfo.currentEdge;
-                overInfo.currentEdge = edge;
-
-                if(old) _this.emit('edgeOut',[old,e]);
-                _this.emit('edgeOver',[edge,e]);
-            }else if(!edge && overInfo.currentEdge){
-                old = overInfo.currentEdge;
-                overInfo.currentEdge = null;
-                _this.emit('edgeOut',[old,e]);
-            }
-        }
-
-        if(node || edge){
-            _this.setMouseType(_this.mouseType.POINTER);
-        }else {
-            _this.setMouseType(_this.mouseType.DEFAULT);
-        }
-
-    }
-
-    function _upHandler(e) {
-
-        var isRight = (e.which && e.which == 3) || (e.button && e.button == 2);
-
-        if(mouseDown && !mouseMove && !isRight){
-            _clickHandler(e);
-        }
-
-
-        if (isRight){
-            var graphPos = _this.cameraToGraphPos({x:e.cameraX,y:e.cameraY});
-            var node = getNode(graphPos);
-            var edge;
-            if(node){
-                _this.emit('nodeRightClick',[node,e]);
-            }else if(config.enableEdgeEvent && (edge = getEdge(graphPos))) {
-                _this.emit('edgeRightClick',[edge,e]);
-            }else {
-                _this.emit('stageRightClick',[e]);
-            }
-        }
-
-        mouseDown = false;
-        mouseMove = false;
-
-    }
-
-    function _wheelHandler(e) {
-        var value = (
-            (e.wheelDelta !== undefined && e.wheelDelta) ||
-            (e.detail !== undefined && -e.detail)
-        );
-
-        if(value == 0) return; // Mac OS maybe -0;
-
-
-        _this.forceRender();
-        var ratio = _this.config.zoomRatio;
-
-
-        if(value > 0){
-            _this.zoomFromPosition(1/ratio,e.cameraX,e.cameraY);
-            _this.emit('zoom',[1/ratio,_this.camera.scale,e])
-        }else {
-            _this.zoomFromPosition(ratio,e.cameraX,e.cameraY);
-            _this.emit('zoom',[ratio,_this.camera.scale,e])
-        }
-    }
-
-    //drag
-
-    function handlerWrap(handle) {
-        return function (e) {
-
-            if(!config.enableMouseEvent) return;
-
-            var pos = _this.domToCameraPos({x: e.offsetX, y: e.offsetY});
-            e.cameraX = pos.x;
-            e.cameraY = pos.y;
-            handle(e);
-        }
-    }
-
-    function disableDocSelect() {
-        var oldOnSelect = document.onselectstart;
-        document.onselectstart = function () { return false };
-
-        document.addEventListener('mouseup',onMouseUp);
-
-        function onMouseUp() {
-            document.onselectstart = oldOnSelect;
-            document.removeEventListener('mouseup',onMouseUp);
-        }
-    }
-
-    function fit(e) {
-        var x = e.offsetX,y = e.offsetY;
-
-        var camearaX = _this.camera.positionX;
-        var camearaY = _this.camera.positionY;
-        var scale = _this.camera.scale;
-
-        var offset = 20/scale;
-        var update = false;
-
-        if(x < 100 ){
-            update = true;
-            camearaX -= offset;
-        }
-        if(x > _this.container.clientWidth - 100){
-            update = true;
-            camearaX += offset;
-        }
-
-        if(y < 100){
-            update = true;
-            camearaY += offset;
-        }
-
-        if(y > _this.container.clientHeight - 100){
-            update = true;
-            camearaY -= offset;
-        }
-
-        // if(update) _this.zoomToAnimation({
-        //     positionX:camearaX,
-        //     positionY:camearaY,
-        //     scale:scale
-        // });
-
-        if(update) _this.zoomTo(1.01,e.cameraX,e.cameraY,true);
-    }
 }

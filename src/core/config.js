@@ -4,6 +4,7 @@ export default {
 
     //default
     defaultBackgroundColor:'#ffffff',
+    defaultTextBgColor:'rgba(0,0,0,0)',
     defaultNodeSelectedBorder:'#d4525f',
     defaultEdgeSelectedColor:'#d4525f',
 

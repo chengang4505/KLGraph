@@ -13,7 +13,8 @@ export default class Selection extends EventEmitter{
         this.canvas = canvas;
         this.ctx = this.canvas.getContext('2d');
 
-        this.canvas.addEventListener('mousedown',this.mouseDown.bind(this));
+        this._mouseDownHandler = this.mouseDown.bind(this);
+        this.canvas.addEventListener('mousedown',this._mouseDownHandler);
 
         this.flag = 0;// 0 rect 1 path
         this.rect = null;
@@ -25,6 +26,23 @@ export default class Selection extends EventEmitter{
         };
 
         this.initGraphEvent();
+    }
+
+    destroy(){
+        this.context = null;
+
+        this.canvas.removeEventListener('mousedown',this._mouseDownHandler);
+        this.canvas.parentNode.removeChild(this.canvas);
+        this.canvas = null;
+
+        this.ctx = null;
+
+        this.rect = null;
+        this.path = null;
+
+        this.data = null;
+
+
     }
 
     enable(flag = 0){

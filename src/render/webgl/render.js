@@ -45,11 +45,18 @@ class WebGLRender extends EventEmitter{
         //sample Ratio,
         this.sampleRatio = 1;
 
+        this._destroy = false;
+
+        this.gl = null;
+
+        //init webgl context and Extension
+        this.initGl();
+
         // this.textureLoader = new TextureLoader();
         //manage icon texture for node
-        this.textureIcon = new TextureIcon(this.config,0);
+        this.textureIcon = new TextureIcon(this.config,this.gl,0);
         //manager text texture for node ,edge
-        this.textureText = new TextureText(this.config,1);
+        this.textureText = new TextureText(this.config,this.gl,1);
 
         //enum mouse type
         this.mouseType = mouseType;
@@ -112,7 +119,7 @@ class WebGLRender extends EventEmitter{
             edge: {layers: [], index: {}, filters: [],update:{map:null,data:null}}
         };
         // map for layers ,key is the layer name.
-        this.renderLayerMap = {};
+        this.renderLayerMap = Object.create(null);
 
         /**
          * render layer config, default is the WebGLRender.defaultLayersConfig .  more info in file [defaultConfig/index.js]
@@ -134,8 +141,6 @@ class WebGLRender extends EventEmitter{
          */
         this.renderLayersConfig = this.config.renderLayersConfig || WebGLRender.defaultLayersConfig;
 
-        //init webgl context and Extension
-        this.initGl();
 
         //register events to graph,event 'change' 'add' 'remove' etc.
         this.initEvent();
@@ -143,10 +148,8 @@ class WebGLRender extends EventEmitter{
         //init textureIcon for node
         this.initIconTexture();
 
-        console.time('initTextTexture')
         //init textureText for node label and edge label
         this.initTextTexture();
-        console.timeEnd('initTextTexture')
 
 
         //init render layers info
@@ -156,6 +159,30 @@ class WebGLRender extends EventEmitter{
 
         // init mouse events
         initEvent.call(this);
+
+    }
+
+    destroy(){
+
+        this.context = null;
+
+        this.graph = null;
+
+        this.textureIcon.destroy();
+        this.textureText.destroy();
+
+        this.container.parentNode.removeChild(this.container);
+        this.container = null;
+
+        this.renderCache = null;
+        this.renderLayerMap = null;
+        this.renderLayersConfig = null;
+
+        this.clearRenderMap();
+
+        this.clearListeners();
+
+        this._destroy = true;
 
     }
 
@@ -176,9 +203,8 @@ class WebGLRender extends EventEmitter{
         gl = canvas.getContext('experimental-webgl',option) || canvas.getContext('webgl',option);
 
 
-        if (!gl) {
-            throw 'browser not support webGl!';
-        }
+        if (!gl) throw 'browser not support WebGL!';
+
 
         //加载　Extension
         gl.getExtension('OES_standard_derivatives');
@@ -282,6 +308,8 @@ class WebGLRender extends EventEmitter{
      */
     initTextTexture(){
 
+        console.time('initTextTexture')
+
         //clear
         this.textureText.clear();
 
@@ -319,8 +347,9 @@ class WebGLRender extends EventEmitter{
 
         // add text
         this.textureText.addTexts(texts);
-        // 创建 gl texture and bind
-        this.textureText.attachGl(this.gl);
+
+        console.timeEnd('initTextTexture')
+
     }
 
     /**
@@ -349,14 +378,8 @@ class WebGLRender extends EventEmitter{
             });
         }
 
-
-
         //create icon texture
         this.textureIcon.createIcons(icons);
-
-        //create gl texture and bind
-        this.textureIcon.attachGl(this.gl);
-
     }
 
     /**
@@ -415,10 +438,8 @@ class WebGLRender extends EventEmitter{
 
                 subLayer.mainLayer = layer.name;
                 subLayer.program = program;
-                // subLayer.initBuffer = false;
                 subLayer.tempVertex = [];
                 subLayer.tempIndex = [];
-                // subLayer.index = [];
                 subLayer.indexCache = false;
                 subLayer.needResize = false;
 
@@ -431,12 +452,44 @@ class WebGLRender extends EventEmitter{
         }.bind(this));
     }
 
+    clearRenderMap(){
+        var renderLayerMap = this.renderLayerMap;
+        var gl = this.gl;
+        var layer ;
+
+        for(var name in renderLayerMap){
+            layer = renderLayerMap[name];
+
+            layer.option = null;
+            layer.filters = null;
+
+            if(layer.custom) continue;
+
+            layer.tempVertex = null;
+            layer.tempIndex = null;
+
+            layer.program.offsetConfig = null;
+            layer.program.activeAttributes = null;
+            layer.program.activeUniforms = null;
+            layer.program.uniforms = null;
+
+            for(var name1 in layer.program.shaders) gl.deleteShader(layer.program.shaders[name1]);
+
+            gl.deleteBuffer(layer.program.vertexBuffer);
+            gl.deleteBuffer(layer.program.indexBuffer);
+
+            gl.deleteProgram(layer.program);
+
+            layer.program = null;
+        }
+    }
+
     /**
      * prepare the render data and draw
      */
     render() {
 
-        if(!this.needUpdate) return;
+        if(this._destroy || !this.needUpdate) return;
 
         // resize canvas width and height ,update projectMatrix
 
@@ -491,15 +544,18 @@ class WebGLRender extends EventEmitter{
     /**
      * set default render flags
      */
-    setFlag(){
+    _setFlag(){
         var gl = this.gl;
-
         // gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
         gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
         // gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA,gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);
         gl.enable(gl.BLEND);
         gl.disable(gl.DEPTH_TEST);
 
+    }
+
+    _clear(){
+        var gl = this.gl;
         var bgColor  = util.parseColor(this.config.defaultBackgroundColor);
         gl.clearColor(bgColor.r/255,bgColor.g/255,bgColor.b/255,bgColor.a/255);
 
@@ -512,23 +568,26 @@ class WebGLRender extends EventEmitter{
      */
     draw(){
 
-        var mainLayer, subLayers, layer, gl,err,
-            renderLayerMap, program;
+        var mainLayer, subLayers, layer, gl,err, renderLayerMap, program;
         renderLayerMap = this.renderLayerMap;
 
         gl = this.gl;
-        //set flag
-       this.setFlag();
+        //clear
+
+        this._clear();
 
        //emit event
        this.emit('renderBefore',[this]);
 
         for (var i = 0; i < this.renderLayersConfig.length; i++) {
+
             mainLayer = this.renderLayersConfig[i];
             subLayers = mainLayer.subLayers;
 
             //for each layer
             for (var j = 0; j < subLayers.length; j++) {
+
+                this._setFlag();
 
                 layer = subLayers[j].name;
 
@@ -547,7 +606,7 @@ class WebGLRender extends EventEmitter{
 
                 //call renderBefore if exist
                 if(subLayers[j].render.renderBefore && util.isFunction(subLayers[j].render.renderBefore)){
-                    subLayers[j].renderBefore.render.call(subLayers[j],this,subLayers[j].option);
+                    subLayers[j].render.renderBefore.call(subLayers[j],this,subLayers[j].option);
                 }
 
                 //gl call, use program
@@ -575,7 +634,7 @@ class WebGLRender extends EventEmitter{
                     subLayers[j].render.renderAfter.call(subLayers[j],this,subLayers[j].option);
                 }
 
-                //clear bing status
+                //clear bind status
                 gl.bindBuffer(gl.ARRAY_BUFFER, null);
                 gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
 
@@ -883,7 +942,8 @@ class WebGLRender extends EventEmitter{
         var  renderLayerMap = this.renderLayerMap;
 
         if(context === 'graph'){
-
+            //reserve
+            //todo
         }else {
             datas = context == 'node' ? this.graph.nodes : this.graph.edges;
             contextRelativeLayers = this.renderCache[context].layers;
@@ -1422,6 +1482,7 @@ class WebGLRender extends EventEmitter{
         }
         return filter;
     }
+
 
 }
 

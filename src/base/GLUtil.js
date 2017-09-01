@@ -212,8 +212,14 @@ export function loadProgram(gl, shaders, attribs, loc, error) {
         linked,
         program = gl.createProgram();
 
+    program.shaders = {};
+
     for (i = 0; i < shaders.length; ++i)
+    {
         gl.attachShader(program, shaders[i]);
+        program.shaders['shader'+i] = shaders[i];
+    }
+
 
     if (attribs)
         for (i = 0; i < attribs.length; ++i)

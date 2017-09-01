@@ -5,11 +5,10 @@
 import EventEmitter from '../../base/EventEmitter'
 
 export default class TextureIcon extends EventEmitter{
-    constructor(config,unit){
+    constructor(config,gl,unit){
         super();
 
-        // this.gl = gl;
-        this.texture = null;
+        this.gl = gl;
         this.unit = unit || 0;
 
         this.textureIconWidth = config.textureIconWidth;
@@ -28,6 +27,8 @@ export default class TextureIcon extends EventEmitter{
         this.iconinfo = null;
         this.icons = [];
         this.iconsToCreate = [];
+
+        this.texture  = null;
 
         this.fontLoaded  = true;
 
@@ -66,8 +67,6 @@ export default class TextureIcon extends EventEmitter{
 
         icons = icons || this.iconsToCreate;
 
-        if(icons.length == 0) return;
-
         if(!this.fontLoaded){
             icons.forEach(function (e) {
                 this.iconsToCreate.push(e);
@@ -79,6 +78,8 @@ export default class TextureIcon extends EventEmitter{
             this.createIcon(icons[i]);
         }
         this.computeAlpha();
+
+        this.attachGl();
 
 
         // document.body.appendChild(this.canvas);
@@ -129,10 +130,13 @@ export default class TextureIcon extends EventEmitter{
         ctx.putImageData(imgData,0,0);
     }
 
-    attachGl(gl,unit){
-        if(unit !== undefined && unit !== null)  this.unit = unit;
+    attachGl(){
+
+        var gl = this.gl;
+
         gl.activeTexture(gl.TEXTURE0+this.unit);
-        gl.bindTexture(gl.TEXTURE_2D, this.createTexture(gl,this.icons.length == 0));
+        this.createTexture(this.icons.length == 0);
+        gl.bindTexture(gl.TEXTURE_2D,this.texture);
     }
 
     addIcons(icons){
@@ -152,11 +156,14 @@ export default class TextureIcon extends EventEmitter{
         this.updateGPUTexture();
     }
 
-    createTexture(gl,empty){
+    createTexture(empty){
 
-        var texture = gl.createTexture();
+        var gl = this.gl;
+
+        if(!this.texture) this.texture = gl.createTexture();
+
         gl.activeTexture(gl.TEXTURE0+ this.unit);
-        gl.bindTexture(gl.TEXTURE_2D, texture);
+        gl.bindTexture(gl.TEXTURE_2D, this.texture);
 
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
@@ -165,7 +172,6 @@ export default class TextureIcon extends EventEmitter{
 
         if(empty)gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 4, 4, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
         else gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, this.iconinfo.img);
-        return texture;
     }
 
     clear(){
@@ -180,6 +186,20 @@ export default class TextureIcon extends EventEmitter{
         ctx.fillStyle = "#000000";
         ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
         ctx.restore();
+    }
+
+    destroy(){
+
+        if(this.texture) this.gl.deleteTexture(this.texture);
+
+        this.ctx = null;
+        this.gl = null;
+        this.canvas = null;
+        this.iconinfo = null;
+        this.icons = [];
+        this.iconsToCreate = [];
+        this.texture  = null;
+
     }
 
 }
